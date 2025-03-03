@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'register.dart';
-
+import 'homepage.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -24,8 +24,9 @@ class _LoginPageState extends State<LoginPage> {
           password: _passwordController.text.trim(),
         );
         // Navigate to home or show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login Successful')),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
         );
       } catch (e) {
         setState(() {
