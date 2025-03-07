@@ -16,9 +16,15 @@ class _HomePageState extends State<HomePage> {
   final GoogleTranslator translator = GoogleTranslator();
   String appBarTitle = 'Saathi';
   String box1Text = 'Box 1';
-  String box2Text = 'Box 2';
-  String box3Text = 'Box 3';
-  String box4Text = 'Box 4';
+  String box2Text = 'Guess the Letter';
+  String box3Text = 'Compare';
+  String box4Text = 'Let us Count';
+  String box5Text = 'Number Name Matching';
+  String box6Text = 'Name Number Matching';
+  String box7Text = 'Let us Tell Time';
+  String box8Text = 'Let us Look at Calendar';
+  String box9Text = 'Alphabet Knowledge';
+
 
   @override
   void didChangeDependencies() {
@@ -34,9 +40,13 @@ class _HomePageState extends State<HomePage> {
         final results = await Future.wait([
           translator.translate('Saathi', to: 'hi'),
           translator.translate('Box 1', to: 'hi'),
-          translator.translate('Box 2', to: 'hi'),
-          translator.translate('Box 3', to: 'hi'),
-          translator.translate('Box 4', to: 'hi'),
+          translator.translate('Guess the Letter', to: 'hi'),
+          translator.translate('Compare', to: 'hi'),
+          translator.translate('Number Name Matching', to: 'hi'),
+          translator.translate('Name Number Matching', to: 'hi'),
+          translator.translate('Let us Tell Time', to: 'hi'),
+          translator.translate('Alphabet Knowledge', to: 'hi'),
+
         ]);
         setState(() {
           appBarTitle = results[0].text;
@@ -44,6 +54,11 @@ class _HomePageState extends State<HomePage> {
           box2Text = results[2].text;
           box3Text = results[3].text;
           box4Text = results[4].text;
+          box5Text = results[5].text;
+          box6Text = results[6].text;
+          box7Text = results[7].text;
+          box8Text = results[8].text;
+
         });
       } catch (e) {
         // Fallback to English.
@@ -51,10 +66,17 @@ class _HomePageState extends State<HomePage> {
     } else {
       setState(() {
         appBarTitle = 'Saathi';
-        box1Text = 'Box 1';
-        box2Text = 'Box 2';
-        box3Text = 'Box 3';
-        box4Text = 'Box 4';
+        box1Text = 'Name Picture Mapping';
+        box2Text = 'Guess the Letter';
+        box3Text = 'Compare';
+        box4Text = 'Let us Count';
+        box5Text = 'Number Name Matching';
+         box6Text = 'Name Number Matching';
+          box7Text = 'Let us Tell Time';
+           box8Text = 'Let us Look at Calendar';
+           box9Text = 'Alphabet Knowledge';
+        
+
       });
     }
   }
@@ -139,6 +161,12 @@ class _HomePageState extends State<HomePage> {
               buildBox(box2Text, 'assets/image.png', Colors.blue.shade100),
               buildBox(box3Text, 'assets/image.png', Colors.blue.shade100),
               buildBox(box4Text, 'assets/image.png', Colors.blue.shade100),
+               buildBox(box5Text, 'assets/image.png', Colors.blue.shade100),
+                buildBox(box6Text, 'assets/image.png', Colors.blue.shade100),
+                 buildBox(box7Text, 'assets/image.png', Colors.blue.shade100),
+                  buildBox(box8Text, 'assets/image.png', Colors.blue.shade100),
+                  buildBox(box9Text, 'assets/image.png', Colors.blue.shade100),
+
             ],
           ),
         ),
