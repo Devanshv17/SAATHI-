@@ -31,7 +31,6 @@ class _HomePageState extends State<HomePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool loggedIn = prefs.getBool('loggedIn') ?? false;
     if (!loggedIn) {
-      // If not logged in, redirect to login.
       Navigator.pushReplacementNamed(context, '/login');
     }
   }
@@ -75,29 +74,52 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget buildRow(String text1, String text2) {
-    return Row(
-      children: [
-        Expanded(child: buildBox(text1)),
-        const SizedBox(width: 10),
-        Expanded(child: buildBox(text2)),
-      ],
-    );
-  }
-
-  Widget buildBox(String text) {
+  Widget buildBox(String text, String imagePath, Color bgColor) {
     return Container(
-      height: 200,
+      width: MediaQuery.of(context).size.width * 0.85, // 85% width
+      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFDD0),
+        color: bgColor,
         border: Border.all(color: Colors.black, width: 2),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(15),
       ),
-      child: Center(
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
+      child: Row(
+        children: [
+          // Left-side Rounded Image
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(50), // Circular shape
+              image: DecorationImage(
+                image: AssetImage(imagePath),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(width: 15),
+          // Right-side Column for title & button
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    // Play button logic
+                  },
+                  child: const Text('Play'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -105,8 +127,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> _logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('loggedIn', false);
-    // Optionally, also sign out of Firebase:
-    // await FirebaseAuth.instance.signOut();
     Navigator.pushReplacementNamed(context, '/login');
   }
 
@@ -123,22 +143,25 @@ class _HomePageState extends State<HomePage> {
           _updateTranslations();
         },
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
+      body: Center(
+        child: SingleChildScrollView(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Example logout button:
               Align(
                 alignment: Alignment.topRight,
-                child: ElevatedButton(
-                  onPressed: _logout,
-                  child: Text(isHindi ? 'लॉगआउट' : 'Logout'),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 20.0),
+                  child: ElevatedButton(
+                    onPressed: _logout,
+                    child: Text(isHindi ? 'लॉगआउट' : 'Logout'),
+                  ),
                 ),
               ),
-              buildRow(box1Text, box2Text),
-              const SizedBox(height: 10),
-              buildRow(box3Text, box4Text),
+              buildBox(box1Text, 'assets/image.png', Colors.blue.shade100),
+              buildBox(box2Text, 'assets/image.png', Colors.blue.shade100),
+              buildBox(box3Text, 'assets/image.png', Colors.blue.shade100),
+              buildBox(box4Text, 'assets/image.png', Colors.blue.shade100),
             ],
           ),
         ),
