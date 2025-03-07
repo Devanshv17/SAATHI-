@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'navbar.dart';
 import 'package:provider/provider.dart';
-import 'language_notifier.dart';
 import 'package:translator_plus/translator_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'language_notifier.dart';
+import 'navbar.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -21,7 +22,8 @@ class _LoginPageState extends State<LoginPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   String _errorMessage = '';
 
-  // UI strings (default English)
+  // UI Strings
+  String welcomeText = 'Welcome!';
   String emailLabel = 'Email';
   String passwordLabel = 'Password';
   String emailValidator = 'Please enter an email';
@@ -36,8 +38,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _updateTranslations() async {
-    final isHindi =
-        Provider.of<LanguageNotifier>(context, listen: false).isHindi;
+    final isHindi = Provider.of<LanguageNotifier>(context, listen: false).isHindi;
     if (isHindi) {
       try {
         final results = await Future.wait([
@@ -47,6 +48,7 @@ class _LoginPageState extends State<LoginPage> {
           translator.translate('Please enter a password', to: 'hi'),
           translator.translate('Login', to: 'hi'),
           translator.translate('Login', to: 'hi'),
+          translator.translate('Welcome!', to: 'hi'),
         ]);
         setState(() {
           emailLabel = results[0].text;
@@ -55,9 +57,10 @@ class _LoginPageState extends State<LoginPage> {
           passwordValidator = results[3].text;
           loginButtonText = results[4].text;
           appBarTitle = results[5].text;
+          welcomeText = results[6].text;
         });
       } catch (e) {
-        // Fallback to English if translation fails.
+        // Fallback to English if translation fails
       }
     } else {
       setState(() {
@@ -67,6 +70,7 @@ class _LoginPageState extends State<LoginPage> {
         passwordValidator = 'Please enter a password';
         loginButtonText = 'Login';
         appBarTitle = 'Login';
+        welcomeText = 'Welcome!';
       });
     }
   }
@@ -74,15 +78,26 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       try {
-        await _auth.signInWithEmailAndPassword(
+        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
-        // Save login state in SharedPreferences.
+
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setBool('loggedIn', true);
-        // Navigate to HomePage.
-        Navigator.pushReplacementNamed(context, '/homepage');
+
+        final uid = userCredential.user!.uid;
+        DatabaseReference roleRef = FirebaseDatabase.instance.ref("users/$uid/role");
+        DataSnapshot snapshot = await roleRef.get();
+        final role = snapshot.value?.toString() ?? "user";
+
+        await prefs.setString('role', role);
+
+        if (role == "admin") {
+          Navigator.pushReplacementNamed(context, '/admin_homepage');
+        } else {
+          Navigator.pushReplacementNamed(context, '/homepage');
+        }
       } catch (e) {
         setState(() {
           _errorMessage = e.toString();
@@ -105,53 +120,147 @@ class _LoginPageState extends State<LoginPage> {
         },
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(labelText: emailLabel),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) =>
-                    value!.isEmpty ? emailValidator : null,
-                  ),
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: InputDecoration(labelText: passwordLabel),
-                    obscureText: true,
-                    validator: (value) =>
-                    value!.isEmpty ? passwordValidator : null,
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _login,
-                    child: Text(loginButtonText),
-                  ),
-                  if (_errorMessage.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        _errorMessage,
-                        style: const TextStyle(color: Colors.red),
+            const SizedBox(height: 80), // Extra top spacing
+
+            // Centered Welcome Text using welcomeText variable
+            Text(
+              welcomeText,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 40), // Space below welcome text
+
+            Expanded(
+              child: Center(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Email Field
+                      _buildTextField(_emailController, emailLabel),
+                      const SizedBox(height: 20),
+
+                      // Password Field
+                      _buildTextField(_passwordController, passwordLabel, obscureText: true),
+                      const SizedBox(height: 30),
+
+                      // Login Button
+                      _buildButton(loginButtonText, _login),
+
+                      const SizedBox(height: 50), // Extra spacing before Register Button
+
+                      // Register Button (Further Down)
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushReplacementNamed(context, '/register');
+                        },
+                        child: Text(
+                          isHindi ? 'खाता नहीं है? पंजीकरण करें' : "Don't have an account? Register",
+                          style: const TextStyle(fontSize: 16),
+                        ),
                       ),
-                    ),
-                ],
+
+                      // Error Message
+                      if (_errorMessage.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                            _errorMessage,
+                            style: const TextStyle(color: Colors.red, fontSize: 14),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, '/register');
-              },
-              child: Text(isHindi
-                  ? 'खाता नहीं है? पंजीकरण करें'
-                  : "Don't have an account? Register"),
+
+            const SizedBox(height: 60), // More space before Need Help?
+
+            // Need Help Button
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  // Implement help action (e.g., show a dialog)
+                },
+                child: Text(
+                  isHindi ? 'मदद चाहिए?' : 'Need Help?',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20), // Bottom padding
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Function to build a text field (box style)
+  Widget _buildTextField(TextEditingController controller, String labelText, {bool obscureText = false}) {
+    return SizedBox(
+      width: 280, // Reduced width
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.3),
+              spreadRadius: 2,
+              blurRadius: 5,
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          child: TextFormField(
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: labelText,
+              border: InputBorder.none,
+            ),
+            obscureText: obscureText,
+            validator: (value) => value!.isEmpty ? 'This field is required' : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Function to build a button (box style)
+  Widget _buildButton(String text, VoidCallback onPressed) {
+    return SizedBox(
+      width: 280,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.3),
+              spreadRadius: 2,
+              blurRadius: 5,
+            ),
+          ],
+        ),
+        child: TextButton(
+          onPressed: onPressed,
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 16, color: Colors.white),
+          ),
         ),
       ),
     );

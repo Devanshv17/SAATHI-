@@ -4,6 +4,7 @@ import 'firebase_options.dart';
 import 'register.dart';
 import 'login.dart';
 import 'homepage.dart';
+import 'admin_homepage.dart';
 import 'package:provider/provider.dart';
 import 'language_notifier.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,21 +15,34 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Check saved login state from SharedPreferences.
+  // Retrieve saved login state and role from SharedPreferences.
   SharedPreferences prefs = await SharedPreferences.getInstance();
   bool loggedIn = prefs.getBool('loggedIn') ?? false;
+  String? role = prefs.getString('role');
+
+  // Determine initial route based on login state and role.
+  String initialRoute;
+  if (loggedIn) {
+    if (role == 'admin') {
+      initialRoute = '/admin_homepage';
+    } else {
+      initialRoute = '/homepage';
+    }
+  } else {
+    initialRoute = '/register';
+  }
 
   runApp(
     ChangeNotifierProvider<LanguageNotifier>(
       create: (_) => LanguageNotifier(),
-      child: MyApp(loggedIn: loggedIn),
+      child: MyApp(initialRoute: initialRoute),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  final bool loggedIn;
-  const MyApp({Key? key, required this.loggedIn}) : super(key: key);
+  final String initialRoute;
+  const MyApp({Key? key, required this.initialRoute}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -38,11 +52,12 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      initialRoute: loggedIn ? '/homepage' : '/register',
+      initialRoute: initialRoute,
       routes: {
         '/register': (context) => const RegisterPage(),
         '/login': (context) => const LoginPage(),
         '/homepage': (context) => const HomePage(),
+        '/admin_homepage': (context) => const AdminHomePage(),
       },
     );
   }
