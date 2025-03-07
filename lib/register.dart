@@ -84,7 +84,8 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_formKey.currentState!.validate()) {
       try {
         // Create the user.
-        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        UserCredential userCredential =
+        await _auth.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
@@ -93,7 +94,8 @@ class _RegisterPageState extends State<RegisterPage> {
         final String uid = userCredential.user!.uid;
 
         // Save the default role "user" in the Firebase Realtime Database.
-        DatabaseReference ref = FirebaseDatabase.instance.ref("users/$uid");
+        DatabaseReference ref =
+        FirebaseDatabase.instance.ref("users/$uid");
         await ref.set({
           "role": "user",
         });
@@ -125,8 +127,11 @@ class _RegisterPageState extends State<RegisterPage> {
           _updateTranslations();
         },
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+      body: SingleChildScrollView(
+        // Adding bottom padding ensures the content can scroll above the keyboard.
+        padding: EdgeInsets.symmetric(horizontal: 20).copyWith(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -135,55 +140,53 @@ class _RegisterPageState extends State<RegisterPage> {
             // Centered Welcome Text using welcomeText variable
             Text(
               welcomeText,
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              style:
+              const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
 
             const SizedBox(height: 40), // Space below welcome text
 
-            Expanded(
-              child: Center(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Email Field
-                      _buildTextField(_emailController, emailLabel),
-                      const SizedBox(height: 20),
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  // Email Field
+                  _buildTextField(_emailController, emailLabel),
+                  const SizedBox(height: 20),
 
-                      // Password Field
-                      _buildTextField(_passwordController, passwordLabel, obscureText: true),
-                      const SizedBox(height: 30),
+                  // Password Field
+                  _buildTextField(_passwordController, passwordLabel,
+                      obscureText: true),
+                  const SizedBox(height: 30),
 
-                      // Register Button
-                      _buildButton(registerButtonText, _register),
+                  // Register Button
+                  _buildButton(registerButtonText, _register),
 
-                      const SizedBox(height: 50), // Extra spacing before Login Button
+                  const SizedBox(height: 50), // Extra spacing before Login Button
 
-                      // Login Button (Navigate to Login Page)
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacementNamed(context, '/login');
-                        },
-                        child: Text(
-                          alreadyHaveAccountText,
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-
-                      // Error Message
-                      if (_errorMessage.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Text(
-                            _errorMessage,
-                            style: const TextStyle(color: Colors.red, fontSize: 14),
-                          ),
-                        ),
-                    ],
+                  // Login Button (Navigate to Login Page)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/login');
+                    },
+                    child: Text(
+                      alreadyHaveAccountText,
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
-                ),
+
+                  // Error Message
+                  if (_errorMessage.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        _errorMessage,
+                        style: const TextStyle(
+                            color: Colors.red, fontSize: 14),
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -197,7 +200,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 },
                 child: Text(
                   isHindi ? 'मदद चाहिए?' : 'Need Help?',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -210,7 +214,8 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   // Function to build a text field (box style)
-  Widget _buildTextField(TextEditingController controller, String labelText, {bool obscureText = false}) {
+  Widget _buildTextField(TextEditingController controller, String labelText,
+      {bool obscureText = false}) {
     return SizedBox(
       width: 280, // Reduced width
       child: Container(
@@ -234,7 +239,8 @@ class _RegisterPageState extends State<RegisterPage> {
               border: InputBorder.none,
             ),
             obscureText: obscureText,
-            validator: (value) => value!.isEmpty ? 'This field is required' : null,
+            validator: (value) =>
+            value!.isEmpty ? 'This field is required' : null,
           ),
         ),
       ),
@@ -261,7 +267,8 @@ class _RegisterPageState extends State<RegisterPage> {
           onPressed: onPressed,
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           child: Text(
             text,

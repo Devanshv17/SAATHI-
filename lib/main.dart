@@ -29,7 +29,7 @@ Future<void> main() async {
       initialRoute = '/homepage';
     }
   } else {
-    initialRoute = '/register';
+    initialRoute = '/login';
   }
 
   runApp(

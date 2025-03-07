@@ -87,7 +87,8 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setBool('loggedIn', true);
 
         final uid = userCredential.user!.uid;
-        DatabaseReference roleRef = FirebaseDatabase.instance.ref("users/$uid/role");
+        DatabaseReference roleRef =
+        FirebaseDatabase.instance.ref("users/$uid/role");
         DataSnapshot snapshot = await roleRef.get();
         final role = snapshot.value?.toString() ?? "user";
 
@@ -110,6 +111,8 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
     return Scaffold(
+      // Let the keyboard overlay the page without resizing the layout.
+      resizeToAvoidBottomInset: true,
       appBar: NavBar(
         title: appBarTitle,
         isHindi: isHindi,
@@ -119,8 +122,11 @@ class _LoginPageState extends State<LoginPage> {
           _updateTranslations();
         },
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+      body: SingleChildScrollView(
+        // Adding bottom padding using viewInsets ensures scrolling space when the keyboard is open.
+        padding: EdgeInsets.symmetric(horizontal: 20).copyWith(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -135,49 +141,49 @@ class _LoginPageState extends State<LoginPage> {
 
             const SizedBox(height: 40), // Space below welcome text
 
-            Expanded(
-              child: Center(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Email Field
-                      _buildTextField(_emailController, emailLabel),
-                      const SizedBox(height: 20),
+            Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Email Field
+                  _buildTextField(_emailController, emailLabel),
+                  const SizedBox(height: 20),
 
-                      // Password Field
-                      _buildTextField(_passwordController, passwordLabel, obscureText: true),
-                      const SizedBox(height: 30),
+                  // Password Field
+                  _buildTextField(_passwordController, passwordLabel,
+                      obscureText: true),
+                  const SizedBox(height: 30),
 
-                      // Login Button
-                      _buildButton(loginButtonText, _login),
+                  // Login Button
+                  _buildButton(loginButtonText, _login),
 
-                      const SizedBox(height: 50), // Extra spacing before Register Button
+                  const SizedBox(height: 50), // Extra spacing before Register Button
 
-                      // Register Button (Further Down)
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacementNamed(context, '/register');
-                        },
-                        child: Text(
-                          isHindi ? 'खाता नहीं है? पंजीकरण करें' : "Don't have an account? Register",
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-
-                      // Error Message
-                      if (_errorMessage.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Text(
-                            _errorMessage,
-                            style: const TextStyle(color: Colors.red, fontSize: 14),
-                          ),
-                        ),
-                    ],
+                  // Register Button
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/register');
+                    },
+                    child: Text(
+                      isHindi
+                          ? 'खाता नहीं है? पंजीकरण करें'
+                          : "Don't have an account? Register",
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
-                ),
+
+                  // Error Message
+                  if (_errorMessage.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        _errorMessage,
+                        style:
+                        const TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -191,7 +197,8 @@ class _LoginPageState extends State<LoginPage> {
                 },
                 child: Text(
                   isHindi ? 'मदद चाहिए?' : 'Need Help?',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -204,7 +211,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // Function to build a text field (box style)
-  Widget _buildTextField(TextEditingController controller, String labelText, {bool obscureText = false}) {
+  Widget _buildTextField(TextEditingController controller, String labelText,
+      {bool obscureText = false}) {
     return SizedBox(
       width: 280, // Reduced width
       child: Container(
@@ -228,7 +236,8 @@ class _LoginPageState extends State<LoginPage> {
               border: InputBorder.none,
             ),
             obscureText: obscureText,
-            validator: (value) => value!.isEmpty ? 'This field is required' : null,
+            validator: (value) =>
+            value!.isEmpty ? 'This field is required' : null,
           ),
         ),
       ),
@@ -255,7 +264,8 @@ class _LoginPageState extends State<LoginPage> {
           onPressed: onPressed,
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
           ),
           child: Text(
             text,
