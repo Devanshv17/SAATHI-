@@ -2,28 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'register.dart';
+import 'login.dart';
+import 'homepage.dart';
+import 'package:provider/provider.dart';
+import 'language_notifier.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+
+  // Check saved login state from SharedPreferences.
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  bool loggedIn = prefs.getBool('loggedIn') ?? false;
+
+  runApp(
+    ChangeNotifierProvider<LanguageNotifier>(
+      create: (_) => LanguageNotifier(),
+      child: MyApp(loggedIn: loggedIn),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool loggedIn;
+  const MyApp({Key? key, required this.loggedIn}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Register',
+      title: 'Saathi',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const RegisterPage(),
+      initialRoute: loggedIn ? '/homepage' : '/register',
+      routes: {
+        '/register': (context) => const RegisterPage(),
+        '/login': (context) => const LoginPage(),
+        '/homepage': (context) => const HomePage(),
+      },
     );
   }
 }
