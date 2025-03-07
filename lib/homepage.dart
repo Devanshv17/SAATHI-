@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
+import 'menu_bar.dart'; // Contains CustomMenuBar
 import 'package:translator_plus/translator_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'login.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -20,20 +19,6 @@ class _HomePageState extends State<HomePage> {
   String box2Text = 'Box 2';
   String box3Text = 'Box 3';
   String box4Text = 'Box 4';
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLoginStatus();
-  }
-
-  Future<void> _checkLoginStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool loggedIn = prefs.getBool('loggedIn') ?? false;
-    if (!loggedIn) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
-  }
 
   @override
   void didChangeDependencies() {
@@ -124,12 +109,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _logout() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('loggedIn', false);
-    Navigator.pushReplacementNamed(context, '/login');
-  }
-
   @override
   Widget build(BuildContext context) {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
@@ -142,7 +121,9 @@ class _HomePageState extends State<HomePage> {
               .toggleLanguage(value);
           _updateTranslations();
         },
+        showMenuButton: true, // Shows the hamburger icon.
       ),
+      drawer: const CustomMenuBar(), // Left-side drawer.
       body: Center(
         child: SingleChildScrollView(
           child: Column(
@@ -152,10 +133,6 @@ class _HomePageState extends State<HomePage> {
                 alignment: Alignment.topRight,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 20.0),
-                  child: ElevatedButton(
-                    onPressed: _logout,
-                    child: Text(isHindi ? 'लॉगआउट' : 'Logout'),
-                  ),
                 ),
               ),
               buildBox(box1Text, 'assets/image.png', Colors.blue.shade100),
@@ -169,3 +146,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+
+
+
+
+
