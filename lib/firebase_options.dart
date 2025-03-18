@@ -48,7 +48,7 @@ class DefaultFirebaseOptions {
     authDomain: 'saathi-8a139.firebaseapp.com',
     storageBucket: 'saathi-8a139.firebasestorage.app',
     measurementId: 'G-NJM5KXJV9H',
-    databaseURL: 'https://saathi-8a139.firebaseio.com',
+    databaseURL: 'https://saathi-8a139-default-rtdb.firebaseio.com/',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
