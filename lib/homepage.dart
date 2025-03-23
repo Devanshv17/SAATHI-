@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'language_notifier.dart';
@@ -7,7 +6,7 @@ import 'menu_bar.dart'; // Contains CustomMenuBar
 import 'package:translator_plus/translator_plus.dart';
 import 'game.dart'; // Import the Game Page
 import 'compare.dart';
-
+import 'letuscount.dart'; // Import the LetUsCount Page
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -55,11 +54,12 @@ class _HomePageState extends State<HomePage> {
           box1Text = results[1].text;
           box2Text = results[2].text;
           box3Text = results[3].text;
-          box4Text = results[4].text;
-          box5Text = results[5].text;
-          box6Text = results[6].text;
-          box7Text = results[7].text;
-          box8Text = results[8].text;
+          box4Text = 'Let us Count'; // Translate if needed.
+          box5Text = results[4].text;
+          box6Text = results[5].text;
+          box7Text = results[6].text;
+          box8Text = 'Let us Look at Calendar'; // Translate if needed.
+          box9Text = results[7].text;
         });
       } catch (e) {
         // Fallback to English.
@@ -80,17 +80,28 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Helper method to navigate based on the box text
+  void _navigateBasedOnText(String text) {
+    Widget destination;
+    if (text == "Compare") {
+      destination = ComparePage(a: 7, b: 6); // sample values; adjust as needed
+    } else if (text == "Let us Count") {
+      destination = LetUsCountPage(
+        imageUrl: 'https://example.com/sample_image.png', // Replace with your actual image URL
+      );
+    } else {
+      destination = GamePage(gameTitle: text);
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => destination),
+    );
+  }
+
   Widget buildBox(String text, String imagePath, Color bgColor) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => text == "Compare"
-                ? ComparePage(a: 7, b: 6) // Navigate to ComparePage if "Compare" is selected
-                : GamePage(gameTitle: text),
-          ),
-        );
+        _navigateBasedOnText(text);
       },
       child: Container(
         width: MediaQuery.of(context).size.width * 0.85,
@@ -127,14 +138,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => text == "Compare"
-                              ? ComparePage(a: 7, b: 6)
-                              : GamePage(gameTitle: text),
-                        ),
-                      );
+                      _navigateBasedOnText(text);
                     },
                     child: const Text('Play'),
                   ),
@@ -146,7 +150,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
