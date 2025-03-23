@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'language_notifier.dart';
@@ -5,6 +6,8 @@ import 'navbar.dart';
 import 'menu_bar.dart'; // Contains CustomMenuBar
 import 'package:translator_plus/translator_plus.dart';
 import 'game.dart'; // Import the Game Page
+import 'compare.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -83,7 +86,9 @@ class _HomePageState extends State<HomePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => GamePage(gameTitle: text),
+            builder: (context) => text == "Compare"
+                ? ComparePage(a: 7, b: 6) // Navigate to ComparePage if "Compare" is selected
+                : GamePage(gameTitle: text),
           ),
         );
       },
@@ -125,7 +130,9 @@ class _HomePageState extends State<HomePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => GamePage(gameTitle: text),
+                          builder: (context) => text == "Compare"
+                              ? ComparePage(a: 7, b: 6)
+                              : GamePage(gameTitle: text),
                         ),
                       );
                     },
@@ -139,6 +146,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
