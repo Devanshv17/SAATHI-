@@ -7,6 +7,7 @@ import 'package:translator_plus/translator_plus.dart';
 import 'game.dart'; // Import the Game Page
 import 'compare.dart';
 import 'letuscount.dart'; // Import the LetUsCount Page
+import 'matching.dart'; // Import the Matching Page
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -54,11 +55,11 @@ class _HomePageState extends State<HomePage> {
           box1Text = results[1].text;
           box2Text = results[2].text;
           box3Text = results[3].text;
-          box4Text = 'Let us Count'; // Translate if needed.
+          box4Text = 'Let us Count'; // You can translate if needed.
           box5Text = results[4].text;
           box6Text = results[5].text;
           box7Text = results[6].text;
-          box8Text = 'Let us Look at Calendar'; // Translate if needed.
+          box8Text = 'Let us Look at Calendar'; // You can translate if needed.
           box9Text = results[7].text;
         });
       } catch (e) {
@@ -85,9 +86,13 @@ class _HomePageState extends State<HomePage> {
     Widget destination;
     if (text == "Compare") {
       destination = ComparePage(a: 7, b: 6); // sample values; adjust as needed
-    } else if (text == "Let us Count") {
+    } else if (text == "Let us Count" || text == "Let us Tell Time" || text == "Let us Look at Calendar" || text== "Guess the Letter") {
       destination = LetUsCountPage(
         imageUrl: 'https://example.com/sample_image.png', // Replace with your actual image URL
+      );
+    } else if (text == "Number Name Matching" || text == "Name Number Matching" || text == "Alphabet Knowledge") {
+      destination = MatchingPage(
+        questionText: "Match the numbers with their corresponding names.", // Sample question text
       );
     } else {
       destination = GamePage(gameTitle: text);
