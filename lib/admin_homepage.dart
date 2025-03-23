@@ -121,25 +121,17 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  /// This function uses ImagePicker to choose an image from the gallery,
-  /// uploads it to Imgur, and returns the URL.
-  Future<String?> _chooseAndUploadImage() async {
+  /// Helper function to upload an image to Imgur and return its URL.
+  Future<String?> _uploadImageToImgur(XFile image) async {
     const clientId = '72c6c45319d3658';
-    final ImagePicker picker = ImagePicker();
     try {
-      final XFile? pickedImage =
-      await picker.pickImage(source: ImageSource.gallery);
-      if (pickedImage == null) return null;
-
-      final fileBytes = await pickedImage.readAsBytes();
+      final fileBytes = await image.readAsBytes();
       final base64Image = base64Encode(fileBytes);
-
       final response = await http.post(
         Uri.parse('https://api.imgur.com/3/image'),
         headers: {'Authorization': 'Client-ID $clientId'},
         body: {'image': base64Image},
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['data']['link'];
@@ -149,6 +141,26 @@ class _AdminHomePageState extends State<AdminHomePage> {
     } catch (e) {
       print('Error uploading image: $e');
       return null;
+    }
+  }
+
+  /// In the "Guess the Letter" form, we call _uploadImageToImgur via _chooseAndUploadImage.
+  Future<void> _chooseAndUploadImageForQuestion() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? pickedImage =
+    await picker.pickImage(source: ImageSource.gallery);
+    if (pickedImage == null) return;
+
+    final url = await _uploadImageToImgur(pickedImage);
+    if (url != null) {
+      setState(() {
+        questionImageUrl = url;
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Image uploaded successfully!")));
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Image upload failed.")));
     }
   }
 
@@ -175,6 +187,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           option: option,
           onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
           onCorrectSelect: (value) => setState(() => correctAnswer = value),
+          uploadFunction: _uploadImageToImgur, // Pass the helper function.
         )),
         buildAddOptionButton(),
       ],
@@ -187,19 +200,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         buildTextField("Enter Question", (value) => questionText = value),
         // Replace text field for image URL with an image chooser button.
         ElevatedButton.icon(
-          onPressed: () async {
-            final url = await _chooseAndUploadImage();
-            if (url != null) {
-              setState(() {
-                questionImageUrl = url;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Image uploaded successfully!")));
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Image upload failed.")));
-            }
-          },
+          onPressed: _chooseAndUploadImageForQuestion,
           icon: Icon(Icons.photo),
           label: Text(questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
         ),
@@ -213,8 +214,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
             ),
           ),
         ...answerOptions.map((option) => AnswerOptionWidget(
-            option: option,
-            onRemove: () => removeAnswerOption(answerOptions.indexOf(option)))),
+          option: option,
+          onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+          uploadFunction: _uploadImageToImgur, // Pass the helper function.
+        )),
         buildAddOptionButton(),
       ],
     );
@@ -237,8 +240,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
       children: [
         buildTextField("Enter Question", (value) => questionText = value),
         ...answerOptions.map((option) => AnswerOptionWidget(
-            option: option,
-            onRemove: () => removeAnswerOption(answerOptions.indexOf(option)))),
+          option: option,
+          onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+          uploadFunction: _uploadImageToImgur, // Pass the helper function.
+        )),
         buildAddOptionButton(),
       ],
     );
@@ -350,16 +355,19 @@ class AnswerOption {
 }
 
 /// Updated AnswerOptionWidget as a stateful widget with image picker logic.
+/// The widget now receives a function (uploadFunction) to upload images.
 class AnswerOptionWidget extends StatefulWidget {
   final AnswerOption option;
   final VoidCallback onRemove;
   final Function(String)? onCorrectSelect;
+  final Future<String?> Function(XFile image) uploadFunction;
 
   const AnswerOptionWidget({
     Key? key,
     required this.option,
     required this.onRemove,
     this.onCorrectSelect,
+    required this.uploadFunction,
   }) : super(key: key);
 
   @override
@@ -367,38 +375,22 @@ class AnswerOptionWidget extends StatefulWidget {
 }
 
 class _AnswerOptionWidgetState extends State<AnswerOptionWidget> {
-  /// Helper function to choose an image and upload to Imgur.
   Future<void> _chooseAndUploadImage() async {
-    const clientId = '72c6c45319d3658';
     final ImagePicker picker = ImagePicker();
-    try {
-      final XFile? pickedImage =
-      await picker.pickImage(source: ImageSource.gallery);
-      if (pickedImage == null) return;
+    final XFile? pickedImage =
+    await picker.pickImage(source: ImageSource.gallery);
+    if (pickedImage == null) return;
 
-      final fileBytes = await pickedImage.readAsBytes();
-      final base64Image = base64Encode(fileBytes);
-
-      final response = await http.post(
-        Uri.parse('https://api.imgur.com/3/image'),
-        headers: {'Authorization': 'Client-ID $clientId'},
-        body: {'image': base64Image},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          widget.option.imageUrl = data['data']['link'];
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Option image uploaded successfully!")));
-      } else {
-        throw Exception('Failed to upload image');
-      }
-    } catch (e) {
-      print('Error uploading option image: $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Option image upload failed.")));
+    final url = await widget.uploadFunction(pickedImage);
+    if (url != null) {
+      setState(() {
+        widget.option.imageUrl = url;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Option image uploaded successfully!")));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Option image upload failed.")));
     }
   }
 
