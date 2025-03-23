@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:translator_plus/translator_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import 'navbar.dart';
 import 'menu_bar.dart';
@@ -117,6 +121,37 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
+  /// This function uses ImagePicker to choose an image from the gallery,
+  /// uploads it to Imgur, and returns the URL.
+  Future<String?> _chooseAndUploadImage() async {
+    const clientId = '72c6c45319d3658';
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? pickedImage =
+      await picker.pickImage(source: ImageSource.gallery);
+      if (pickedImage == null) return null;
+
+      final fileBytes = await pickedImage.readAsBytes();
+      final base64Image = base64Encode(fileBytes);
+
+      final response = await http.post(
+        Uri.parse('https://api.imgur.com/3/image'),
+        headers: {'Authorization': 'Client-ID $clientId'},
+        body: {'image': base64Image},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data']['link'];
+      } else {
+        throw Exception('Failed to upload image');
+      }
+    } catch (e) {
+      print('Error uploading image: $e');
+      return null;
+    }
+  }
+
   Widget buildQuestionForm() {
     if (selectedCategory == null) return Container();
 
@@ -150,7 +185,33 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return Column(
       children: [
         buildTextField("Enter Question", (value) => questionText = value),
-        buildTextField("Enter Image URL", (value) => questionImageUrl = value),
+        // Replace text field for image URL with an image chooser button.
+        ElevatedButton.icon(
+          onPressed: () async {
+            final url = await _chooseAndUploadImage();
+            if (url != null) {
+              setState(() {
+                questionImageUrl = url;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Image uploaded successfully!")));
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Image upload failed.")));
+            }
+          },
+          icon: Icon(Icons.photo),
+          label: Text(questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
+        ),
+        // Show image preview if available.
+        if (questionImageUrl.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Image.network(
+              questionImageUrl,
+              height: 150,
+            ),
+          ),
         ...answerOptions.map((option) => AnswerOptionWidget(
             option: option,
             onRemove: () => removeAnswerOption(answerOptions.indexOf(option)))),
@@ -188,8 +249,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextField(
         onChanged: onChanged,
-        decoration: InputDecoration(
-            labelText: label, border: OutlineInputBorder()),
+        decoration:
+        InputDecoration(labelText: label, border: OutlineInputBorder()),
       ),
     );
   }
@@ -210,7 +271,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
         title: appBarTitle,
         isHindi: isHindi,
         onToggleLanguage: (value) {
-          Provider.of<LanguageNotifier>(context, listen: false).toggleLanguage(value);
+          Provider.of<LanguageNotifier>(context, listen: false)
+              .toggleLanguage(value);
           _updateTranslations();
         },
         showMenuButton: true,
@@ -238,7 +300,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   "Let us Tell Time",
                   "Alphabet Knowledge"
                 ]
-                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    .map((type) =>
+                    DropdownMenuItem(value: type, child: Text(type)))
                     .toList(),
                 onChanged: (value) {
                   setState(() {
@@ -260,7 +323,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF078FFE),
-                      padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15)),
+                      padding:
+                      EdgeInsets.symmetric(horizontal: 40, vertical: 15)),
                 ),
               ),
             ],
@@ -285,7 +349,8 @@ class AnswerOption {
   }
 }
 
-class AnswerOptionWidget extends StatelessWidget {
+/// Updated AnswerOptionWidget as a stateful widget with image picker logic.
+class AnswerOptionWidget extends StatefulWidget {
   final AnswerOption option;
   final VoidCallback onRemove;
   final Function(String)? onCorrectSelect;
@@ -298,6 +363,46 @@ class AnswerOptionWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  _AnswerOptionWidgetState createState() => _AnswerOptionWidgetState();
+}
+
+class _AnswerOptionWidgetState extends State<AnswerOptionWidget> {
+  /// Helper function to choose an image and upload to Imgur.
+  Future<void> _chooseAndUploadImage() async {
+    const clientId = '72c6c45319d3658';
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? pickedImage =
+      await picker.pickImage(source: ImageSource.gallery);
+      if (pickedImage == null) return;
+
+      final fileBytes = await pickedImage.readAsBytes();
+      final base64Image = base64Encode(fileBytes);
+
+      final response = await http.post(
+        Uri.parse('https://api.imgur.com/3/image'),
+        headers: {'Authorization': 'Client-ID $clientId'},
+        body: {'image': base64Image},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          widget.option.imageUrl = data['data']['link'];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Option image uploaded successfully!")));
+      } else {
+        throw Exception('Failed to upload image');
+      }
+    } catch (e) {
+      print('Error uploading option image: $e');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Option image upload failed.")));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.symmetric(vertical: 8),
@@ -306,24 +411,36 @@ class AnswerOptionWidget extends StatelessWidget {
         child: Column(
           children: [
             TextField(
-              onChanged: (value) => option.title = value,
+              onChanged: (value) => widget.option.title = value,
               decoration: InputDecoration(labelText: "Title"),
             ),
             SizedBox(height: 8),
             TextField(
-              onChanged: (value) => option.description = value,
+              onChanged: (value) => widget.option.description = value,
               decoration: InputDecoration(labelText: "Description"),
             ),
             SizedBox(height: 8),
-            TextField(
-              onChanged: (value) => option.imageUrl = value,
-              decoration: InputDecoration(labelText: "Image URL"),
+            // Replace the image URL TextField with an image picker button and preview.
+            ElevatedButton.icon(
+              onPressed: _chooseAndUploadImage,
+              icon: Icon(Icons.photo),
+              label: Text(widget.option.imageUrl.isEmpty
+                  ? "Choose Option Image"
+                  : "Change Option Image"),
             ),
+            if (widget.option.imageUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Image.network(
+                  widget.option.imageUrl,
+                  height: 100,
+                ),
+              ),
             SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(icon: Icon(Icons.delete), onPressed: onRemove),
+                IconButton(icon: Icon(Icons.delete), onPressed: widget.onRemove),
               ],
             ),
           ],

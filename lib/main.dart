@@ -5,7 +5,6 @@ import 'register.dart';
 import 'login.dart';
 import 'homepage.dart';
 import 'admin_homepage.dart';
-import 'adminhome.dart';
 import 'package:provider/provider.dart';
 import 'language_notifier.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,8 +58,6 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/homepage': (context) => const HomePage(),
         '/admin_homepage': (context) => const AdminHomePage(),
-        
-        '/admin': (context) =>  AdminDashboard(),
       },
     );
   }
