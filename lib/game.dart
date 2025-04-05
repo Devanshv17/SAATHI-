@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'result.dart'; // Import result page
+import 'result.dart';
 
 class GamePage extends StatefulWidget {
   final String gameTitle;
@@ -24,8 +24,7 @@ class _GamePageState extends State<GamePage> {
   Map<String, dynamic> userAnswers = {};
 
   List<QueryDocumentSnapshot> allQuestions = [];
-  List<String> questionHistory = [];
-  int currentHistoryIndex = -1;
+  int currentQuestionIndex = 0;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
@@ -80,27 +79,31 @@ class _GamePageState extends State<GamePage> {
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection(widget.gameTitle)
+          .orderBy(FieldPath.documentId)
           .get();
 
       if (snapshot.docs.isNotEmpty) {
         setState(() {
           allQuestions = snapshot.docs;
         });
-        _getNewQuestion();
+        _loadQuestionFromIndex(0);
       }
     } catch (e) {
       print("Error fetching questions: $e");
     }
   }
 
-  void _loadQuestionFromDoc(QueryDocumentSnapshot doc) {
+  void _loadQuestionFromIndex(int index) {
+    if (index < 0 || index >= allQuestions.length) return;
+
+    final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
     setState(() {
+      currentQuestionIndex = index;
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
       options = List<Map<String, dynamic>>.from(data['options'] ?? []);
 
-      // Reset previous selections
       for (var opt in options) {
         opt['selected'] = false;
       }
@@ -115,55 +118,32 @@ class _GamePageState extends State<GamePage> {
     });
   }
 
-  void _getNewQuestion() {
-    List<QueryDocumentSnapshot> unanswered = allQuestions
-        .where((doc) => !userAnswers.containsKey(doc.id))
-        .toList();
-
-    if (unanswered.isEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ResultPage(
-            gameTitle: widget.gameTitle,
-            score: score,
-            correctCount: correctCount,
-            incorrectCount: incorrectCount,
-          ),
-        ),
-      );
-      return;
-    }
-
-    unanswered.shuffle();
-    QueryDocumentSnapshot selectedDoc = unanswered.first;
-    _loadQuestionFromDoc(selectedDoc);
-    questionHistory.add(selectedDoc.id);
-    currentHistoryIndex = questionHistory.length - 1;
-  }
-
   void _goToPreviousQuestion() {
-    if (currentHistoryIndex > 0) {
-      currentHistoryIndex--;
-      String prevDocId = questionHistory[currentHistoryIndex];
-      QueryDocumentSnapshot? doc = allQuestions.firstWhere(
-              (doc) => doc.id == prevDocId,
-          orElse: () => null as QueryDocumentSnapshot);
-      if (doc != null) _loadQuestionFromDoc(doc);
+    if (currentQuestionIndex > 0) {
+      _loadQuestionFromIndex(currentQuestionIndex - 1);
     }
   }
 
   void _goToNextQuestion() {
-    if (currentHistoryIndex < questionHistory.length - 1) {
-      currentHistoryIndex++;
-      String nextDocId = questionHistory[currentHistoryIndex];
-      QueryDocumentSnapshot? doc = allQuestions.firstWhere(
-              (doc) => doc.id == nextDocId,
-          orElse: () => null as QueryDocumentSnapshot);
-      if (doc != null) _loadQuestionFromDoc(doc);
+    if (currentQuestionIndex < allQuestions.length - 1) {
+      _loadQuestionFromIndex(currentQuestionIndex + 1);
     } else {
-      _getNewQuestion();
+      _navigateToResult();
     }
+  }
+
+  void _navigateToResult() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultPage(
+          gameTitle: widget.gameTitle,
+          score: score,
+          correctCount: correctCount,
+          incorrectCount: incorrectCount,
+        ),
+      ),
+    );
   }
 
   void checkAnswer(int index) {
@@ -197,10 +177,9 @@ class _GamePageState extends State<GamePage> {
         title: Text("Instructions"),
         content: Text(
           "1. Tap the correct image.\n"
-              "2. A green border means correct, red means wrong.\n"
-              "3. Once answered, questions are locked.\n"
-              "4. Use 'Next' for new questions.\n"
-              "5. Use 'Previous' to revisit answered ones.",
+              "2. Green border = correct, red = incorrect.\n"
+              "3. Once answered, a question is locked.\n"
+              "4. Use 'Next' or 'Previous' to navigate.",
         ),
         actions: [
           TextButton(
@@ -248,9 +227,10 @@ class _GamePageState extends State<GamePage> {
               child: GridView.builder(
                 itemCount: options.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 15,
-                    crossAxisSpacing: 15),
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 15,
+                  crossAxisSpacing: 15,
+                ),
                 itemBuilder: (context, index) {
                   var option = options[index];
                   bool isSelected = option['selected'] == true;
@@ -270,7 +250,9 @@ class _GamePageState extends State<GamePage> {
                             borderRadius: BorderRadius.circular(15),
                             border: isSelected
                                 ? Border.all(
-                              color: isCorrect ? Colors.green : Colors.red,
+                              color: isCorrect
+                                  ? Colors.green
+                                  : Colors.red,
                               width: 6,
                             )
                                 : null,
@@ -309,7 +291,7 @@ class _GamePageState extends State<GamePage> {
                                 ),
                               ),
                             ),
-                          )
+                          ),
                       ],
                     ),
                   );
@@ -342,8 +324,8 @@ class _GamePageState extends State<GamePage> {
                 ElevatedButton(
                   onPressed: _goToNextQuestion,
                   child: Text("Next"),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green),
+                  style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 ),
               ],
             ),
