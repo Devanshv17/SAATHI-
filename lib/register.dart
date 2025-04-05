@@ -93,11 +93,25 @@ class _RegisterPageState extends State<RegisterPage> {
         // Get the user UID.
         final String uid = userCredential.user!.uid;
 
-        // Save the default role "user" in the Firebase Realtime Database.
+        // Initialize default game scores for multiple game types.
+        Map<String, dynamic> initialGames = {
+          "Name Picture Matching": {"score": 0, "answers": []},
+          "Guess the Letter": {"score": 0, "answers": []},
+          "Compare": {"score": 0, "answers": []},
+          "Let us Count": {"score": 0, "answers": []},
+          "Number Name Matching": {"score": 0, "answers": []},
+          "Name Number Matching": {"score": 0, "answers": []},
+          "Let us Tell Time": {"score": 0, "answers": []},
+          "Alphabet Knowledge": {"score": 0, "answers": []},
+          // Add more games here if needed.
+        };
+
+        // Save the default role "user" and initialized game scores in the Firebase Realtime Database.
         DatabaseReference ref =
         FirebaseDatabase.instance.ref("users/$uid");
         await ref.set({
           "role": "user",
+          "games": initialGames,
         });
 
         // Save register state.

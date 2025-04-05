@@ -68,7 +68,7 @@ class _HomePageState extends State<HomePage> {
     } else {
       setState(() {
         appBarTitle = 'Saathi';
-        box1Text = 'Name Picture Mapping';
+        box1Text = 'Name Picture Matching';
         box2Text = 'Guess the Letter';
         box3Text = 'Compare';
         box4Text = 'Let us Count';
