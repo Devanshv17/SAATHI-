@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 class MatchingPage extends StatelessWidget {
-  final String questionText; // The question text to be displayed
+  // Declare the question text internally
+  final String questionText =
+      "Match the numbers with their corresponding names."; // Adjust the question as needed
 
-  const MatchingPage({Key? key, required this.questionText}) : super(key: key);
+  MatchingPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

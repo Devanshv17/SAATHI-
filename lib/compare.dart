@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 class ComparePage extends StatelessWidget {
-  final int a;
-  final int b;
+  // Declare internal variables with sample values
+  final int a = 7;
+  final int b = 6;
 
-  const ComparePage({Key? key, required this.a, required this.b}) : super(key: key);
+  const ComparePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +111,3 @@ class ComparePage extends StatelessWidget {
     );
   }
 }
-
-
-

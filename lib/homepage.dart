@@ -85,16 +85,13 @@ class _HomePageState extends State<HomePage> {
   void _navigateBasedOnText(String text) {
     Widget destination;
     if (text == "Compare") {
-      destination = ComparePage(a: 7, b: 6); // sample values; adjust as needed
+      destination = ComparePage(); // sample values; adjust as needed
     } else if (text == "Let us Count" || text == "Let us Tell Time" || text == "Let us Look at Calendar" || text== "Guess the Letter") {
-      destination = LetUsCountPage(
-        imageUrl: 'https://example.com/sample_image.png', // Replace with your actual image URL
-      );
+      destination = LetUsCountPage();
     } else if (text == "Number Name Matching" || text == "Name Number Matching" || text == "Alphabet Knowledge") {
-      destination = MatchingPage(
-        questionText: "Match the numbers with their corresponding names.", // Sample question text
-      );
-    } else {
+      destination = MatchingPage();
+    }
+    else {
       destination = GamePage(gameTitle: text);
     }
     Navigator.push(

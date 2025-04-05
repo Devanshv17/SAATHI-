@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class LetUsCountPage extends StatelessWidget {
-  final String imageUrl; // URL obtained from your backend
+  // Declare the image URL internally
+  final String imageUrl = 'https://example.com/sample_image.png'; // Replace with your actual URL
 
-  const LetUsCountPage({Key? key, required this.imageUrl}) : super(key: key);
+  LetUsCountPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -58,12 +59,11 @@ class LetUsCountPage extends StatelessWidget {
                   builder: (context, constraints) {
                     // Total width available in the grid.
                     double totalWidth = constraints.maxWidth;
-                    // Set button percentage (e.g., 0.3 for 30% of total width).
+                    // Set button percentage (e.g., 0.4 for 40% of total width).
                     double buttonPercentage = 0.4;
                     // Calculate button size.
                     double buttonSize = totalWidth * buttonPercentage;
-                    // Calculate gap: remaining width divided equally into three gaps:
-                    // left padding, space between two buttons, right padding.
+                    // Calculate gap: remaining width divided equally into three gaps.
                     double gap = (totalWidth - (2 * buttonSize)) / 3;
 
                     return GridView.count(
