@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:translator_plus/translator_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+
 import 'language_notifier.dart';
 import 'navbar.dart';
-import 'menu_bar.dart'; // Contains CustomMenuBar
-import 'package:translator_plus/translator_plus.dart';
-import 'game.dart'; // Import the Game Page
+import 'menu_bar.dart';
+import 'game.dart';
 import 'compare.dart';
-import 'letuscount.dart'; // Import the LetUsCount Page
-import 'matching.dart'; // Import the Matching Page
+import 'letuscount.dart';
+import 'matching.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -18,16 +21,31 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final GoogleTranslator translator = GoogleTranslator();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
   String appBarTitle = 'Saathi';
-  String box1Text = 'Box 1';
-  String box2Text = 'Guess the Letter';
-  String box3Text = 'Compare';
-  String box4Text = 'Let us Count';
-  String box5Text = 'Number Name Matching';
-  String box6Text = 'Name Number Matching';
-  String box7Text = 'Let us Tell Time';
-  String box8Text = 'Let us Look at Calendar';
-  String box9Text = 'Alphabet Knowledge';
+
+  Map<String, String> boxTexts = {
+    'Box1': 'Name Picture Matching',
+    'Box2': 'Guess the Letter',
+    'Box3': 'Compare',
+    'Box4': 'Let us Count',
+    'Box5': 'Number Name Matching',
+    'Box6': 'Name Number Matching',
+    'Box7': 'Let us Tell Time',
+    'Box8': 'Let us Look at Calendar',
+    'Box9': 'Alphabet Knowledge',
+  };
+
+  Map<String, int> correctScores = {};
+  Map<String, int> incorrectScores = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGameScores();
+  }
 
   @override
   void didChangeDependencies() {
@@ -38,117 +56,185 @@ class _HomePageState extends State<HomePage> {
   Future<void> _updateTranslations() async {
     final isHindi =
         Provider.of<LanguageNotifier>(context, listen: false).isHindi;
+
     if (isHindi) {
       try {
         final results = await Future.wait([
           translator.translate('Saathi', to: 'hi'),
-          translator.translate('Box 1', to: 'hi'),
-          translator.translate('Guess the Letter', to: 'hi'),
-          translator.translate('Compare', to: 'hi'),
-          translator.translate('Number Name Matching', to: 'hi'),
-          translator.translate('Name Number Matching', to: 'hi'),
-          translator.translate('Let us Tell Time', to: 'hi'),
-          translator.translate('Alphabet Knowledge', to: 'hi'),
+          ...boxTexts.values.map((e) => translator.translate(e, to: 'hi')),
         ]);
+
         setState(() {
           appBarTitle = results[0].text;
-          box1Text = results[1].text;
-          box2Text = results[2].text;
-          box3Text = results[3].text;
-          box4Text = 'Let us Count'; // You can translate if needed.
-          box5Text = results[4].text;
-          box6Text = results[5].text;
-          box7Text = results[6].text;
-          box8Text = 'Let us Look at Calendar'; // You can translate if needed.
-          box9Text = results[7].text;
+          int i = 1;
+          for (String key in boxTexts.keys) {
+            boxTexts[key] = results[i++].text;
+          }
         });
       } catch (e) {
-        // Fallback to English.
+        print("Translation failed: $e");
       }
     } else {
       setState(() {
-        appBarTitle = 'Saathi';
-        box1Text = 'Name Picture Matching';
-        box2Text = 'Guess the Letter';
-        box3Text = 'Compare';
-        box4Text = 'Let us Count';
-        box5Text = 'Number Name Matching';
-        box6Text = 'Name Number Matching';
-        box7Text = 'Let us Tell Time';
-        box8Text = 'Let us Look at Calendar';
-        box9Text = 'Alphabet Knowledge';
+        boxTexts = {
+          'Box1': 'Name Picture Matching',
+          'Box2': 'Guess the Letter',
+          'Box3': 'Compare',
+          'Box4': 'Let us Count',
+          'Box5': 'Number Name Matching',
+          'Box6': 'Name Number Matching',
+          'Box7': 'Let us Tell Time',
+          'Box8': 'Let us Look at Calendar',
+          'Box9': 'Alphabet Knowledge',
+        };
       });
     }
   }
 
-  // Helper method to navigate based on the box text
-  void _navigateBasedOnText(String text) {
+  Future<void> _loadGameScores() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await _dbRef.child("users/${user.uid}/games").get();
+      if (snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        print("Fetched user game data: $data");
+
+        final Map<String, int> correct = {};
+        final Map<String, int> incorrect = {};
+
+        boxTexts.values.forEach((game) {
+          final gameData = data[game];
+          if (gameData != null) {
+            correct[game] = (gameData['correctCount'] ?? 0);
+            incorrect[game] = (gameData['incorrectCount'] ?? 0);
+          } else {
+            correct[game] = 0;
+            incorrect[game] = 0;
+          }
+        });
+
+        setState(() {
+          correctScores = correct;
+          incorrectScores = incorrect;
+        });
+      } else {
+        print("No game data found in Realtime Database.");
+      }
+    } catch (e) {
+      print("Error fetching game scores: $e");
+    }
+  }
+
+  void _navigateBasedOnText(String title, {bool reset = false}) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    if (reset) {
+      await _dbRef.child("users/${user.uid}/games/$title").remove();
+    }
+
     Widget destination;
-    if (text == "Compare") {
-      destination = ComparePage(); // sample values; adjust as needed
-    } else if (text == "Let us Count" || text == "Let us Tell Time" || text == "Let us Look at Calendar" || text== "Guess the Letter") {
+    if (title == "Compare") {
+      destination = ComparePage();
+    } else if (title == "Let us Count" ||
+        title == "Let us Tell Time" ||
+        title == "Let us Look at Calendar" ||
+        title == "Guess the Letter") {
       destination = LetUsCountPage();
-    } else if (text == "Number Name Matching" || text == "Name Number Matching" || text == "Alphabet Knowledge") {
+    } else if (title == "Number Name Matching" ||
+        title == "Name Number Matching" ||
+        title == "Alphabet Knowledge") {
       destination = MatchingPage();
+    } else {
+      destination = GamePage(gameTitle: title);
     }
-    else {
-      destination = GamePage(gameTitle: text);
-    }
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => destination),
-    );
+    ).then((_) {
+      _loadGameScores(); // Refresh after returning
+    });
   }
 
-  Widget buildBox(String text, String imagePath, Color bgColor) {
-    return GestureDetector(
-      onTap: () {
-        _navigateBasedOnText(text);
-      },
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.85,
-        padding: const EdgeInsets.all(10),
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: bgColor,
-          border: Border.all(color: Colors.black, width: 2),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(50),
-                image: DecorationImage(
-                  image: AssetImage(imagePath),
-                  fit: BoxFit.cover,
+  Widget buildBox(String key, String imagePath, Color bgColor) {
+    final title = boxTexts[key]!;
+    final correct = correctScores[title] ?? 0;
+    final incorrect = incorrectScores[title] ?? 0;
+    final hasPlayed = correct + incorrect > 0;
+
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.85,
+      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border.all(color: Colors.black, width: 2),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(50),
+              image: DecorationImage(
+                image: AssetImage(imagePath),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-              ),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    text,
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
+                if (hasPlayed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '$correct',
+                            style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const TextSpan(text: ' | '),
+                          TextSpan(
+                            text: '$incorrect',
+                            style: const TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      _navigateBasedOnText(text);
-                    },
-                    child: const Text('Play'),
-                  ),
-                ],
-              ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => _navigateBasedOnText(title),
+                      child: Text(hasPlayed ? 'Continue' : 'Play'),
+                    ),
+                    if (hasPlayed) const SizedBox(width: 10),
+                    if (hasPlayed)
+                      ElevatedButton(
+                        onPressed: () => _navigateBasedOnText(title, reset: true),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                        child: const Text('Replay'),
+                      ),
+                  ],
+                )
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -156,13 +242,13 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
+
     return Scaffold(
       appBar: NavBar(
         title: appBarTitle,
         isHindi: isHindi,
         onToggleLanguage: (value) {
-          Provider.of<LanguageNotifier>(context, listen: false)
-              .toggleLanguage(value);
+          Provider.of<LanguageNotifier>(context, listen: false).toggleLanguage(value);
           _updateTranslations();
         },
         showMenuButton: true,
@@ -171,17 +257,16 @@ class _HomePageState extends State<HomePage> {
       body: Center(
         child: SingleChildScrollView(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              buildBox(box1Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box2Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box3Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box4Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box5Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box6Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box7Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box8Text, 'assets/image.png', Colors.blue.shade100),
-              buildBox(box9Text, 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box1', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box2', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box3', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box4', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box5', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box6', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box7', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box8', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box9', 'assets/image.png', Colors.blue.shade100),
             ],
           ),
         ),
