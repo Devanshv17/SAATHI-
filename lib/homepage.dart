@@ -11,6 +11,7 @@ import 'game.dart';
 import 'compare.dart';
 import 'letuscount.dart';
 import 'matching.dart';
+import 'letustelltime.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -137,19 +138,17 @@ class _HomePageState extends State<HomePage> {
 
     Widget destination;
     if (title == "Compare") {
-      destination = ComparePage();
-    } else if (title == "Let us Count" ||
-        title == "Let us Tell Time" ||
-        title == "Let us Look at Calendar" ||
-        title == "Guess the Letter") {
+      destination = ComparePage(); // sample values; adjust as needed
+    } else if (title == "Let us Count" || title == "Let us Look at Calendar" || title == "Guess the Letter") {
       destination = LetUsCountPage();
-    } else if (title == "Number Name Matching" ||
-        title == "Name Number Matching" ||
-        title == "Alphabet Knowledge") {
+    } else if (title == "Let us Tell Time") {
+      destination = LetUsTellTimePage();
+    } else if (title == "Number Name Matching" || title == "Name Number Matching" || title == "Alphabet Knowledge") {
       destination = MatchingPage();
     } else {
       destination = GamePage(gameTitle: title);
     }
+
 
     Navigator.push(
       context,
