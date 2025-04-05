@@ -1,3 +1,4 @@
+// unchanged imports
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +24,7 @@ class _GamePageState extends State<GamePage> {
   int incorrectCount = 0;
   Map<String, dynamic> userAnswers = {};
 
+  List<String> questionOrder = [];
   List<QueryDocumentSnapshot> allQuestions = [];
   int currentQuestionIndex = 0;
 
@@ -32,7 +34,7 @@ class _GamePageState extends State<GamePage> {
   @override
   void initState() {
     super.initState();
-    _loadGameState().then((_) => _fetchAllQuestions());
+    _loadGameState().then((_) => _fetchQuestionsInOrder());
   }
 
   Future<void> _loadGameState() async {
@@ -52,6 +54,9 @@ class _GamePageState extends State<GamePage> {
           if (data['answers'] != null) {
             userAnswers = Map<String, dynamic>.from(data['answers']);
           }
+          if (data['questionOrder'] != null) {
+            questionOrder = List<String>.from(data['questionOrder']);
+          }
         });
       }
     } catch (e) {
@@ -69,28 +74,65 @@ class _GamePageState extends State<GamePage> {
         "correctCount": correctCount,
         "incorrectCount": incorrectCount,
         "answers": userAnswers,
+        "questionOrder": questionOrder,
       });
     } catch (e) {
       print("Error saving game state: $e");
     }
   }
 
-  Future<void> _fetchAllQuestions() async {
+  Future<void> _fetchQuestionsInOrder() async {
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection(widget.gameTitle)
-          .orderBy(FieldPath.documentId)
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        setState(() {
-          allQuestions = snapshot.docs;
-        });
-        _loadQuestionFromIndex(0);
+      Map<String, QueryDocumentSnapshot> questionMap = {
+        for (var doc in snapshot.docs) doc.id: doc
+      };
+
+      if (questionOrder.isEmpty) {
+        List<String> answered = [];
+        List<String> unanswered = [];
+
+        for (var doc in snapshot.docs) {
+          if (userAnswers.containsKey(doc.id)) {
+            answered.add(doc.id);
+          } else {
+            unanswered.add(doc.id);
+          }
+        }
+
+        questionOrder = [...answered, ...unanswered];
+        await _saveGameState();
       }
+
+      // All questions answered? -> navigate to result directly.
+      bool allAnswered =
+      questionOrder.every((id) => userAnswers.containsKey(id));
+
+      if (allAnswered) {
+        _navigateToResult();
+        return;
+      }
+
+      setState(() {
+        allQuestions = questionOrder
+            .map((id) => questionMap[id])
+            .where((doc) => doc != null)
+            .cast<QueryDocumentSnapshot>()
+            .toList();
+
+        int startIndex = answeredQuestionCount();
+        _loadQuestionFromIndex(startIndex);
+      });
     } catch (e) {
       print("Error fetching questions: $e");
     }
+  }
+
+  int answeredQuestionCount() {
+    return questionOrder.indexWhere((id) => !userAnswers.containsKey(id));
   }
 
   void _loadQuestionFromIndex(int index) {
@@ -103,7 +145,6 @@ class _GamePageState extends State<GamePage> {
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
       options = List<Map<String, dynamic>>.from(data['options'] ?? []);
-
       for (var opt in options) {
         opt['selected'] = false;
       }
@@ -176,10 +217,10 @@ class _GamePageState extends State<GamePage> {
       builder: (context) => AlertDialog(
         title: Text("Instructions"),
         content: Text(
-          "1. Tap the correct image.\n"
-              "2. Green border = correct, red = incorrect.\n"
-              "3. Once answered, a question is locked.\n"
-              "4. Use 'Next' or 'Previous' to navigate.",
+          "1. Answered questions are listed first.\n"
+              "2. You start at the first unanswered question.\n"
+              "3. Navigate freely using Next/Previous.\n"
+              "4. Answers are locked once selected.",
         ),
         actions: [
           TextButton(
