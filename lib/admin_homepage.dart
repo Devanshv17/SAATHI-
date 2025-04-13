@@ -81,12 +81,32 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Future<void> saveQuestion() async {
-    if (selectedCategory == null || questionText.isEmpty) {
+    // Ensure a category is selected
+    if (selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text("Please select a category and enter a question.")),
+        SnackBar(content: Text("Please select a category.")),
       );
       return;
+    }
+
+    // For "Compare" questions, require both numbers.
+    if (selectedCategory == "Compare") {
+      if (compareNumber1.isEmpty || compareNumber2.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text("Please enter both numbers for a Compare question.")),
+        );
+        return;
+      }
+    } else {
+      // For other categories, require a question text.
+      if (questionText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Please enter a question.")),
+        );
+        return;
+      }
     }
 
     try {
@@ -94,7 +114,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
       await firestoreService.saveQuestion(
         category: selectedCategory!,
-        questionText: questionText,
+        // For Compare questions, the question text is auto-generated in the service.
+        questionText: selectedCategory == "Compare" ? "" : questionText,
         questionImageUrl:
             selectedCategory == "Guess the Letter" ? questionImageUrl : null,
         answerOptions: answerOptions.map((option) => option.toMap()).toList(),
@@ -230,6 +251,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Widget buildCompareForm() {
     return Column(
       children: [
+        // For Compare questions, we require two number fields.
         buildNumberField(
             "Enter First Number", (value) => compareNumber1 = value),
         buildNumberField(
