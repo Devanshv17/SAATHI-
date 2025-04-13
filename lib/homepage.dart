@@ -9,7 +9,7 @@ import 'navbar.dart';
 import 'menu_bar.dart';
 import 'game.dart';
 import 'compare.dart';
-import 'letuscount.dart';
+import 'guesstheletter.dart';
 import 'matching.dart';
 import 'letustelltime.dart';
 
@@ -140,7 +140,7 @@ class _HomePageState extends State<HomePage> {
     if (title == "Compare") {
       destination = ComparePage(); // sample values; adjust as needed
     } else if (title == "Let us Count" || title == "Let us Look at Calendar" || title == "Guess the Letter") {
-      destination = LetUsCountPage();
+      destination = GuessTheLetterPage();
     } else if (title == "Let us Tell Time") {
       destination = LetUsTellTimePage();
     } else if (title == "Number Name Matching" || title == "Name Number Matching" || title == "Alphabet Knowledge") {
