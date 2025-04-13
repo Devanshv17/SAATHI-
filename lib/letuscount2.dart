@@ -50,9 +50,10 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
           if (!shownQuestions.contains(data['text'])) {
             var fetchedQuestion = data['text'] ?? "What is this?";
             var fetchedImageUrl = data['imageUrl'];
-            var fetchedOptions = List<Map<String, dynamic>>.from(data['options'])
-                .map((o) => {...o, 'selected': false})
-                .toList();
+            var fetchedOptions =
+                List<Map<String, dynamic>>.from(data['options'])
+                    .map((o) => {...o, 'selected': false})
+                    .toList();
 
             setState(() {
               question = fetchedQuestion;
@@ -112,10 +113,10 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         title: const Text("Instructions"),
         content: const Text(
           "1. Tap the correct option.\n"
-              "2. A green border appears for correct answers.\n"
-              "3. A red border appears for wrong answers.\n"
-              "4. Your score increases only for correct answers.\n"
-              "5. Click 'Previous' or 'Next' to navigate.",
+          "2. A green border appears for correct answers.\n"
+          "3. A red border appears for wrong answers.\n"
+          "4. Your score increases only for correct answers.\n"
+          "5. Click 'Previous' or 'Next' to navigate.",
         ),
         actions: [
           TextButton(
@@ -142,9 +143,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               borderRadius: BorderRadius.circular(12),
               border: isSelected
                   ? Border.all(
-                color: isCorrect ? Colors.green : Colors.red,
-                width: 4,
-              )
+                      color: isCorrect ? Colors.green : Colors.red,
+                      width: 4,
+                    )
                   : null,
               boxShadow: [
                 BoxShadow(
@@ -164,7 +165,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               ),
             ),
           ),
-          if (isSelected && option['description'] != null && option['description'] != "")
+          if (isSelected &&
+              option['description'] != null &&
+              option['description'] != "")
             Positioned(
               bottom: 6,
               child: Container(
@@ -202,7 +205,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(
-              icon: const Icon(Icons.info_outline, color: Colors.white, size: 28),
+              icon:
+                  const Icon(Icons.info_outline, color: Colors.white, size: 28),
               onPressed: () => showInstructions(context),
             ),
           ],
@@ -236,14 +240,16 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
             Expanded(
               child: GridView.builder(
                 shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(), // disable scrolling
+                physics:
+                    const NeverScrollableScrollPhysics(), // disable scrolling
                 padding: const EdgeInsets.only(bottom: 8),
                 itemCount: options.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   mainAxisSpacing: 8, // tighter spacing
                   crossAxisSpacing: 8,
-                  childAspectRatio: 1.2, // increased ratio for shorter vertical boxes
+                  childAspectRatio:
+                      1.2, // increased ratio for shorter vertical boxes
                 ),
                 itemBuilder: (context, index) =>
                     buildOptionCard(options[index], index),
@@ -266,24 +272,35 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               children: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor:
+                        currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                   ),
-                  onPressed: currentQuestionIndex > 0 ? goToPreviousQuestion : null,
+                  onPressed:
+                      currentQuestionIndex > 0 ? goToPreviousQuestion : null,
                   child: const Text(
                     "Previous",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isOptionSelected ? Colors.green : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor:
+                        isOptionSelected ? Colors.green : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                   ),
                   onPressed: isOptionSelected ? fetchNewQuestion : null,
                   child: const Text(
                     "Next",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ),
               ],
