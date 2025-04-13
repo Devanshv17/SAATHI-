@@ -36,7 +36,7 @@ class _HomePageState extends State<HomePage> {
     'Box5': 'Number Name Matching',
     'Box6': 'Name Number Matching',
     'Box7': 'Let us Tell Time',
-    'Box8': 'Let us Look at Calendar',
+    // 'Box8': 'Let us Look at Calendar',
     'Box9': 'Alphabet Knowledge',
   };
 
@@ -86,7 +86,7 @@ class _HomePageState extends State<HomePage> {
           'Box5': 'Number Name Matching',
           'Box6': 'Name Number Matching',
           'Box7': 'Let us Tell Time',
-          'Box8': 'Let us Look at Calendar',
+          // 'Box8': 'Let us Look at Calendar',
           'Box9': 'Alphabet Knowledge',
         };
       });
@@ -268,7 +268,7 @@ class _HomePageState extends State<HomePage> {
               buildBox('Box5', 'assets/image.png', Colors.blue.shade100),
               buildBox('Box6', 'assets/image.png', Colors.blue.shade100),
               buildBox('Box7', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box8', 'assets/image.png', Colors.blue.shade100),
+              // buildBox('Box8', 'assets/image.png', Colors.blue.shade100),
               buildBox('Box9', 'assets/image.png', Colors.blue.shade100),
             ],
           ),
