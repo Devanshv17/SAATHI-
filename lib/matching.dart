@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'result.dart';
 
 class MatchingPage extends StatefulWidget {
   final String gameTitle;
@@ -11,17 +14,62 @@ class MatchingPage extends StatefulWidget {
 
 class _MatchingPageState extends State<MatchingPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  List<Map<String, dynamic>> questions = [];
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
+  List<Map<String, dynamic>> questions = [];
   int currentQuestionIndex = 0;
-  Map<int, int> selectedAnswers = {};
+  Map<String, dynamic> userAnswers =
+      {}; // key: question id, value: {selectedOptionIndex, isCorrect}
   int score = 0;
+  int correctCount = 0;
+  int incorrectCount = 0;
   bool answered = false;
 
   @override
   void initState() {
     super.initState();
-    loadQuestions();
+    _loadGameState().then((_) => loadQuestions());
+  }
+
+  Future<void> _loadGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      final snapshot = await _dbRef
+          .child("users/${user.uid}/games/${widget.gameTitle}")
+          .get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        setState(() {
+          score = data['score'] ?? 0;
+          correctCount = data['correctCount'] ?? 0;
+          incorrectCount = data['incorrectCount'] ?? 0;
+          if (data['answers'] != null) {
+            userAnswers = Map<String, dynamic>.from(data['answers']);
+          }
+          currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
+        });
+      }
+    } catch (e) {
+      print("Error loading game state: $e");
+    }
+  }
+
+  Future<void> _saveGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
+        "score": score,
+        "correctCount": correctCount,
+        "incorrectCount": incorrectCount,
+        "answers": userAnswers,
+        "currentQuestionIndex": currentQuestionIndex,
+      });
+    } catch (e) {
+      print("Error saving game state: $e");
+    }
   }
 
   Future<void> loadQuestions() async {
@@ -48,61 +96,86 @@ class _MatchingPageState extends State<MatchingPage> {
         }).toList();
 
         return {
+          'id': doc.id,
           'text': questionText,
           'options': parsedOptions,
         };
       }).toList();
 
-      if (mounted) setState(() {});
+      setState(() {
+        // If the current question was already answered, mark the answered flag.
+        if (questions.isNotEmpty &&
+            userAnswers.containsKey(questions[currentQuestionIndex]['id'])) {
+          answered = true;
+        } else {
+          answered = false;
+        }
+      });
     } catch (e) {
-      debugPrint("Error loading questions: $e");
+      print("Error loading questions: $e");
     }
   }
 
   void _selectOption(int optionIndex) {
     if (answered) return;
+
+    final currentQuestion = questions[currentQuestionIndex];
+    final String questionId = currentQuestion['id'];
+    final options = currentQuestion['options'] as List<dynamic>;
+    bool isCorrect = options[optionIndex]['isCorrect'] as bool? ?? false;
+
     setState(() {
-      selectedAnswers[currentQuestionIndex] = optionIndex;
       answered = true;
-      bool isCorrect =
-          questions[currentQuestionIndex]['options'][optionIndex]['isCorrect'];
-      if (isCorrect) score++;
+      userAnswers[questionId] = {
+        "selectedOptionIndex": optionIndex,
+        "isCorrect": isCorrect,
+      };
+      if (isCorrect) {
+        score++;
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
     });
+    _saveGameState();
   }
 
   void _previousQuestion() {
     if (currentQuestionIndex > 0) {
       setState(() {
         currentQuestionIndex--;
-        answered = selectedAnswers.containsKey(currentQuestionIndex);
+        final currentQuestion = questions[currentQuestionIndex];
+        answered = userAnswers.containsKey(currentQuestion['id']);
       });
+      _saveGameState();
     }
   }
 
   void _nextQuestion() {
-    if (!selectedAnswers.containsKey(currentQuestionIndex)) return;
+    // Do not proceed if the current question hasn't been answered
+    if (!userAnswers.containsKey(questions[currentQuestionIndex]['id'])) return;
     if (currentQuestionIndex < questions.length - 1) {
       setState(() {
         currentQuestionIndex++;
-        answered = selectedAnswers.containsKey(currentQuestionIndex);
+        final currentQuestion = questions[currentQuestionIndex];
+        answered = userAnswers.containsKey(currentQuestion['id']);
       });
+      _saveGameState();
     } else {
-      _showFinalScore();
+      _navigateToResult();
     }
   }
 
-  void _showFinalScore() {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Quiz Completed 🎉"),
-        content: Text("Your score is $score out of ${questions.length}."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Close"),
-          )
-        ],
+  void _navigateToResult() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultPage(
+          gameTitle: widget.gameTitle,
+          score: score,
+          correctCount: correctCount,
+          incorrectCount: incorrectCount,
+        ),
       ),
     );
   }
@@ -186,10 +259,16 @@ class _MatchingPageState extends State<MatchingPage> {
                     childAspectRatio: 1.1,
                   ),
                   itemBuilder: (context, index) {
-                    bool isSelected =
-                        selectedAnswers[currentQuestionIndex] == index;
-                    bool isCorrect =
-                        options[index]['isCorrect'] as bool? ?? false;
+                    final option = options[index];
+                    bool isSelected = false;
+                    bool isCorrect = option['isCorrect'] as bool? ?? false;
+
+                    if (userAnswers.containsKey(currentQuestion['id'])) {
+                      isSelected = userAnswers[currentQuestion['id']]
+                              ['selectedOptionIndex'] ==
+                          index;
+                    }
+
                     Color borderColor = Colors.grey;
                     Widget? icon;
 
@@ -222,7 +301,7 @@ class _MatchingPageState extends State<MatchingPage> {
                         children: [
                           Center(
                             child: Text(
-                              options[index]['title'],
+                              option['title'],
                               textAlign: TextAlign.center,
                               style: const TextStyle(fontSize: 18),
                             ),
@@ -258,7 +337,7 @@ class _MatchingPageState extends State<MatchingPage> {
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   ElevatedButton(
-                    onPressed: selectedAnswers.containsKey(currentQuestionIndex)
+                    onPressed: userAnswers.containsKey(currentQuestion['id'])
                         ? _nextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(

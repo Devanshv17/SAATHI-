@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'result.dart'; // Import your ResultPage
 
 class ComparePage extends StatefulWidget {
   const ComparePage({Key? key}) : super(key: key);
@@ -12,17 +15,73 @@ class _ComparePageState extends State<ComparePage> {
   List<CompareQuestion> questions = [];
   int currentIndex = 0;
   int score = 0;
+  int correctCount = 0;
+  int incorrectCount = 0;
+
   // Map storing the selected option index for each question.
   Map<int, int> selectedOptionIndices = {};
+
   bool isLoading = true;
+
+  // Firebase instances for authentication and realtime DB.
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
   @override
   void initState() {
     super.initState();
-    _fetchQuestions();
+    // Load previous game state first then fetch questions.
+    _loadGameState().then((_) => _fetchQuestions());
   }
 
-  // Fetch questions from the "Compare" collection ordered by timestamp.
+  Future<void> _loadGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot =
+          await _dbRef.child("users/${user.uid}/games/Compare").get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        setState(() {
+          score = data['score'] ?? 0;
+          correctCount = data['correctCount'] ?? 0;
+          incorrectCount = data['incorrectCount'] ?? 0;
+          currentIndex = data['currentIndex'] ?? 0;
+          // For selectedOptionIndices, convert keys from string to int.
+          if (data['selectedOptionIndices'] != null) {
+            final Map<dynamic, dynamic> savedMap =
+                data['selectedOptionIndices'];
+            selectedOptionIndices = savedMap.map((key, value) =>
+                MapEntry(int.tryParse(key.toString()) ?? key, value));
+          }
+        });
+      }
+    } catch (e) {
+      print("Error loading game state: $e");
+    }
+  }
+
+  Future<void> _saveGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      // Convert the selectedOptionIndices keys to string for saving.
+      final formattedAnswers = selectedOptionIndices
+          .map((key, value) => MapEntry(key.toString(), value));
+      await _dbRef.child("users/${user.uid}/games/Compare").update({
+        "score": score,
+        "correctCount": correctCount,
+        "incorrectCount": incorrectCount,
+        "currentIndex": currentIndex,
+        "selectedOptionIndices": formattedAnswers,
+      });
+    } catch (e) {
+      print("Error saving game state: $e");
+    }
+  }
+
+  // Fetch questions from Firestore.
   Future<void> _fetchQuestions() async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
@@ -49,6 +108,17 @@ class _ComparePageState extends State<ComparePage> {
         questions = loadedQuestions;
         isLoading = false;
       });
+
+      // If all questions already answered, automatically navigate to result.
+      if (selectedOptionIndices.length == questions.length) {
+        _navigateToResult();
+      }
+      // Also, if currentIndex is out of bound (for instance if questions were reduced), reset.
+      if (currentIndex >= questions.length) {
+        setState(() {
+          currentIndex = questions.length - 1;
+        });
+      }
     } catch (e) {
       print("Error fetching questions: $e");
       setState(() {
@@ -57,7 +127,7 @@ class _ComparePageState extends State<ComparePage> {
     }
   }
 
-  // Displays instructions in a pop-up dialog.
+  // Displays an instructions dialog.
   void _showInstructionsDialog() {
     showDialog(
       context: context,
@@ -68,11 +138,12 @@ class _ComparePageState extends State<ComparePage> {
             style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
           content: const Text(
-            "1. Compare the number of shapes on the left and right.\n"
+            "1. Compare the number of shapes shown.\n"
             "2. Select the correct relation by tapping one option.\n"
             "3. If your answer is correct, a green border and check mark will appear; if wrong, a red border and cross will show.\n"
             "4. Use the Next and Previous buttons to navigate.\n"
-            "5. Your score is updated as you play!",
+            "5. Your progress is saved and resumed when you come back.\n"
+            "6. After the last question, you will see the results.",
             style: TextStyle(fontSize: 20),
           ),
           actions: [
@@ -128,10 +199,15 @@ class _ComparePageState extends State<ComparePage> {
     if (selectedOptionIndices.containsKey(currentIndex)) return;
     setState(() {
       selectedOptionIndices[currentIndex] = optionIndex;
+      // Check if the selected option is correct.
       if (questions[currentIndex].options[optionIndex].isCorrect) {
         score++;
+        correctCount++;
+      } else {
+        incorrectCount++;
       }
     });
+    _saveGameState();
   }
 
   // Build the option tiles.
@@ -168,13 +244,18 @@ class _ComparePageState extends State<ComparePage> {
     );
   }
 
-  // Move to the next question.
+  // Move to the next question or go to result if it's the last.
   void _goToNextQuestion() {
-    if (selectedOptionIndices[currentIndex] == null) return;
+    // Only allow navigation if this question has an answer.
+    if (!selectedOptionIndices.containsKey(currentIndex)) return;
     if (currentIndex < questions.length - 1) {
       setState(() {
         currentIndex++;
       });
+      _saveGameState();
+    } else {
+      // Last question answered, navigate to results.
+      _navigateToResult();
     }
   }
 
@@ -184,7 +265,29 @@ class _ComparePageState extends State<ComparePage> {
       setState(() {
         currentIndex--;
       });
+      _saveGameState();
     }
+  }
+
+  // Navigate to the results page.
+  void _navigateToResult() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultPage(
+          gameTitle: "Compare",
+          score: score,
+          correctCount: correctCount,
+          incorrectCount: incorrectCount,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _saveGameState();
+    super.dispose();
   }
 
   @override
@@ -220,8 +323,16 @@ class _ComparePageState extends State<ComparePage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Shape grids
+              // New Question Header.
+              const Text(
+                "Compare the number of shapes",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // Shape grids.
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -232,17 +343,10 @@ class _ComparePageState extends State<ComparePage> {
                 ],
               ),
               const SizedBox(height: 30),
-              // Question text
-              const Text(
-                "The number of circles is ____ the number of triangles.",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              // Options
+              // Options.
               _buildOptions(),
               const SizedBox(height: 30),
-              // Navigation buttons
+              // Navigation buttons.
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -258,7 +362,7 @@ class _ComparePageState extends State<ComparePage> {
                     child: const Text("Previous"),
                   ),
                   ElevatedButton(
-                    onPressed: selectedOptionIndices[currentIndex] != null
+                    onPressed: selectedOptionIndices.containsKey(currentIndex)
                         ? _goToNextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
@@ -268,12 +372,14 @@ class _ComparePageState extends State<ComparePage> {
                       textStyle: const TextStyle(
                           fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                    child: const Text("Next"),
+                    child: Text(currentIndex < questions.length - 1
+                        ? "Next"
+                        : "Finish"),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
-              // Score display (only current score)
+              // Score display.
               Text(
                 "Score: $score",
                 style: const TextStyle(
@@ -328,7 +434,6 @@ class OptionTile extends StatelessWidget {
                   color: Colors.black87),
             ),
           ),
-          // Overlay icon if available
           if (overlayIcon != null)
             Positioned(
               right: 10,
