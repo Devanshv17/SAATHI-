@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:saathi/letuscount.dart';
 import 'package:translator_plus/translator_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -9,7 +10,7 @@ import 'navbar.dart';
 import 'menu_bar.dart';
 import 'game.dart';
 import 'compare.dart';
-import 'letuscount.dart';
+import 'guesstheletter.dart';
 import 'matching.dart';
 import 'letustelltime.dart';
 
@@ -139,19 +140,19 @@ class _HomePageState extends State<HomePage> {
     Widget destination;
     if (title == "Compare") {
       destination = ComparePage(); // sample values; adjust as needed
-    } else if (title == "Let us Count" ||
-        title == "Let us Look at Calendar" ||
-        title == "Guess the Letter") {
+    } else if (title == "Let us Look at Calendar" || title == "Guess the Letter") {
+      destination = GuessTheLetterPage();
+    } else if (title == "Let us Count"){
       destination = LetUsCountPage();
-    } else if (title == "Let us Tell Time") {
+    }
+    else if (title == "Let us Tell Time") {
       destination = LetUsTellTimePage();
-    } else if (title == "Number Name Matching" ||
-        title == "Name Number Matching" ||
-        title == "Alphabet Knowledge") {
+    } else if (title == "Number Name Matching" || title == "Name Number Matching" || title == "Alphabet Knowledge") {
       destination = MatchingPage(gameTitle: title);
     } else {
       destination = GamePage(gameTitle: title);
     }
+
 
     Navigator.push(
       context,
@@ -196,8 +197,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 if (hasPlayed)
                   Padding(
@@ -207,18 +207,12 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           TextSpan(
                             text: '$correct',
-                            style: const TextStyle(
-                                color: Colors.green,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           const TextSpan(text: ' | '),
                           TextSpan(
                             text: '$incorrect',
-                            style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -234,10 +228,8 @@ class _HomePageState extends State<HomePage> {
                     if (hasPlayed) const SizedBox(width: 10),
                     if (hasPlayed)
                       ElevatedButton(
-                        onPressed: () =>
-                            _navigateBasedOnText(title, reset: true),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange),
+                        onPressed: () => _navigateBasedOnText(title, reset: true),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                         child: const Text('Replay'),
                       ),
                   ],
@@ -259,8 +251,7 @@ class _HomePageState extends State<HomePage> {
         title: appBarTitle,
         isHindi: isHindi,
         onToggleLanguage: (value) {
-          Provider.of<LanguageNotifier>(context, listen: false)
-              .toggleLanguage(value);
+          Provider.of<LanguageNotifier>(context, listen: false).toggleLanguage(value);
           _updateTranslations();
         },
         showMenuButton: true,
