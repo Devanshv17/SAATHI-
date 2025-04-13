@@ -148,7 +148,7 @@ class _HomePageState extends State<HomePage> {
     } else if (title == "Number Name Matching" ||
         title == "Name Number Matching" ||
         title == "Alphabet Knowledge") {
-      destination = MatchingPage();
+      destination = MatchingPage(gameTitle: title);
     } else {
       destination = GamePage(gameTitle: title);
     }
