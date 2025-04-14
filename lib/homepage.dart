@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:saathi/letuscount.dart';
 import 'package:translator_plus/translator_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -12,6 +13,8 @@ import 'compare.dart';
 import 'guesstheletter.dart';
 import 'matching.dart';
 import 'letustelltime.dart';
+import 'left_or_right.dart';
+import 'fit_the_shape.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -35,8 +38,10 @@ class _HomePageState extends State<HomePage> {
     'Box5': 'Number Name Matching',
     'Box6': 'Name Number Matching',
     'Box7': 'Let us Tell Time',
-    'Box8': 'Let us Look at Calendar',
+    // 'Box8': 'Let us Look at Calendar',
     'Box9': 'Alphabet Knowledge',
+    'Box10': 'Left or Right?',
+    'Box11': 'Fit the Shape'
   };
 
   Map<String, int> correctScores = {};
@@ -85,8 +90,10 @@ class _HomePageState extends State<HomePage> {
           'Box5': 'Number Name Matching',
           'Box6': 'Name Number Matching',
           'Box7': 'Let us Tell Time',
-          'Box8': 'Let us Look at Calendar',
+          // 'Box8': 'Let us Look at Calendar',
           'Box9': 'Alphabet Knowledge',
+          'Box10': 'Left or Right?',
+          'Box11': 'Fit the Shape'
         };
       });
     }
@@ -139,12 +146,19 @@ class _HomePageState extends State<HomePage> {
     Widget destination;
     if (title == "Compare") {
       destination = ComparePage(); // sample values; adjust as needed
-    } else if (title == "Let us Count" || title == "Let us Look at Calendar" || title == "Guess the Letter") {
+    } else if (title == "Let us Look at Calendar" || title == "Guess the Letter") {
       destination = GuessTheLetterPage();
-    } else if (title == "Let us Tell Time") {
+    } else if (title == "Let us Count"){
+      destination = LetUsCountPage();
+    }
+    else if (title == "Let us Tell Time") {
       destination = LetUsTellTimePage();
     } else if (title == "Number Name Matching" || title == "Name Number Matching" || title == "Alphabet Knowledge") {
-      destination = MatchingPage();
+      destination = MatchingPage(gameTitle: title);
+    } else if (title == "Left or Right?") {
+      destination = LeftorRightPage();
+    } else if (title == "Fit the Shape") {
+      destination = FitTheShapePage();
     } else {
       destination = GamePage(gameTitle: title);
     }
@@ -264,8 +278,10 @@ class _HomePageState extends State<HomePage> {
               buildBox('Box5', 'assets/image.png', Colors.blue.shade100),
               buildBox('Box6', 'assets/image.png', Colors.blue.shade100),
               buildBox('Box7', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box8', 'assets/image.png', Colors.blue.shade100),
+              // buildBox('Box8', 'assets/image.png', Colors.blue.shade100),
               buildBox('Box9', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box10', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box11', 'assets/image.png', Colors.blue.shade100),
             ],
           ),
         ),

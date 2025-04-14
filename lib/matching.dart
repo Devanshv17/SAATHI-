@@ -1,120 +1,354 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'result.dart';
 
-class MatchingPage extends StatelessWidget {
-  // Declare the question text internally
-  final String questionText =
-      "Match the numbers with their corresponding names."; // Adjust the question as needed
+class MatchingPage extends StatefulWidget {
+  final String gameTitle;
+  const MatchingPage({Key? key, required this.gameTitle}) : super(key: key);
 
-  MatchingPage({Key? key}) : super(key: key);
+  @override
+  _MatchingPageState createState() => _MatchingPageState();
+}
+
+class _MatchingPageState extends State<MatchingPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  List<Map<String, dynamic>> questions = [];
+  int currentQuestionIndex = 0;
+  Map<String, dynamic> userAnswers =
+      {}; // key: question id, value: {selectedOptionIndex, isCorrect}
+  int score = 0;
+  int correctCount = 0;
+  int incorrectCount = 0;
+  bool answered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGameState().then((_) => loadQuestions());
+  }
+
+  Future<void> _loadGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      final snapshot = await _dbRef
+          .child("users/${user.uid}/games/${widget.gameTitle}")
+          .get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        setState(() {
+          score = data['score'] ?? 0;
+          correctCount = data['correctCount'] ?? 0;
+          incorrectCount = data['incorrectCount'] ?? 0;
+          if (data['answers'] != null) {
+            userAnswers = Map<String, dynamic>.from(data['answers']);
+          }
+          currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
+        });
+      }
+    } catch (e) {
+      print("Error loading game state: $e");
+    }
+  }
+
+  Future<void> _saveGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
+        "score": score,
+        "correctCount": correctCount,
+        "incorrectCount": incorrectCount,
+        "answers": userAnswers,
+        "currentQuestionIndex": currentQuestionIndex,
+      });
+    } catch (e) {
+      print("Error saving game state: $e");
+    }
+  }
+
+  Future<void> loadQuestions() async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(widget.gameTitle)
+          .orderBy('timestamp')
+          .get();
+
+      questions = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final questionText = data['text'] as String? ?? "No question text";
+        final rawOptions = data['options'] as List<dynamic>? ?? [];
+
+        final parsedOptions = rawOptions.map((opt) {
+          final optionMap = opt as Map<String, dynamic>;
+          final optionTitle =
+              optionMap['title'] as String? ?? "No option title";
+          final isCorrect = optionMap['isCorrect'] as bool? ?? false;
+          return {
+            'title': optionTitle,
+            'isCorrect': isCorrect,
+          };
+        }).toList();
+
+        return {
+          'id': doc.id,
+          'text': questionText,
+          'options': parsedOptions,
+        };
+      }).toList();
+
+      setState(() {
+        // If the current question was already answered, mark the answered flag.
+        if (questions.isNotEmpty &&
+            userAnswers.containsKey(questions[currentQuestionIndex]['id'])) {
+          answered = true;
+        } else {
+          answered = false;
+        }
+      });
+    } catch (e) {
+      print("Error loading questions: $e");
+    }
+  }
+
+  void _selectOption(int optionIndex) {
+    if (answered) return;
+
+    final currentQuestion = questions[currentQuestionIndex];
+    final String questionId = currentQuestion['id'];
+    final options = currentQuestion['options'] as List<dynamic>;
+    bool isCorrect = options[optionIndex]['isCorrect'] as bool? ?? false;
+
+    setState(() {
+      answered = true;
+      userAnswers[questionId] = {
+        "selectedOptionIndex": optionIndex,
+        "isCorrect": isCorrect,
+      };
+      if (isCorrect) {
+        score++;
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
+    });
+    _saveGameState();
+  }
+
+  void _previousQuestion() {
+    if (currentQuestionIndex > 0) {
+      setState(() {
+        currentQuestionIndex--;
+        final currentQuestion = questions[currentQuestionIndex];
+        answered = userAnswers.containsKey(currentQuestion['id']);
+      });
+      _saveGameState();
+    }
+  }
+
+  void _nextQuestion() {
+    // Do not proceed if the current question hasn't been answered
+    if (!userAnswers.containsKey(questions[currentQuestionIndex]['id'])) return;
+    if (currentQuestionIndex < questions.length - 1) {
+      setState(() {
+        currentQuestionIndex++;
+        final currentQuestion = questions[currentQuestionIndex];
+        answered = userAnswers.containsKey(currentQuestion['id']);
+      });
+      _saveGameState();
+    } else {
+      _navigateToResult();
+    }
+  }
+
+  void _navigateToResult() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultPage(
+          gameTitle: widget.gameTitle,
+          score: score,
+          correctCount: correctCount,
+          incorrectCount: incorrectCount,
+        ),
+      ),
+    );
+  }
+
+  void _showInstructionsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Instructions"),
+        content: const Text(
+          "• Select the correct option.\n"
+          "• Correct: Green border + Tick.\n"
+          "• Incorrect: Red border + Cross.\n"
+          "• Use Next/Previous to navigate.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("OK"),
+          )
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Define a button style with rounded corners (10 pixels)
-    final buttonStyle = ElevatedButton.styleFrom(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-    );
+    if (questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.gameTitle),
+          backgroundColor: Colors.indigo,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              onPressed: _showInstructionsDialog,
+            ),
+          ],
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final currentQuestion = questions[currentQuestionIndex];
+    final questionText = currentQuestion['text'] as String;
+    final options = currentQuestion['options'] as List<dynamic>;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Matching"),
-        backgroundColor: Colors.blue.shade300,
+        title: Text(widget.gameTitle),
+        backgroundColor: Colors.indigo,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: _showInstructionsDialog,
+          ),
+        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0), // Fixed vertical padding
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  "Question:",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                questionText,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  questionText,
-                  style: TextStyle(fontSize: 18),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Select the correct option:",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                // Use LayoutBuilder to compute horizontal gap automatically.
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Total width available in the grid.
-                    double totalWidth = constraints.maxWidth;
-                    // Set button percentage (e.g., 0.4 for 40% of total width).
-                    double buttonPercentage = 0.4;
-                    // Calculate button size.
-                    double buttonSize = totalWidth * buttonPercentage;
-                    // Calculate gap: remaining width divided equally into three gaps:
-                    // left padding, space between two buttons, right padding.
-                    double gap = (totalWidth - (2 * buttonSize)) / 3;
+              ),
+              const SizedBox(height: 30),
+              Expanded(
+                child: GridView.builder(
+                  itemCount: options.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: 1.1,
+                  ),
+                  itemBuilder: (context, index) {
+                    final option = options[index];
+                    bool isSelected = false;
+                    bool isCorrect = option['isCorrect'] as bool? ?? false;
 
-                    return GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10, // Fixed vertical spacing.
-                      crossAxisSpacing: gap,
-                      padding: EdgeInsets.symmetric(horizontal: gap),
-                      children: [
-                        SizedBox(
-                          width: buttonSize,
-                          height: buttonSize,
-                          child: ElevatedButton(
-                            style: buttonStyle,
-                            onPressed: () {
-                              // Option 1 logic here.
-                            },
-                            child: const Text("Option 1"),
+                    if (userAnswers.containsKey(currentQuestion['id'])) {
+                      isSelected = userAnswers[currentQuestion['id']]
+                              ['selectedOptionIndex'] ==
+                          index;
+                    }
+
+                    Color borderColor = Colors.grey;
+                    Widget? icon;
+
+                    if (isSelected && answered) {
+                      borderColor = isCorrect ? Colors.green : Colors.red;
+                      icon = Icon(
+                        isCorrect ? Icons.check_circle : Icons.cancel,
+                        color: isCorrect ? Colors.green : Colors.red,
+                      );
+                    }
+
+                    return ElevatedButton(
+                      onPressed: answered ? null : () => _selectOption(index),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        backgroundColor: isSelected && answered
+                            ? Colors.grey.shade300
+                            : Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          side: BorderSide(
+                            color: borderColor,
+                            width: 3,
                           ),
                         ),
-                        SizedBox(
-                          width: buttonSize,
-                          height: buttonSize,
-                          child: ElevatedButton(
-                            style: buttonStyle,
-                            onPressed: () {
-                              // Option 2 logic here.
-                            },
-                            child: const Text("Option 2"),
+                        padding: const EdgeInsets.all(12),
+                        elevation: 3,
+                      ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: Text(
+                              option['title'],
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 18),
+                            ),
                           ),
-                        ),
-                        SizedBox(
-                          width: buttonSize,
-                          height: buttonSize,
-                          child: ElevatedButton(
-                            style: buttonStyle,
-                            onPressed: () {
-                              // Option 3 logic here.
-                            },
-                            child: const Text("Option 3"),
-                          ),
-                        ),
-                        SizedBox(
-                          width: buttonSize,
-                          height: buttonSize,
-                          child: ElevatedButton(
-                            style: buttonStyle,
-                            onPressed: () {
-                              // Option 4 logic here.
-                            },
-                            child: const Text("Option 4"),
-                          ),
-                        ),
-                      ],
+                          if (icon != null)
+                            Positioned(
+                              top: 5,
+                              right: 5,
+                              child: icon,
+                            ),
+                        ],
+                      ),
                     );
                   },
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed:
+                        currentQuestionIndex > 0 ? _previousQuestion : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Previous"),
+                  ),
+                  Text(
+                    "Score: $score",
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  ElevatedButton(
+                    onPressed: userAnswers.containsKey(currentQuestion['id'])
+                        ? _nextQuestion
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Next"),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
