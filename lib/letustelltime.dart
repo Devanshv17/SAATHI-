@@ -15,170 +15,144 @@ class LetUsTellTimePage extends StatefulWidget {
 }
 
 class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
-  // Game state variables
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
 
-  // Questions & Navigation
   List<QueryDocumentSnapshot> allQuestions = [];
   List<String> questionOrder = [];
   int currentQuestionIndex = -1;
   String currentDocId = '';
   Map<String, dynamic> userAnswers = {};
 
-  // Current question data
   String question = '';
   DateTime? clockTime;
   List<Map<String, dynamic>> options = [];
 
-  // Firebase instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // Realtime Database reference
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  final Random _random = Random();
 
-  // Use the same game key as expected by the homepage:
-  final String gameKey = "Let us Tell Time";
+  final String gameKey = 'Let us Tell Time';
 
   @override
   void initState() {
     super.initState();
-    _loadGameState().then((_) => _fetchQuestionsInOrder());
+    _loadGameState().then((_) => _fetchQuestions());
   }
 
-  /// Loads saved game state from Firestore.
+  /// Load saved game state from RTDB.
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-
-    final doc = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('games')
-        .doc(gameKey)
-        .get();
-    if (!doc.exists) return;
-    final data = doc.data()!;
-    setState(() {
-      score = data['score'] ?? 0;
-      correctCount = data['correctCount'] ?? 0;
-      incorrectCount = data['incorrectCount'] ?? 0;
-      userAnswers = Map<String, dynamic>.from(data['answers'] ?? {});
-      questionOrder = List<String>.from(data['questionOrder'] ?? []);
-    });
+    final snap = await _dbRef.child('users/${user.uid}/games/$gameKey').get();
+    if (snap.exists && snap.value != null) {
+      final data = Map<String, dynamic>.from(snap.value as Map);
+      setState(() {
+        score = data['score'] ?? 0;
+        correctCount = data['correctCount'] ?? 0;
+        incorrectCount = data['incorrectCount'] ?? 0;
+        userAnswers = Map<String, dynamic>.from(data['answers'] ?? {});
+        questionOrder = List<String>.from(data['questionOrder'] ?? []);
+      });
+    }
   }
 
-  /// Saves the current game state to Firestore and Realtime Database.
+  /// Persist state to RTDB.
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    Map<String, dynamic> gameState = {
+    await _dbRef.child('users/${user.uid}/games/$gameKey').update({
       'score': score,
       'correctCount': correctCount,
       'incorrectCount': incorrectCount,
       'answers': userAnswers,
       'questionOrder': questionOrder,
-    };
-    // Save under key "Let us Tell Time" in Firestore.
-    await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('games')
-        .doc(gameKey)
-        .set(gameState);
-    // Also update the Realtime Database node so the homepage shows the updated game state.
-    await _dbRef.child("users/${user.uid}/games/$gameKey").update(gameState);
+    });
   }
 
-  /// Fetch questions from Firestore and set up the question order.
-  Future<void> _fetchQuestionsInOrder() async {
+  /// Fetches all questions, initializes order, and loads the first unanswered.
+  Future<void> _fetchQuestions() async {
     try {
-      final snapshot = await _firestore
+      final snap = await _firestore
           .collection('Let us Tell Time')
           .get(const GetOptions(source: Source.serverAndCache));
-      allQuestions = snapshot.docs;
+      allQuestions = snap.docs;
       if (allQuestions.isEmpty) return;
 
-      // Initialize question order if first launch.
       if (questionOrder.isEmpty) {
-        final answeredIds = allQuestions
+        final answered = allQuestions
             .where((d) => userAnswers.containsKey(d.id))
             .map((d) => d.id)
             .toList();
-        final unansweredIds = allQuestions
+        final unanswered = allQuestions
             .where((d) => !userAnswers.containsKey(d.id))
             .map((d) => d.id)
             .toList();
-        questionOrder = [...answeredIds, ...unansweredIds];
+        questionOrder = [...answered, ...unanswered];
         await _saveGameState();
       }
 
-      // If all questions are answered, finish the game.
-      if (_allQuestionsAnswered()) {
-        _onFinishPressed();
+      if (_allAnswered()) {
+        _navigateToResult();
         return;
       }
-      // Load the first unanswered question.
-      _loadQuestionFromIndex(_firstUnansweredIndex());
+
+      _loadQuestion(questionOrder.indexWhere(
+            (id) => !userAnswers.containsKey(id),
+      ));
     } catch (e) {
       debugPrint('Error fetching questions: $e');
     }
   }
 
-  bool _allQuestionsAnswered() =>
-      questionOrder.every((id) => userAnswers.containsKey(id));
+  bool _allAnswered() =>
+      questionOrder.isNotEmpty && questionOrder.every((id) => userAnswers.containsKey(id));
 
-  int _firstUnansweredIndex() =>
-      questionOrder.indexWhere((id) => !userAnswers.containsKey(id));
-
-  /// Loads the question at the given index.
-  void _loadQuestionFromIndex(int orderIndex) {
+  void _loadQuestion(int orderIndex) {
     if (orderIndex < 0 || orderIndex >= questionOrder.length) return;
     final docId = questionOrder[orderIndex];
     final doc = allQuestions.firstWhere((d) => d.id == docId);
     final data = doc.data() as Map<String, dynamic>;
 
-    // Parse the question text and the time.
     final text = data['text'] ?? 'What time is shown?';
     final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(text);
-    DateTime parsedTime = DateTime(2025, 1, 1, 10, 30);
+    DateTime time = DateTime(2025, 1, 1, 0, 0);
     if (match != null) {
-      final hour = int.parse(match.group(1)!);
-      final minute = int.parse(match.group(2)!);
-      parsedTime = DateTime(2025, 1, 1, hour, minute);
+      time = DateTime(
+        2025,
+        1,
+        1,
+        int.parse(match.group(1)!),
+        int.parse(match.group(2)!),
+      );
     }
 
-    // Prepare options and restore any saved selection.
-    final fetchedOptions =
-    List<Map<String, dynamic>>.from(data['options'] as List)
+    final opts = List<Map<String, dynamic>>.from(data['options'] as List)
         .map((o) => {...o, 'selected': false})
         .toList();
     final saved = userAnswers[docId];
     if (saved != null) {
-      final idx = saved['selectedOptionIndex'] as int?;
-      if (idx != null && idx < fetchedOptions.length) {
-        fetchedOptions[idx]['selected'] = true;
-      }
+      final idx = saved['selectedOptionIndex'] as int;
+      if (idx < opts.length) opts[idx]['selected'] = true;
     }
 
     setState(() {
       currentQuestionIndex = orderIndex;
       currentDocId = docId;
       question = text;
-      clockTime = parsedTime;
-      options = fetchedOptions;
+      clockTime = time;
+      options = opts;
     });
   }
 
-  /// Called when an option is tapped.
   void _checkAnswer(int index) {
     if (userAnswers.containsKey(currentDocId)) return;
-    final selected = options[index];
-    final correctStr = DateFormat('H:mm').format(clockTime!);
-    final altStr = DateFormat('HH:mm').format(clockTime!);
-    final isCorrect = (selected['title'] == correctStr || selected['title'] == altStr);
+    final formatted1 = DateFormat('H:mm').format(clockTime!);
+    final formatted2 = DateFormat('HH:mm').format(clockTime!);
+    final isCorrect =
+        options[index]['title'] == formatted1 || options[index]['title'] == formatted2;
     setState(() {
       options[index]['selected'] = true;
       if (isCorrect) {
@@ -195,26 +169,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     _saveGameState();
   }
 
-  /// Navigate to the previous question.
-  void _goToPreviousQuestion() {
-    if (currentQuestionIndex > 0) {
-      _loadQuestionFromIndex(currentQuestionIndex - 1);
-    }
-  }
-
-  /// Navigate to the next question or finish if all have been answered.
-  void _goToNextQuestion() {
-    if (_allQuestionsAnswered()) {
-      _onFinishPressed();
-    } else if (currentQuestionIndex < questionOrder.length - 1) {
-      _loadQuestionFromIndex(currentQuestionIndex + 1);
-    }
-  }
-
-  /// Finish game: save state and navigate to the ResultPage.
-  Future<void> _onFinishPressed() async {
-    await _saveGameState();
-    if (!mounted) return;
+  void _navigateToResult() {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -228,43 +183,18 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     );
   }
 
-  /// Builds the option card UI.
-  Widget _buildOptionCard(int index) {
-    final opt = options[index];
-    final isSelected = opt['selected'] as bool;
-    bool isCorrect = false;
-    final saved = userAnswers[currentDocId];
-    if (saved != null && saved['selectedOptionIndex'] == index) {
-      isCorrect = saved['isCorrect'] as bool;
+  void _goPrev() {
+    if (currentQuestionIndex > 0) {
+      _loadQuestion(currentQuestionIndex - 1);
     }
-    return GestureDetector(
-      onTap: isSelected ? null : () => _checkAnswer(index),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: isSelected
-              ? Border.all(
-            color: isCorrect ? Colors.green : Colors.red,
-            width: 3,
-          )
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
-              blurRadius: 3,
-              spreadRadius: 1,
-            )
-          ],
-        ),
-        child: Center(
-          child: Text(
-            opt['title'],
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    );
+  }
+
+  void _goNext() {
+    if (_allAnswered()) {
+      _navigateToResult();
+    } else if (currentQuestionIndex < questionOrder.length - 1) {
+      _loadQuestion(currentQuestionIndex + 1);
+    }
   }
 
   @override
@@ -279,12 +209,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
         backgroundColor: Colors.blue.shade300,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Let Us Tell Time', style: TextStyle(fontSize: 22)),
-          ],
-        ),
+        title: const Text('Let Us Tell Time', style: TextStyle(fontSize: 22)),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -294,9 +219,9 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 builder: (_) => AlertDialog(
                   title: const Text('Instructions'),
                   content: const Text(
-                    '1. Answer all questions in order\n'
-                        '2. Progress is saved automatically\n'
-                        '3. Finish all questions to see results',
+                    '1. Tap the correct time.\n'
+                        '2. Progress is saved automatically.\n'
+                        '3. Finish all questions to see results.',
                   ),
                   actions: [
                     TextButton(
@@ -313,9 +238,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 8),
             if (clockTime != null)
               Center(
                 child: Container(
@@ -324,21 +247,10 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     shape: BoxShape.circle,
-                    boxShadow: const [
-                      BoxShadow(
-                          blurRadius: 4,
-                          color: Colors.black12,
-                          offset: Offset(2, 2)),
-                    ],
+                    boxShadow: const [BoxShadow(blurRadius: 4, color: Colors.black12, offset: Offset(2, 2))],
                   ),
                   child: ClipOval(
-                    child: AnalogClock(
-                      key: ValueKey(clockTime),
-                      dateTime: clockTime!,
-                      dialColor: Colors.white,
-                      hourHandColor: Colors.black,
-                      minuteHandColor: Colors.black,
-                    ),
+                    child: AnalogClock(key: ValueKey(clockTime), dateTime: clockTime!),
                   ),
                 ),
               ),
@@ -347,57 +259,51 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
               child: GridView.builder(
                 itemCount: options.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.2,
+                  crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 1.2,
                 ),
-                itemBuilder: (ctx, idx) => _buildOptionCard(idx),
+                itemBuilder: (_, i) {
+                  final opt = options[i];
+                  final sel = opt['selected'] as bool;
+                  final saved = userAnswers[currentDocId];
+                  final corr = saved != null && saved['selectedOptionIndex'] == i && saved['isCorrect'] == true;
+                  return GestureDetector(
+                    onTap: sel ? null : () => _checkAnswer(i),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: sel ? Border.all(color: corr ? Colors.green : Colors.red, width: 3) : null,
+                        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 3, spreadRadius: 1)],
+                      ),
+                      child: Center(
+                        child: Text(opt['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 10),
-            Center(
-              child: Text(
-                'Score: $score',
-                style:
-                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-            ),
+            Text('Score: $score', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
-                  onPressed: currentQuestionIndex > 0
-                      ? _goToPreviousQuestion
-                      : null,
+                  onPressed: currentQuestionIndex > 0 ? _goPrev : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: currentQuestionIndex > 0
-                        ? Colors.orange
-                        : Colors.grey,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
+                    backgroundColor: currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   ),
-                  child: const Text('Previous',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text('Previous', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 ElevatedButton(
-                  onPressed: _allQuestionsAnswered()
-                      ? _onFinishPressed
-                      : _goToNextQuestion,
+                  onPressed: _allAnswered() ? _navigateToResult : _goNext,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _allQuestionsAnswered()
-                        ? Colors.blue
-                        : Colors.green,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   ),
-                  child: Text(
-                    _allQuestionsAnswered() ? 'Finish' : 'Next',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: Text( 'Next', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
