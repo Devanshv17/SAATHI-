@@ -202,7 +202,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("Let Us Count", style: TextStyle(fontSize: 22)),
+            const Text("Let Us Count",  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             IconButton(
               icon: const Icon(Icons.info_outline),
               onPressed: () {/* instructions */},
@@ -214,10 +215,10 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(children: [
           Text(question, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
+          const SizedBox(height: 17),
           Wrap(
             spacing: 10,
-            children: imageAssets.map((asset) => Image.asset(asset, width: 50, height: 50)).toList(),
+            children: imageAssets.map((asset) => Image.asset(asset, width: 45, height: 45)).toList(),
           ),
           const SizedBox(height: 20),
           Expanded(
@@ -252,14 +253,49 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               },
             ),
           ),
+        
           const SizedBox(height: 15),
-          Column(children: [
-            Text("Score: $score", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          ]),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  "Score: $score",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  "Correct: $correctCount | Incorrect: $incorrectCount",
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 15),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            ElevatedButton(onPressed: _goToPreviousQuestion, style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)), child: const Text("Previous")),
-            ElevatedButton(onPressed: _goToNextQuestion, style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)), child: const Text("Next")),
+            ElevatedButton(
+              onPressed: _goToPreviousQuestion, 
+              style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                        currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)),
+                 child: const Text("Previous",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                )),
+            ElevatedButton(onPressed: _goToNextQuestion, 
+            style: ElevatedButton.styleFrom(
+               backgroundColor: options.any((o) => o['selected'] == true)
+                        ? Colors.green
+                        : Colors.grey,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)), 
+              child: const Text("Next",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                )),
           ]),
         ]),
       ),

@@ -103,7 +103,6 @@ class _MatchingPageState extends State<MatchingPage> {
       }).toList();
 
       setState(() {
-        // If the current question was already answered, mark the answered flag.
         if (questions.isNotEmpty &&
             userAnswers.containsKey(questions[currentQuestionIndex]['id'])) {
           answered = true;
@@ -152,7 +151,6 @@ class _MatchingPageState extends State<MatchingPage> {
   }
 
   void _nextQuestion() {
-    // Do not proceed if the current question hasn't been answered
     if (!userAnswers.containsKey(questions[currentQuestionIndex]['id'])) return;
     if (currentQuestionIndex < questions.length - 1) {
       setState(() {
@@ -205,9 +203,13 @@ class _MatchingPageState extends State<MatchingPage> {
   Widget build(BuildContext context) {
     if (questions.isEmpty) {
       return Scaffold(
+        backgroundColor: Colors.lightBlue[50],
         appBar: AppBar(
-          title: Text(widget.gameTitle),
-          backgroundColor: Colors.indigo,
+          title: Text(
+            widget.gameTitle,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.blue.shade300,
           actions: [
             IconButton(
               icon: const Icon(Icons.info_outline),
@@ -224,9 +226,13 @@ class _MatchingPageState extends State<MatchingPage> {
     final options = currentQuestion['options'] as List<dynamic>;
 
     return Scaffold(
+      backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title: Text(widget.gameTitle),
-        backgroundColor: Colors.indigo,
+        title: Text(
+          widget.gameTitle,
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.blue.shade300,
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -269,7 +275,7 @@ class _MatchingPageState extends State<MatchingPage> {
                           index;
                     }
 
-                    Color borderColor = Colors.grey;
+                    Color borderColor = Colors.white10;
                     Widget? icon;
 
                     if (isSelected && answered) {
@@ -283,10 +289,9 @@ class _MatchingPageState extends State<MatchingPage> {
                     return ElevatedButton(
                       onPressed: answered ? null : () => _selectOption(index),
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        backgroundColor: isSelected && answered
-                            ? Colors.grey.shade300
-                            : Colors.white,
+                        backgroundColor: Colors.white, // normal
+                        disabledBackgroundColor:
+                            Colors.white, // keep white when disabled
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                           side: BorderSide(
@@ -318,33 +323,60 @@ class _MatchingPageState extends State<MatchingPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      "Score: $score",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "Correct: $correctCount | Incorrect: $incorrectCount",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
                     onPressed:
                         currentQuestionIndex > 0 ? _previousQuestion : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
+                      backgroundColor: currentQuestionIndex > 0
+                          ? Colors.orange
+                          : Colors.grey,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 30, vertical: 15),
                     ),
-                    child: const Text("Previous"),
-                  ),
-                  Text(
-                    "Score: $score",
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                    child: const Text(
+                      "Previous",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                   ElevatedButton(
                     onPressed: userAnswers.containsKey(currentQuestion['id'])
                         ? _nextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 30, vertical: 15),
                     ),
-                    child: const Text("Next"),
+                    child: const Text(
+                      "Next",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                 ],
               ),

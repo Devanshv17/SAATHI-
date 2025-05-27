@@ -278,30 +278,30 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               questionText.isNotEmpty ? questionText : "Loading question...",
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.blue[800],
+               
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
             if (imageUrl != null)
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(4.0),
                   child: Image.network(
                     imageUrl!,
-                    height: 120,
+                    height: 100,
                   ),
                 ),
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 15),
             Expanded(
               child: GridView.builder(
                 shrinkWrap: true,
@@ -317,18 +317,22 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                 itemBuilder: (context, index) => buildOptionCard(options[index], index),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 15),
             Center(
-              child: Text(
-                "Your Score: $score",
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+              child: Column(
+                children: [
+                  Text(
+                    "Score: $score",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "Correct: $correctCount | Incorrect: $incorrectCount",
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [

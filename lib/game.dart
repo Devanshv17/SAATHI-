@@ -247,7 +247,9 @@ class _GamePageState extends State<GamePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(widget.gameTitle),
+            Text(widget.gameTitle,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             IconButton(
               icon: Icon(Icons.info_outline, color: Colors.white),
               onPressed: () => showInstructions(context),
@@ -358,15 +360,25 @@ class _GamePageState extends State<GamePage> {
               children: [
                 ElevatedButton(
                   onPressed: _goToPreviousQuestion,
-                  child: Text("Previous"),
+                  child: Text("Previous",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange),
                 ),
                 ElevatedButton(
                   onPressed: _goToNextQuestion,
-                  child: Text("Next"),
+                  child: Text("Next",
+                  style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
                   style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  ElevatedButton.styleFrom(backgroundColor: Colors.green,),
                 ),
               ],
             ),

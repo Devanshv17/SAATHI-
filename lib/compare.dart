@@ -309,8 +309,11 @@ class _ComparePageState extends State<ComparePage> {
     final currentQuestion = questions[currentIndex];
 
     return Scaffold(
+      backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title: const Text("Compare"),
+        title: const Text("Compare",
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.blue.shade300,
         actions: [
           IconButton(
@@ -328,7 +331,7 @@ class _ComparePageState extends State<ComparePage> {
               // New Question Header.
               const Text(
                 "Compare the number of shapes",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -342,10 +345,28 @@ class _ComparePageState extends State<ComparePage> {
                       currentQuestion.compareNumber2, 'assets/triangle.png'),
                 ],
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 15),
               // Options.
               _buildOptions(),
-              const SizedBox(height: 30),
+
+
+  const SizedBox(height: 15),
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      "Score: $score",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "Correct: $correctCount | Incorrect: $incorrectCount",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
               // Navigation buttons.
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -353,40 +374,41 @@ class _ComparePageState extends State<ComparePage> {
                   ElevatedButton(
                     onPressed: currentIndex > 0 ? _goToPreviousQuestion : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orangeAccent,
+                      backgroundColor: currentIndex > 0
+                          ? Colors.orange
+                          : Colors.grey,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 25, vertical: 15),
-                      textStyle: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
+                          horizontal: 20, vertical: 10),
+                    
                     ),
-                    child: const Text("Previous"),
+                    child: const Text("Previous",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                   ElevatedButton(
                     onPressed: selectedOptionIndices.containsKey(currentIndex)
                         ? _goToNextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.greenAccent,
+                      backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 25, vertical: 15),
-                      textStyle: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
+                          horizontal: 20, vertical: 10),
+                     
                     ),
-                    child: Text(currentIndex < questions.length - 1
-                        ? "Next"
-                        : "Finish"),
+                    child: Text(
+                        "Next",
+                         style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              // Score display.
-              Text(
-                "Score: $score",
-                style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple),
-              ),
+              
             ],
           ),
         ),

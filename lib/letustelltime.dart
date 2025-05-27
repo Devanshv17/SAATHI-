@@ -243,7 +243,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
               Center(
                 child: Container(
                   width: 180,
-                  height: 180,
+                  height: 150,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     shape: BoxShape.circle,
@@ -283,8 +283,21 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 },
               ),
             ),
-            const SizedBox(height: 10),
-            Text('Score: $score', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    "Score: $score",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "Correct: $correctCount | Incorrect: $incorrectCount",
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -295,15 +308,26 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                     backgroundColor: currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   ),
-                  child: const Text('Previous', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text('Previous',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                   ),
                 ),
                 ElevatedButton(
                   onPressed: _allAnswered() ? _navigateToResult : _goNext,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                     backgroundColor: options.any((o) => o['selected'] == true)
+                        ? Colors.green
+                        : Colors.grey,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   ),
-                  child: Text( 'Next', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text( 'Next',  style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
                 ),
               ],
             ),
