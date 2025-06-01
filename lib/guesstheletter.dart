@@ -1,7 +1,8 @@
+import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'result.dart';
 
 class GuessTheLetterPage extends StatefulWidget {
@@ -33,6 +34,11 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
+  // New state for submission logic
+  int? _selectedOptionIndex;
+  bool _hasSubmitted = false;
+  bool _isCorrectSubmission = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,9 +50,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      final snapshot = await _dbRef
-          .child("users/${user.uid}/games/Guess the Letter")
-          .get();
+      final snapshot =
+          await _dbRef.child("users/${user.uid}/games/Guess the Letter").get();
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
@@ -61,7 +66,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
           }
         });
       } else {
-        print("No existing game state for Guess the Letter.");
+        // No previous state
       }
     } catch (e) {
       print("Error loading game state: $e");
@@ -80,7 +85,6 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         "answers": userAnswers,
         "questionOrder": questionOrder,
       });
-      print("Saved game state: score=$score, correct=$correctCount, incorrect=$incorrectCount");
     } catch (e) {
       print("Error saving game state: $e");
     }
@@ -89,20 +93,16 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   // Fetch questions from Firestore and reorder them based on whether they are answered
   Future<void> _fetchQuestionsInOrder() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('Guess the Letter')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection('Guess the Letter').get();
 
-      // Create a map of question docID -> document snapshot.
       Map<String, QueryDocumentSnapshot> questionMap = {
         for (var doc in snapshot.docs) doc.id: doc
       };
 
       if (questionOrder.isEmpty) {
-        // First load: split questions into answered and unanswered.
         List<String> answered = [];
         List<String> unanswered = [];
-
         for (var doc in snapshot.docs) {
           if (userAnswers.containsKey(doc.id)) {
             answered.add(doc.id);
@@ -114,8 +114,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         await _saveGameState();
       }
 
-      // Check if all questions are answered. If so, go straight to result.
-      bool allAnswered = questionOrder.every((id) => userAnswers.containsKey(id));
+      bool allAnswered =
+          questionOrder.every((id) => userAnswers.containsKey(id));
       if (allAnswered) {
         _navigateToResult();
         return;
@@ -128,7 +128,6 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
             .cast<QueryDocumentSnapshot>()
             .toList();
 
-        // Start at the first unanswered question:
         int startIndex = _firstUnansweredIndex();
         _loadQuestionFromIndex(startIndex);
       });
@@ -137,43 +136,47 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     }
   }
 
-  // Returns the index of the first unanswered question.
   int _firstUnansweredIndex() {
     for (int i = 0; i < questionOrder.length; i++) {
       if (!userAnswers.containsKey(questionOrder[i])) {
         return i;
       }
     }
-    return 0; // Fallback in case all are answered
+    return 0;
   }
 
   // Load a question based on its index in the ordered list.
   void _loadQuestionFromIndex(int index) {
     if (index < 0 || index >= allQuestions.length) return;
-
     final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
+    final saved = userAnswers[doc.id];
+
     setState(() {
       currentQuestionIndex = index;
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
-      imageUrl = data['imageUrl']; // Assign the image URL here.
+      imageUrl = data['imageUrl'];
       options = List<Map<String, dynamic>>.from(data['options'] ?? []);
-      // Reset selected flags for the options.
       for (var opt in options) {
         opt['selected'] = false;
       }
-      // If the question was already answered, restore the selected option.
-      if (userAnswers.containsKey(doc.id)) {
-        final savedAnswer = userAnswers[doc.id];
-        final savedIndex = savedAnswer['selectedOptionIndex'] as int?;
-        if (savedIndex != null && savedIndex < options.length) {
-          options[savedIndex]['selected'] = true;
+      if (saved != null) {
+        int idx = saved['selectedOptionIndex'] as int;
+        bool wasCorrect = saved['isCorrect'] as bool? ?? false;
+        _selectedOptionIndex = idx;
+        _hasSubmitted = true;
+        _isCorrectSubmission = wasCorrect;
+        if (idx < options.length) {
+          options[idx]['selected'] = true;
         }
+      } else {
+        _selectedOptionIndex = null;
+        _hasSubmitted = false;
+        _isCorrectSubmission = false;
       }
     });
   }
-
 
   // Navigate to previous question (if available)
   void _goToPreviousQuestion() {
@@ -206,13 +209,28 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     );
   }
 
-  // Handles answer selection.
-  void checkAnswer(int index) {
-    if (userAnswers.containsKey(currentDocId)) return; // Lock question if answered.
+  // Handle option tap: select but do not grade until submit
+  void _selectOption(int index) {
+    if (_hasSubmitted || userAnswers.containsKey(currentDocId)) return;
+    setState(() {
+      _selectedOptionIndex = index;
+      for (var i = 0; i < options.length; i++) {
+        options[i]['selected'] = false;
+      }
+      options[index]['selected'] = true;
+    });
+  }
 
+  // Submit the currently selected option
+  void _submitAnswer() {
+    if (_hasSubmitted || _selectedOptionIndex == null) return;
+
+    int index = _selectedOptionIndex!;
     bool isCorrect = options[index]['isCorrect'] == true;
 
     setState(() {
+      _hasSubmitted = true;
+      _isCorrectSubmission = isCorrect;
       options[index]['selected'] = true;
       if (isCorrect) {
         score++;
@@ -235,11 +253,10 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       builder: (context) => AlertDialog(
         title: const Text("Instructions"),
         content: const Text(
-          "1. Tap the correct option.\n"
-              "2. A green border means correct, red means wrong.\n"
-              "3. Your score increases only for correct answers.\n"
-              "4. Use 'Previous' or 'Next' to navigate through questions.\n"
-              "5. Answered questions are not repeated.",
+          "1. Tap an option to select it (blue border).\n"
+          "2. Tap Submit to lock in your answer.\n"
+          "3. If correct, a green tick appears; if wrong, a red cross appears in the top-right with blur.\n"
+          "4. Use Previous/Next to navigate.",
         ),
         actions: [
           TextButton(
@@ -271,7 +288,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(
-              icon: const Icon(Icons.info_outline, color: Colors.white, size: 28),
+              icon:
+                  const Icon(Icons.info_outline, color: Colors.white, size: 28),
               onPressed: () => showInstructions(context),
             ),
           ],
@@ -280,33 +298,23 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Question text
             Text(
               questionText.isNotEmpty ? questionText : "Loading question...",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-               
-              ),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             if (imageUrl != null)
               Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Image.network(
-                    imageUrl!,
-                    height: 100,
-                  ),
+                child: Image.network(
+                  imageUrl!,
+                  height: 100,
                 ),
               ),
             const SizedBox(height: 15),
             Expanded(
               child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 8),
                 itemCount: options.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -314,20 +322,28 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                   crossAxisSpacing: 8,
                   childAspectRatio: 1.2,
                 ),
-                itemBuilder: (context, index) => buildOptionCard(options[index], index),
+                itemBuilder: (context, index) {
+                  return buildOptionCard(options[index], index);
+                },
               ),
             ),
+            // const SizedBox(height: 15),
+
+            // Submit button
+          
+
             const SizedBox(height: 15),
             Center(
               child: Column(
                 children: [
                   Text(
                     "Score: $score",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Text(
                     "Correct: $correctCount | Incorrect: $incorrectCount",
-                    style: TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ],
               ),
@@ -338,24 +354,60 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               children: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor:
+                        currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                   ),
-                  onPressed: currentQuestionIndex > 0 ? _goToPreviousQuestion : null,
+                  onPressed:
+                      currentQuestionIndex > 0 ? _goToPreviousQuestion : null,
                   child: const Text(
                     "Previous",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ),
+
+
+                  ElevatedButton(
+                  onPressed: (_selectedOptionIndex != null &&
+                          !_hasSubmitted &&
+                          !userAnswers.containsKey(currentDocId))
+                      ? _submitAnswer
+                      : null,
+                  child: const Text(
+                    "Submit",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                    color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                  ),
+                ),
+
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: options.any((o) => o['selected'] == true) ? Colors.green : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor:
+                        (_hasSubmitted || userAnswers.containsKey(currentDocId))
+                            ? Colors.green
+                            : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                   ),
-                  onPressed: options.any((o) => o['selected'] == true) ? _goToNextQuestion : null,
+                  onPressed:
+                      (_hasSubmitted || userAnswers.containsKey(currentDocId))
+                          ? _goToNextQuestion
+                          : null,
                   child: const Text(
                     "Next",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ),
               ],
@@ -367,23 +419,24 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   }
 
   Widget buildOptionCard(Map<String, dynamic> option, int index) {
-    bool isSelected = option['selected'] == true;
-    bool isCorrect = option['isCorrect'] == true;
+    bool isSelected = _selectedOptionIndex == index;
+    bool showResultForThis = _hasSubmitted && _selectedOptionIndex == index;
+    bool corr = option['isCorrect'] == true;
+
     return GestureDetector(
-      onTap: isSelected ? null : () => checkAnswer(index),
+      onTap: () => _selectOption(index),
       child: Stack(
-        alignment: Alignment.center,
         children: [
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: isSelected
-                  ? Border.all(
-                color: isCorrect ? Colors.green : Colors.red,
-                width: 4,
-              )
-                  : null,
+              border: isSelected && !_hasSubmitted
+                  ? Border.all(color: Colors.blue, width: 4)
+                  : showResultForThis
+                      ? Border.all(
+                          color: corr ? Colors.green : Colors.red, width: 4)
+                      : null,
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.2),
@@ -392,35 +445,40 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                 ),
               ],
             ),
-            child: Center(
-              child: Text(
-                option['title'],
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Center(
+                      child: Text(
+                        option['title'],
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  if (showResultForThis)
+                    Positioned.fill(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 1.0, sigmaY: 1.0),
+                        child: Container(
+                          color: Colors.black.withOpacity(0.2),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
-          if (isSelected &&
-              option['description'] != null &&
-              option['description'] != "")
+          if (showResultForThis)
             Positioned(
-              bottom: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  option['description'],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              top: 8,
+              right: 8,
+              child: Icon(
+                corr ? Icons.check_circle : Icons.cancel,
+                size: 50,
+                color: corr ? Colors.green : Colors.red,
               ),
             ),
         ],

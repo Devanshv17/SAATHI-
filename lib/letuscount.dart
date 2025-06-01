@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -35,13 +36,18 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   // The game key used in saving and loading game state—must match the key expected by the homepage.
   final String gameKey = "Let us Count";
 
+  // New state for submission logic
+  int? _selectedOptionIndex;
+  bool _hasSubmitted = false;
+  bool _isCorrectSubmission = false;
+
   @override
   void initState() {
     super.initState();
     _loadGameState().then((_) => _fetchQuestionsInOrder());
   }
 
-  /// Load saved game state from Realtime Database (mirroring GuessTheLetter)
+  /// Load saved game state from Realtime Database
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -59,7 +65,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     }
   }
 
-  /// Save game state only to Realtime Database
+  /// Save game state to Realtime Database
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -82,7 +88,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       allQuestions = snapshot.docs;
       if (allQuestions.isEmpty) return;
 
-      // First load: build or persist questionOrder
+      // Build or persist questionOrder
       if (questionOrder.isEmpty) {
         final answered = allQuestions
             .where((doc) => userAnswers.containsKey(doc.id))
@@ -97,7 +103,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         await _saveGameState();
       }
 
-      // Only navigate to result when user has answered all
+      // If all answered, go to result
       bool allDone = questionOrder.every((id) => userAnswers.containsKey(id));
       if (allDone) {
         _navigateToResult();
@@ -105,7 +111,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       }
 
       _loadQuestionFromIndex(questionOrder.indexWhere(
-            (id) => !userAnswers.containsKey(id),
+        (id) => !userAnswers.containsKey(id),
       ));
     } catch (e) {
       debugPrint("Error fetching questions: $e");
@@ -118,6 +124,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
 
+    // Check if already answered
+    final saved = userAnswers[doc.id];
+
     setState(() {
       currentQuestionIndex = index;
       currentDocId = doc.id;
@@ -125,33 +134,53 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       imageCount = int.tryParse(data['numberField']?.toString() ?? "0") ?? 0;
       imageAssets = List.generate(
         imageCount,
-            (_) => _random.nextBool() ?
-        'assets/circle.png' : 'assets/triangle.png',
+        (_) => _random.nextBool() ? 'assets/circle.png' : 'assets/triangle.png',
       );
       options = (data['options'] as List)
           .map((o) => {...(o as Map<String, dynamic>), 'selected': false})
           .toList();
 
-      // Restore saved selection
-      final saved = userAnswers[doc.id];
       if (saved != null) {
         int idx = saved['selectedOptionIndex'] as int;
-        if (idx < options.length) options[idx]['selected'] = true;
+        bool wasCorrect = saved['isCorrect'] as bool? ?? false;
+        _selectedOptionIndex = idx;
+        _hasSubmitted = true;
+        _isCorrectSubmission = wasCorrect;
+        if (idx < options.length) {
+          options[idx]['selected'] = true;
+        }
+      } else {
+        _selectedOptionIndex = null;
+        _hasSubmitted = false;
+        _isCorrectSubmission = false;
       }
     });
   }
 
-  void _checkAnswer(int index) {
-    if (userAnswers.containsKey(currentDocId)) return;
+  void _submitAnswer() {
+    if (_hasSubmitted || _selectedOptionIndex == null) return;
+
+    int index = _selectedOptionIndex!;
     bool isCorrect = options[index]['isCorrect'] == true;
+
     setState(() {
       options[index]['selected'] = true;
-      if (isCorrect) { score++; correctCount++; } else { incorrectCount++; }
+      _hasSubmitted = true;
+      _isCorrectSubmission = isCorrect;
+
+      if (isCorrect) {
+        score++;
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
+
       userAnswers[currentDocId] = {
         'selectedOptionIndex': index,
         'isCorrect': isCorrect,
       };
     });
+
     _saveGameState();
   }
 
@@ -176,8 +205,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   }
 
   void _goToNextQuestion() {
-    if (options.any((o) => o['selected'] == true)) {
-      // Move or finish
+    // Only proceed if answered/submitted
+    if (_hasSubmitted || userAnswers.containsKey(currentDocId)) {
       bool allDone = questionOrder.every((id) => userAnswers.containsKey(id));
       if (allDone) {
         _navigateToResult();
@@ -202,102 +231,238 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("Let Us Count",  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            const Text(
+              "Let Us Count",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(
               icon: const Icon(Icons.info_outline),
-              onPressed: () {/* instructions */},
+              onPressed: () {
+                // Add instructions here if needed
+              },
             ),
           ],
         ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(children: [
-          Text(question, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 17),
-          Wrap(
-            spacing: 10,
-            children: imageAssets.map((asset) => Image.asset(asset, width: 45, height: 45)).toList(),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: GridView.builder(
-              itemCount: options.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, mainAxisSpacing: 15, crossAxisSpacing: 15, childAspectRatio: 1.5,
-              ),
-              itemBuilder: (context, i) {
-                final o = options[i];
-                bool sel = o['selected'];
-                bool corr = o['isCorrect'] == true;
-                return GestureDetector(
-                  onTap: sel ? null : () => _checkAnswer(i),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      border: sel ? Border.all(color: corr ? Colors.green : Colors.red, width: 4) : null,
-                      boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.3), spreadRadius: 2, blurRadius: 5)],
-                    ),
-                    child: Center(
-                      child: Text(
-                        o['description'] ?? '',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold,
-                          color: sel ? (corr ? Colors.green : Colors.red) : Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+        child: Column(
+          children: [
+            // Question text
+            Text(
+              question,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-          ),
-        
-          const SizedBox(height: 15),
-          Center(
-            child: Column(
-              children: [
-                Text(
-                  "Score: $score",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const SizedBox(height: 17),
+
+            // Display generated images
+            Wrap(
+              spacing: 10,
+              children: imageAssets
+                  .map((asset) => Image.asset(asset, width: 45, height: 45))
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+
+            // Options grid
+            Expanded(
+              child: GridView.builder(
+                itemCount: options.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 15,
+                  crossAxisSpacing: 15,
+                  childAspectRatio: 1.5,
                 ),
-                Text(
-                  "Correct: $correctCount | Incorrect: $incorrectCount",
-                  style: TextStyle(fontSize: 16),
+                itemBuilder: (context, i) {
+                  final o = options[i];
+                  bool isSelected = _selectedOptionIndex == i;
+                  bool showResultForThis =
+                      _hasSubmitted && _selectedOptionIndex == i;
+                  bool corr = o['isCorrect'] == true;
+
+                  return GestureDetector(
+                    onTap: () {
+                      // Only allow selecting if not already submitted/answered
+                      if (!_hasSubmitted &&
+                          !userAnswers.containsKey(currentDocId)) {
+                        setState(() {
+                          _selectedOptionIndex = i;
+                        });
+                      }
+                    },
+                    child: Stack(
+                      children: [
+                        // Option container with appropriate border
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            border: isSelected && !_hasSubmitted
+                                // Blue border when selected but not submitted
+                                ? Border.all(color: Colors.blue, width: 4)
+                                // Green or red border after submission
+                                : showResultForThis
+                                    ? Border.all(
+                                        color: corr ? Colors.green : Colors.red,
+                                        width: 4)
+                                    : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.3),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                              )
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: Stack(
+                              children: [
+                                // Option text
+                                Positioned.fill(
+                                  child: Center(
+                                    child: Text(
+                                      o['description'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: showResultForThis
+                                            ? (corr ? Colors.green : Colors.red)
+                                            : Colors.black,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // Blur overlay if showing result
+                                if (showResultForThis)
+                                  Positioned.fill(
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: 1.0,
+                                        sigmaY: 1.0,
+                                      ),
+                                      child: Container(
+                                        color: Colors.black.withOpacity(0.2),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Tick or cross in top-right corner if showing result
+                        if (showResultForThis)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Icon(
+                              corr ? Icons.check_circle : Icons.cancel,
+                              size: 50,
+                              color: corr ? Colors.green : Colors.red,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // const SizedBox(height: 15),
+
+            // Submit button (always visible but disabled if no selection or already submitted)
+            
+
+            const SizedBox(height: 15),
+
+            // Score display
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    "Score: $score",
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "Correct: $correctCount | Incorrect: $incorrectCount",
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // Navigation buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: _goToPreviousQuestion,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 15),
+                  ),
+                  child: const Text(
+                    "Previous",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                ),
+
+                ElevatedButton(
+                  onPressed: (_selectedOptionIndex != null &&
+                          !_hasSubmitted &&
+                          !userAnswers.containsKey(currentDocId))
+                      ? _submitAnswer
+                      : null,
+                  child: const Text(
+                    "Submit",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 15),
+                  ),
+                ),
+
+                ElevatedButton(
+                  onPressed:
+                      (_hasSubmitted || userAnswers.containsKey(currentDocId))
+                          ? _goToNextQuestion
+                          : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        (_hasSubmitted || userAnswers.containsKey(currentDocId))
+                            ? Colors.green
+                            : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 15),
+                  ),
+                  child: const Text(
+                    "Next",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
                 ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 15),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            ElevatedButton(
-              onPressed: _goToPreviousQuestion, 
-              style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                        currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)),
-                 child: const Text("Previous",
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                )),
-            ElevatedButton(onPressed: _goToNextQuestion, 
-            style: ElevatedButton.styleFrom(
-               backgroundColor: options.any((o) => o['selected'] == true)
-                        ? Colors.green
-                        : Colors.grey,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)), 
-              child: const Text("Next",
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                )),
-          ]),
-        ]),
+          ],
+        ),
       ),
     );
   }

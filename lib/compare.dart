@@ -1,5 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'result.dart'; // Import your ResultPage
@@ -18,8 +19,13 @@ class _ComparePageState extends State<ComparePage> {
   int correctCount = 0;
   int incorrectCount = 0;
 
-  // Map storing the selected option index for each question.
+  // Map storing the submitted answer index for each question.
   Map<int, int> selectedOptionIndices = {};
+
+  // Pending selection before submit.
+  int? _pendingSelectedIndex;
+  bool _hasSubmittedCurrent = false;
+  bool _currentIsCorrect = false;
 
   bool isLoading = true;
 
@@ -30,7 +36,6 @@ class _ComparePageState extends State<ComparePage> {
   @override
   void initState() {
     super.initState();
-    // Load previous game state first then fetch questions.
     _loadGameState().then((_) => _fetchQuestions());
   }
 
@@ -48,7 +53,6 @@ class _ComparePageState extends State<ComparePage> {
           correctCount = data['correctCount'] ?? 0;
           incorrectCount = data['incorrectCount'] ?? 0;
           currentIndex = data['currentIndex'] ?? 0;
-          // For selectedOptionIndices, convert keys from string to int.
           if (data['selectedOptionIndices'] != null) {
             final Map<dynamic, dynamic> savedMap =
                 data['selectedOptionIndices'];
@@ -66,7 +70,6 @@ class _ComparePageState extends State<ComparePage> {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      // Convert the selectedOptionIndices keys to string for saving.
       final formattedAnswers = selectedOptionIndices
           .map((key, value) => MapEntry(key.toString(), value));
       await _dbRef.child("users/${user.uid}/games/Compare").update({
@@ -81,7 +84,6 @@ class _ComparePageState extends State<ComparePage> {
     }
   }
 
-  // Fetch questions from Firestore.
   Future<void> _fetchQuestions() async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
@@ -109,16 +111,15 @@ class _ComparePageState extends State<ComparePage> {
         isLoading = false;
       });
 
-      // If all questions already answered, automatically navigate to result.
       if (selectedOptionIndices.length == questions.length) {
         _navigateToResult();
       }
-      // Also, if currentIndex is out of bound (for instance if questions were reduced), reset.
       if (currentIndex >= questions.length) {
-        setState(() {
-          currentIndex = questions.length - 1;
-        });
+        currentIndex = questions.length - 1;
       }
+
+      // Initialize pending/submitted status for the current question
+      _initCurrentQuestionState();
     } catch (e) {
       print("Error fetching questions: $e");
       setState(() {
@@ -127,7 +128,20 @@ class _ComparePageState extends State<ComparePage> {
     }
   }
 
-  // Displays an instructions dialog.
+  void _initCurrentQuestionState() {
+    // If this question was already answered, restore its state
+    if (selectedOptionIndices.containsKey(currentIndex)) {
+      _pendingSelectedIndex = selectedOptionIndices[currentIndex];
+      _hasSubmittedCurrent = true;
+      _currentIsCorrect =
+          questions[currentIndex].options[_pendingSelectedIndex!].isCorrect;
+    } else {
+      _pendingSelectedIndex = null;
+      _hasSubmittedCurrent = false;
+      _currentIsCorrect = false;
+    }
+  }
+
   void _showInstructionsDialog() {
     showDialog(
       context: context,
@@ -139,11 +153,11 @@ class _ComparePageState extends State<ComparePage> {
           ),
           content: const Text(
             "1. Compare the number of shapes shown.\n"
-            "2. Select the correct relation by tapping one option.\n"
-            "3. If your answer is correct, a green border and check mark will appear; if wrong, a red border and cross will show.\n"
-            "4. Use the Next and Previous buttons to navigate.\n"
-            "5. Your progress is saved and resumed when you come back.\n"
-            "6. After the last question, you will see the results.",
+            "2. Tap one option to select it (blue border appears).\n"
+            "3. Tap Submit to lock in your answer.\n"
+            "4. If correct, a green tick appears; if wrong, a red cross appears top-right with blur.\n"
+            "5. Use Next and Previous to navigate.\n"
+            "6. Progress is saved automatically.",
             style: TextStyle(fontSize: 20),
           ),
           actions: [
@@ -160,7 +174,6 @@ class _ComparePageState extends State<ComparePage> {
     );
   }
 
-  // Build grid for shapes using asset images.
   Widget _buildShapeGrid(int count, String assetPath) {
     return Container(
       width: 150,
@@ -193,14 +206,24 @@ class _ComparePageState extends State<ComparePage> {
     );
   }
 
-  // Called when an option is tapped.
-  void _handleOptionSelected(int optionIndex) {
-    // Allow only one selection per question.
-    if (selectedOptionIndices.containsKey(currentIndex)) return;
+  void _selectOption(int optionIndex) {
+    if (_hasSubmittedCurrent || selectedOptionIndices.containsKey(currentIndex))
+      return;
     setState(() {
-      selectedOptionIndices[currentIndex] = optionIndex;
-      // Check if the selected option is correct.
-      if (questions[currentIndex].options[optionIndex].isCorrect) {
+      _pendingSelectedIndex = optionIndex;
+      // No scoring yet, only highlight border
+    });
+  }
+
+  void _submitAnswer() {
+    if (_hasSubmittedCurrent || _pendingSelectedIndex == null) return;
+    bool isCorrect =
+        questions[currentIndex].options[_pendingSelectedIndex!].isCorrect;
+    setState(() {
+      _hasSubmittedCurrent = true;
+      _currentIsCorrect = isCorrect;
+      selectedOptionIndices[currentIndex] = _pendingSelectedIndex!;
+      if (isCorrect) {
         score++;
         correctCount++;
       } else {
@@ -210,66 +233,30 @@ class _ComparePageState extends State<ComparePage> {
     _saveGameState();
   }
 
-  // Build the option tiles.
-  Widget _buildOptions() {
-    final currentQuestion = questions[currentIndex];
-    int? selected = selectedOptionIndices[currentIndex];
-
-    return Column(
-      children: List.generate(currentQuestion.options.length, (index) {
-        final option = currentQuestion.options[index];
-        // Determine border color and overlay icon if this option is selected.
-        Color borderColor = Colors.blueAccent;
-        Widget? overlayIcon;
-        if (selected != null && selected == index) {
-          if (option.isCorrect) {
-            borderColor = Colors.green;
-            overlayIcon =
-                const Icon(Icons.check_circle, color: Colors.green, size: 40);
-          } else {
-            borderColor = Colors.red;
-            overlayIcon = const Icon(Icons.cancel, color: Colors.red, size: 40);
-          }
-        }
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: OptionTile(
-            text: option.title,
-            borderColor: borderColor,
-            overlayIcon: overlayIcon,
-            onTap: selected == null ? () => _handleOptionSelected(index) : null,
-          ),
-        );
-      }),
-    );
-  }
-
-  // Move to the next question or go to result if it's the last.
   void _goToNextQuestion() {
-    // Only allow navigation if this question has an answer.
-    if (!selectedOptionIndices.containsKey(currentIndex)) return;
+    if (!_hasSubmittedCurrent &&
+        !selectedOptionIndices.containsKey(currentIndex)) return;
     if (currentIndex < questions.length - 1) {
       setState(() {
         currentIndex++;
       });
+      _initCurrentQuestionState();
       _saveGameState();
     } else {
-      // Last question answered, navigate to results.
       _navigateToResult();
     }
   }
 
-  // Move to the previous question.
   void _goToPreviousQuestion() {
     if (currentIndex > 0) {
       setState(() {
         currentIndex--;
       });
+      _initCurrentQuestionState();
       _saveGameState();
     }
   }
 
-  // Navigate to the results page.
   void _navigateToResult() {
     Navigator.pushReplacement(
       context,
@@ -292,26 +279,23 @@ class _ComparePageState extends State<ComparePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Display a loading indicator while fetching.
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
-    // If no questions are loaded.
     if (questions.isEmpty) {
       return const Scaffold(
         body: Center(child: Text("No Compare questions available.")),
       );
     }
-
     final currentQuestion = questions[currentIndex];
 
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title: const Text("Compare",
+        title: const Text(
+          "Compare",
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.blue.shade300,
@@ -328,14 +312,12 @@ class _ComparePageState extends State<ComparePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // New Question Header.
               const Text(
                 "Compare the number of shapes",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              // Shape grids.
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -346,61 +328,116 @@ class _ComparePageState extends State<ComparePage> {
                 ],
               ),
               const SizedBox(height: 15),
-              // Options.
-              _buildOptions(),
+              // Options list
+              Column(
+                children:
+                    List.generate(currentQuestion.options.length, (index) {
+                  final option = currentQuestion.options[index];
+                  bool isPending = _pendingSelectedIndex == index;
+                  bool showResult =
+                      _hasSubmittedCurrent && _pendingSelectedIndex == index;
+                  bool isCorrect = option.isCorrect;
+                  Color borderColor = Colors.grey;
+                  if (isPending && !_hasSubmittedCurrent) {
+                    borderColor = Colors.blue;
+                  } else if (showResult) {
+                    borderColor = isCorrect ? Colors.green : Colors.red;
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: OptionTile(
+                      text: option.title,
+                      borderColor: borderColor,
+                      overlayIcon: showResult
+                          ? Icon(
+                              isCorrect ? Icons.check_circle : Icons.cancel,
+                              color: isCorrect ? Colors.green : Colors.red,
+                              size: 50,
+                            )
+                          : null,
+                      onTap: _hasSubmittedCurrent ||
+                              selectedOptionIndices.containsKey(currentIndex)
+                          ? null
+                          : () => _selectOption(index),
+                    ),
+                  );
+                }),
+              ),
 
+              // const SizedBox(height: 15),
+              // Submit button above score
+             
 
-  const SizedBox(height: 15),
+              const SizedBox(height: 15),
               Center(
                 child: Column(
                   children: [
                     Text(
                       "Score: $score",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       "Correct: $correctCount | Incorrect: $incorrectCount",
-                      style: TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 15),
-              // Navigation buttons.
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
                     onPressed: currentIndex > 0 ? _goToPreviousQuestion : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: currentIndex > 0
-                          ? Colors.orange
-                          : Colors.grey,
+                      backgroundColor:
+                          currentIndex > 0 ? Colors.orange : Colors.grey,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
-                    
                     ),
-                    child: const Text("Previous",
+                    child: const Text(
+                      "Previous",
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white),
                     ),
                   ),
+
+                   ElevatedButton(
+                    onPressed:
+                        (_pendingSelectedIndex != null && !_hasSubmittedCurrent)
+                            ? _submitAnswer
+                            : null,
+                    child: const Text(
+                      "Submit",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                    ),
+                  ),
+
+                  
                   ElevatedButton(
-                    onPressed: selectedOptionIndices.containsKey(currentIndex)
+                    onPressed: (_hasSubmittedCurrent ||
+                            selectedOptionIndices.containsKey(currentIndex))
                         ? _goToNextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
-                     
                     ),
-                    child: Text(
-                        "Next",
-                         style: TextStyle(
+                    child: const Text(
+                      "Next",
+                      style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white),
@@ -408,7 +445,6 @@ class _ComparePageState extends State<ComparePage> {
                   ),
                 ],
               ),
-              
             ],
           ),
         ),
@@ -417,7 +453,7 @@ class _ComparePageState extends State<ComparePage> {
   }
 }
 
-// OptionTile widget: a clickable, kid-friendly option.
+// OptionTile widget: a clickable option with border and optional overlay icon.
 class OptionTile extends StatelessWidget {
   final String text;
   final Color borderColor;
@@ -437,7 +473,6 @@ class OptionTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Stack(
-        alignment: Alignment.center,
         children: [
           Container(
             width: double.infinity,
@@ -460,7 +495,16 @@ class OptionTile extends StatelessWidget {
             Positioned(
               right: 10,
               top: 10,
-              child: overlayIcon!,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 1.0, sigmaY: 1.0),
+                  child: Container(
+                    color: Colors.transparent,
+                    child: overlayIcon,
+                  ),
+                ),
+              ),
             ),
         ],
       ),

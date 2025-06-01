@@ -1,3 +1,4 @@
+import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,17 +20,25 @@ class _MatchingPageState extends State<MatchingPage> {
 
   List<Map<String, dynamic>> questions = [];
   int currentQuestionIndex = 0;
-  Map<String, dynamic> userAnswers =
-      {}; // key: question id, value: {selectedOptionIndex, isCorrect}
+
+  // Stores finalized answers: key = questionId, value = {selectedOptionIndex, isCorrect}
+  Map<String, dynamic> userAnswers = {};
+
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
-  bool answered = false;
+
+  // Pending selection before hitting Submit
+  int? _pendingSelectedIndex;
+  bool _hasSubmitted = false;
+  bool _currentIsCorrect = false;
+
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadGameState().then((_) => loadQuestions());
+    _loadGameState().then((_) => _loadQuestions());
   }
 
   Future<void> _loadGameState() async {
@@ -45,10 +54,10 @@ class _MatchingPageState extends State<MatchingPage> {
           score = data['score'] ?? 0;
           correctCount = data['correctCount'] ?? 0;
           incorrectCount = data['incorrectCount'] ?? 0;
+          currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
           if (data['answers'] != null) {
             userAnswers = Map<String, dynamic>.from(data['answers']);
           }
-          currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
         });
       }
     } catch (e) {
@@ -64,15 +73,15 @@ class _MatchingPageState extends State<MatchingPage> {
         "score": score,
         "correctCount": correctCount,
         "incorrectCount": incorrectCount,
-        "answers": userAnswers,
         "currentQuestionIndex": currentQuestionIndex,
+        "answers": userAnswers,
       });
     } catch (e) {
       print("Error saving game state: $e");
     }
   }
 
-  Future<void> loadQuestions() async {
+  Future<void> _loadQuestions() async {
     try {
       QuerySnapshot snapshot = await _firestore
           .collection(widget.gameTitle)
@@ -81,20 +90,15 @@ class _MatchingPageState extends State<MatchingPage> {
 
       questions = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
-        final questionText = data['text'] as String? ?? "No question text";
+        final questionText = data['text'] as String? ?? "";
         final rawOptions = data['options'] as List<dynamic>? ?? [];
-
         final parsedOptions = rawOptions.map((opt) {
-          final optionMap = opt as Map<String, dynamic>;
-          final optionTitle =
-              optionMap['title'] as String? ?? "No option title";
-          final isCorrect = optionMap['isCorrect'] as bool? ?? false;
+          final mapOpt = opt as Map<String, dynamic>;
           return {
-            'title': optionTitle,
-            'isCorrect': isCorrect,
+            'title': mapOpt['title'] as String? ?? "",
+            'isCorrect': mapOpt['isCorrect'] as bool? ?? false,
           };
         }).toList();
-
         return {
           'id': doc.id,
           'text': questionText,
@@ -103,31 +107,52 @@ class _MatchingPageState extends State<MatchingPage> {
       }).toList();
 
       setState(() {
-        if (questions.isNotEmpty &&
-            userAnswers.containsKey(questions[currentQuestionIndex]['id'])) {
-          answered = true;
-        } else {
-          answered = false;
-        }
+        isLoading = false;
       });
+
+      _initQuestionState();
     } catch (e) {
       print("Error loading questions: $e");
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
-  void _selectOption(int optionIndex) {
-    if (answered) return;
+  void _initQuestionState() {
+    if (questions.isEmpty) return;
+    final qId = questions[currentQuestionIndex]['id'];
+    if (userAnswers.containsKey(qId)) {
+      final saved = userAnswers[qId];
+      _pendingSelectedIndex = saved['selectedOptionIndex'] as int;
+      _hasSubmitted = true;
+      _currentIsCorrect = saved['isCorrect'] as bool;
+    } else {
+      _pendingSelectedIndex = null;
+      _hasSubmitted = false;
+      _currentIsCorrect = false;
+    }
+    setState(() {});
+  }
 
-    final currentQuestion = questions[currentQuestionIndex];
-    final String questionId = currentQuestion['id'];
-    final options = currentQuestion['options'] as List<dynamic>;
-    bool isCorrect = options[optionIndex]['isCorrect'] as bool? ?? false;
-
+  void _selectOption(int index) {
+    if (_hasSubmitted) return;
     setState(() {
-      answered = true;
-      userAnswers[questionId] = {
-        "selectedOptionIndex": optionIndex,
-        "isCorrect": isCorrect,
+      _pendingSelectedIndex = index;
+    });
+  }
+
+  void _submitAnswer() {
+    if (_pendingSelectedIndex == null || _hasSubmitted) return;
+    final currentQ = questions[currentQuestionIndex];
+    final opts = currentQ['options'] as List<dynamic>;
+    bool isCorrect = opts[_pendingSelectedIndex!]['isCorrect'] as bool;
+    setState(() {
+      _hasSubmitted = true;
+      _currentIsCorrect = isCorrect;
+      userAnswers[currentQ['id']] = {
+        'selectedOptionIndex': _pendingSelectedIndex,
+        'isCorrect': isCorrect
       };
       if (isCorrect) {
         score++;
@@ -143,21 +168,20 @@ class _MatchingPageState extends State<MatchingPage> {
     if (currentQuestionIndex > 0) {
       setState(() {
         currentQuestionIndex--;
-        final currentQuestion = questions[currentQuestionIndex];
-        answered = userAnswers.containsKey(currentQuestion['id']);
       });
+      _initQuestionState();
       _saveGameState();
     }
   }
 
   void _nextQuestion() {
-    if (!userAnswers.containsKey(questions[currentQuestionIndex]['id'])) return;
+    final qId = questions[currentQuestionIndex]['id'];
+    if (!_hasSubmitted && !userAnswers.containsKey(qId)) return;
     if (currentQuestionIndex < questions.length - 1) {
       setState(() {
         currentQuestionIndex++;
-        final currentQuestion = questions[currentQuestionIndex];
-        answered = userAnswers.containsKey(currentQuestion['id']);
       });
+      _initQuestionState();
       _saveGameState();
     } else {
       _navigateToResult();
@@ -184,10 +208,11 @@ class _MatchingPageState extends State<MatchingPage> {
       builder: (context) => AlertDialog(
         title: const Text("Instructions"),
         content: const Text(
-          "• Select the correct option.\n"
-          "• Correct: Green border + Tick.\n"
-          "• Incorrect: Red border + Cross.\n"
-          "• Use Next/Previous to navigate.",
+          "• Tap an option to select (blue border).\n"
+          "• Tap Submit to lock in your choice.\n"
+          "• Correct: green tick top-right; incorrect: red cross top-right with blur.\n"
+          "• Use Previous/Next to navigate.\n"
+          "• Progress is saved.",
         ),
         actions: [
           TextButton(
@@ -201,63 +226,51 @@ class _MatchingPageState extends State<MatchingPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     if (questions.isEmpty) {
-      return Scaffold(
-        backgroundColor: Colors.lightBlue[50],
-        appBar: AppBar(
-          title: Text(
-            widget.gameTitle,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: Colors.blue.shade300,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.info_outline),
-              onPressed: _showInstructionsDialog,
-            ),
-          ],
-        ),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        body: Center(child: Text("No questions available.")),
       );
     }
 
-    final currentQuestion = questions[currentQuestionIndex];
-    final questionText = currentQuestion['text'] as String;
-    final options = currentQuestion['options'] as List<dynamic>;
+    final currentQ = questions[currentQuestionIndex];
+    final qText = currentQ['text'] as String;
+    final opts = currentQ['options'] as List<dynamic>;
 
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
         title: Text(
           widget.gameTitle,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.blue.shade300,
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: _showInstructionsDialog,
-          ),
+          )
         ],
       ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                questionText,
+                qText,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                ),
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 30),
               Expanded(
                 child: GridView.builder(
-                  itemCount: options.length,
+                  itemCount: opts.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: 14,
@@ -265,57 +278,78 @@ class _MatchingPageState extends State<MatchingPage> {
                     childAspectRatio: 1.1,
                   ),
                   itemBuilder: (context, index) {
-                    final option = options[index];
-                    bool isSelected = false;
-                    bool isCorrect = option['isCorrect'] as bool? ?? false;
-
-                    if (userAnswers.containsKey(currentQuestion['id'])) {
-                      isSelected = userAnswers[currentQuestion['id']]
-                              ['selectedOptionIndex'] ==
-                          index;
-                    }
+                    final option = opts[index];
+                    bool isPending =
+                        _pendingSelectedIndex == index && !_hasSubmitted;
+                    bool showResult =
+                        _pendingSelectedIndex == index && _hasSubmitted;
+                    bool isCorrect = option['isCorrect'] as bool;
 
                     Color borderColor = Colors.white10;
-                    Widget? icon;
+                    Widget? overlayIcon;
 
-                    if (isSelected && answered) {
+                    if (isPending) {
+                      borderColor = Colors.blue;
+                    } else if (showResult) {
                       borderColor = isCorrect ? Colors.green : Colors.red;
-                      icon = Icon(
+                      overlayIcon = Icon(
                         isCorrect ? Icons.check_circle : Icons.cancel,
                         color: isCorrect ? Colors.green : Colors.red,
+                        size: 50,
                       );
                     }
 
-                    return ElevatedButton(
-                      onPressed: answered ? null : () => _selectOption(index),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white, // normal
-                        disabledBackgroundColor:
-                            Colors.white, // keep white when disabled
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          side: BorderSide(
-                            color: borderColor,
-                            width: 3,
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        elevation: 3,
-                      ),
+                    return GestureDetector(
+                      onTap: _hasSubmitted ? null : () => _selectOption(index),
                       child: Stack(
                         children: [
-                          Center(
-                            child: Text(
-                              option['title'],
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 18),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: borderColor, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: Center(
+                                      child: Text(
+                                        option['title'] as String,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                                  if (showResult)
+                                    Positioned.fill(
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                            sigmaX: 1.0, sigmaY: 1.0),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0.2),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                          if (icon != null)
+                          if (overlayIcon != null)
                             Positioned(
                               top: 5,
                               right: 5,
-                              child: icon,
+                              child: overlayIcon,
                             ),
                         ],
                       ),
@@ -323,18 +357,20 @@ class _MatchingPageState extends State<MatchingPage> {
                   },
                 ),
               ),
+              // const SizedBox(height: 15),
+              
               const SizedBox(height: 15),
               Center(
                 child: Column(
                   children: [
                     Text(
                       "Score: $score",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       "Correct: $correctCount | Incorrect: $incorrectCount",
-                      style: TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
@@ -351,7 +387,7 @@ class _MatchingPageState extends State<MatchingPage> {
                           ? Colors.orange
                           : Colors.grey,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 30, vertical: 15),
+                          horizontal: 20, vertical: 15),
                     ),
                     child: const Text(
                       "Previous",
@@ -361,14 +397,35 @@ class _MatchingPageState extends State<MatchingPage> {
                           color: Colors.white),
                     ),
                   ),
+
                   ElevatedButton(
-                    onPressed: userAnswers.containsKey(currentQuestion['id'])
+                    onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
+                        ? _submitAnswer
+                        : null,
+                    child: const Text(
+                      "Submit",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 15),
+                    ),
+                  ),
+
+                  ElevatedButton(
+                    onPressed: (_hasSubmitted ||
+                            userAnswers.containsKey(
+                                questions[currentQuestionIndex]['id']))
                         ? _nextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 30, vertical: 15),
+                          horizontal: 20, vertical: 15),
                     ),
                     child: const Text(
                       "Next",

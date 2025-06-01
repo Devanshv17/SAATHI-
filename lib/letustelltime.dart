@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,11 +24,17 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   List<String> questionOrder = [];
   int currentQuestionIndex = -1;
   String currentDocId = '';
-  Map<String, dynamic> userAnswers = {};
+  Map<String, dynamic> userAnswers =
+      {}; // {questionId: {selectedOptionIndex, isCorrect}}
 
   String question = '';
   DateTime? clockTime;
   List<Map<String, dynamic>> options = [];
+
+  // Pending selection before submission
+  int? _pendingSelectedIndex;
+  bool _hasSubmitted = false;
+  bool _currentIsCorrect = false;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -99,16 +106,16 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         return;
       }
 
-      _loadQuestion(questionOrder.indexWhere(
-            (id) => !userAnswers.containsKey(id),
-      ));
+      _loadQuestion(
+          questionOrder.indexWhere((id) => !userAnswers.containsKey(id)));
     } catch (e) {
       debugPrint('Error fetching questions: $e');
     }
   }
 
   bool _allAnswered() =>
-      questionOrder.isNotEmpty && questionOrder.every((id) => userAnswers.containsKey(id));
+      questionOrder.isNotEmpty &&
+      questionOrder.every((id) => userAnswers.containsKey(id));
 
   void _loadQuestion(int orderIndex) {
     if (orderIndex < 0 || orderIndex >= questionOrder.length) return;
@@ -132,10 +139,20 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     final opts = List<Map<String, dynamic>>.from(data['options'] as List)
         .map((o) => {...o, 'selected': false})
         .toList();
+
+    // Initialize pending/submitted state for this question
     final saved = userAnswers[docId];
     if (saved != null) {
       final idx = saved['selectedOptionIndex'] as int;
+      final wasCorrect = saved['isCorrect'] as bool;
+      _pendingSelectedIndex = idx;
+      _hasSubmitted = true;
+      _currentIsCorrect = wasCorrect;
       if (idx < opts.length) opts[idx]['selected'] = true;
+    } else {
+      _pendingSelectedIndex = null;
+      _hasSubmitted = false;
+      _currentIsCorrect = false;
     }
 
     setState(() {
@@ -147,24 +164,38 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     });
   }
 
-  void _checkAnswer(int index) {
-    if (userAnswers.containsKey(currentDocId)) return;
+  void _selectOption(int index) {
+    if (_hasSubmitted || userAnswers.containsKey(currentDocId)) return;
+    setState(() {
+      _pendingSelectedIndex = index;
+      for (var i = 0; i < options.length; i++) {
+        options[i]['selected'] = false;
+      }
+      options[index]['selected'] = true;
+    });
+  }
+
+  void _submitAnswer() {
+    if (_pendingSelectedIndex == null || _hasSubmitted) return;
     final formatted1 = DateFormat('H:mm').format(clockTime!);
     final formatted2 = DateFormat('HH:mm').format(clockTime!);
+    final selectedTitle = options[_pendingSelectedIndex!]['title'] as String;
     final isCorrect =
-        options[index]['title'] == formatted1 || options[index]['title'] == formatted2;
+        (selectedTitle == formatted1 || selectedTitle == formatted2);
     setState(() {
-      options[index]['selected'] = true;
+      _hasSubmitted = true;
+      _currentIsCorrect = isCorrect;
+      options[_pendingSelectedIndex!]['selected'] = true;
+      userAnswers[currentDocId] = {
+        'selectedOptionIndex': _pendingSelectedIndex,
+        'isCorrect': isCorrect,
+      };
       if (isCorrect) {
         score++;
         correctCount++;
       } else {
         incorrectCount++;
       }
-      userAnswers[currentDocId] = {
-        'selectedOptionIndex': index,
-        'isCorrect': isCorrect,
-      };
     });
     _saveGameState();
   }
@@ -209,7 +240,10 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
         backgroundColor: Colors.blue.shade300,
-        title: const Text('Let Us Tell Time', style: TextStyle(fontSize: 22)),
+        title: const Text(
+          'Let Us Tell Time',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -219,9 +253,11 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 builder: (_) => AlertDialog(
                   title: const Text('Instructions'),
                   content: const Text(
-                    '1. Tap the correct time.\n'
-                        '2. Progress is saved automatically.\n'
-                        '3. Finish all questions to see results.',
+                    '1. Tap an option to select it (blue border).\n'
+                    '2. Tap Submit to lock in your choice.\n'
+                    '3. If correct, a green tick appears top-right; if wrong, a red cross appears top-right with blur.\n'
+                    '4. Use Previous/Next to navigate.\n'
+                    '5. Progress is saved automatically.',
                   ),
                   actions: [
                     TextButton(
@@ -247,10 +283,17 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     shape: BoxShape.circle,
-                    boxShadow: const [BoxShadow(blurRadius: 4, color: Colors.black12, offset: Offset(2, 2))],
+                    boxShadow: const [
+                      BoxShadow(
+                        blurRadius: 4,
+                        color: Colors.black12,
+                        offset: Offset(2, 2),
+                      )
+                    ],
                   ),
                   child: ClipOval(
-                    child: AnalogClock(key: ValueKey(clockTime), dateTime: clockTime!),
+                    child: AnalogClock(
+                        key: ValueKey(clockTime), dateTime: clockTime!),
                   ),
                 ),
               ),
@@ -259,41 +302,112 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
               child: GridView.builder(
                 itemCount: options.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 1.2,
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.2,
                 ),
                 itemBuilder: (_, i) {
                   final opt = options[i];
-                  final sel = opt['selected'] as bool;
-                  final saved = userAnswers[currentDocId];
-                  final corr = saved != null && saved['selectedOptionIndex'] == i && saved['isCorrect'] == true;
+                  bool isPending =
+                      (_pendingSelectedIndex == i && !_hasSubmitted);
+                  bool showResult =
+                      (_pendingSelectedIndex == i && _hasSubmitted);
+                  bool isCorrect = false;
+                  if (_hasSubmitted && _pendingSelectedIndex == i) {
+                    isCorrect = _currentIsCorrect;
+                  }
+
+                  Color borderColor = Colors.white10;
+                  if (isPending) {
+                    borderColor = Colors.blue;
+                  } else if (showResult) {
+                    borderColor = isCorrect ? Colors.green : Colors.red;
+                  }
+
                   return GestureDetector(
-                    onTap: sel ? null : () => _checkAnswer(i),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: sel ? Border.all(color: corr ? Colors.green : Colors.red, width: 3) : null,
-                        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 3, spreadRadius: 1)],
-                      ),
-                      child: Center(
-                        child: Text(opt['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ),
+                    onTap:
+                        (_hasSubmitted || userAnswers.containsKey(currentDocId))
+                            ? null
+                            : () => _selectOption(i),
+                    child: Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: borderColor, width: 3),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.2),
+                                blurRadius: 3,
+                                spreadRadius: 1,
+                              )
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: Center(
+                                    child: Text(
+                                      opt['title'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                if (showResult)
+                                  Positioned.fill(
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: 1.0,
+                                        sigmaY: 1.0,
+                                      ),
+                                      child: Container(
+                                        color: Colors.black.withOpacity(0.2),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (showResult)
+                          Positioned(
+                            top: 5,
+                            right: 5,
+                            child: Icon(
+                              isCorrect ? Icons.check_circle : Icons.cancel,
+                              color: isCorrect ? Colors.green : Colors.red,
+                              size: 50,
+                            ),
+                          ),
+                      ],
                     ),
                   );
                 },
               ),
             ),
-              const SizedBox(height: 15),
+            // const SizedBox(height: 15),
+            // Submit button above score
+          
+            const SizedBox(height: 15),
             Center(
               child: Column(
                 children: [
                   Text(
                     "Score: $score",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Text(
                     "Correct: $correctCount | Incorrect: $incorrectCount",
-                    style: TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ],
               ),
@@ -305,25 +419,52 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 ElevatedButton(
                   onPressed: currentQuestionIndex > 0 ? _goPrev : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor:
+                        currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                   ),
-                  child: const Text('Previous',
-                      style: TextStyle(
+                  child: const Text(
+                    'Previous',
+                    style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
-                   ),
+                  ),
                 ),
+
+                  ElevatedButton(
+                  onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
+                      ? _submitAnswer
+                      : null,
+                  child: const Text(
+                    "Submit",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                  ),
+                ),
+
+
                 ElevatedButton(
                   onPressed: _allAnswered() ? _navigateToResult : _goNext,
                   style: ElevatedButton.styleFrom(
-                     backgroundColor: options.any((o) => o['selected'] == true)
-                        ? Colors.green
-                        : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor:
+                        (_pendingSelectedIndex != null && _hasSubmitted)
+                            ? Colors.green
+                            : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                   ),
-                  child: Text( 'Next',  style: TextStyle(
+                  child: const Text(
+                    'Next',
+                    style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),

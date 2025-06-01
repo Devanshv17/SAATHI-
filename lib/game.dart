@@ -1,4 +1,5 @@
 // unchanged imports
+import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -27,6 +28,11 @@ class _GamePageState extends State<GamePage> {
   List<String> questionOrder = [];
   List<QueryDocumentSnapshot> allQuestions = [];
   int currentQuestionIndex = 0;
+
+  // New state variables for selection/submission logic
+  int? _selectedOptionIndex;
+  bool _hasSubmitted = false;
+  bool _isCorrectSubmission = false;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
@@ -83,9 +89,8 @@ class _GamePageState extends State<GamePage> {
 
   Future<void> _fetchQuestionsInOrder() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection(widget.gameTitle)
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection(widget.gameTitle).get();
 
       Map<String, QueryDocumentSnapshot> questionMap = {
         for (var doc in snapshot.docs) doc.id: doc
@@ -109,7 +114,7 @@ class _GamePageState extends State<GamePage> {
 
       // All questions answered? -> navigate to result directly.
       bool allAnswered =
-      questionOrder.every((id) => userAnswers.containsKey(id));
+          questionOrder.every((id) => userAnswers.containsKey(id));
 
       if (allAnswered) {
         _navigateToResult();
@@ -140,21 +145,32 @@ class _GamePageState extends State<GamePage> {
 
     final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
+
+    // Determine if this question was already answered
+    bool alreadyAnswered = userAnswers.containsKey(doc.id);
+    int? savedIndex;
+    bool savedCorrect = false;
+    if (alreadyAnswered) {
+      final savedAnswer = userAnswers[doc.id];
+      savedIndex = savedAnswer['selectedOptionIndex'] as int?;
+      savedCorrect = savedAnswer['isCorrect'] as bool? ?? false;
+    }
+
     setState(() {
       currentQuestionIndex = index;
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
       options = List<Map<String, dynamic>>.from(data['options'] ?? []);
-      for (var opt in options) {
-        opt['selected'] = false;
-      }
 
-      if (userAnswers.containsKey(doc.id)) {
-        final savedAnswer = userAnswers[doc.id];
-        final savedIndex = savedAnswer['selectedOptionIndex'] as int?;
-        if (savedIndex != null && savedIndex < options.length) {
-          options[savedIndex]['selected'] = true;
-        }
+      // Reset selection/submission state
+      if (alreadyAnswered && savedIndex != null) {
+        _selectedOptionIndex = savedIndex;
+        _hasSubmitted = true;
+        _isCorrectSubmission = savedCorrect;
+      } else {
+        _selectedOptionIndex = null;
+        _hasSubmitted = false;
+        _isCorrectSubmission = false;
       }
     });
   }
@@ -187,13 +203,22 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-  void checkAnswer(int index) {
-    if (userAnswers.containsKey(currentDocId)) return;
+  void _selectOption(int index) {
+    // Only allow selection if not yet submitted and not previously answered
+    if (_hasSubmitted || userAnswers.containsKey(currentDocId)) return;
+    setState(() {
+      _selectedOptionIndex = index;
+    });
+  }
 
-    bool isCorrect = options[index]['isCorrect'] == true;
+  void _submitAnswer() {
+    if (_hasSubmitted) return;
+    if (_selectedOptionIndex == null) return; // No option selected
+    bool isCorrect = options[_selectedOptionIndex!]['isCorrect'] == true;
 
     setState(() {
-      options[index]['selected'] = true;
+      _hasSubmitted = true;
+      _isCorrectSubmission = isCorrect;
 
       if (isCorrect) {
         score++;
@@ -202,8 +227,9 @@ class _GamePageState extends State<GamePage> {
         incorrectCount++;
       }
 
+      // Save to userAnswers
       userAnswers[currentDocId] = {
-        "selectedOptionIndex": index,
+        "selectedOptionIndex": _selectedOptionIndex,
         "isCorrect": isCorrect,
       };
     });
@@ -218,9 +244,10 @@ class _GamePageState extends State<GamePage> {
         title: Text("Instructions"),
         content: Text(
           "1. Answered questions are listed first.\n"
-              "2. You start at the first unanswered question.\n"
-              "3. Navigate freely using Next/Previous.\n"
-              "4. Answers are locked once selected.",
+          "2. You start at the first unanswered question.\n"
+          "3. Navigate freely using Next/Previous.\n"
+          "4. Select an option, then tap Submit to lock your answer.\n"
+          "5. The selected option will show a checkmark if correct or a cross if wrong.",
         ),
         actions: [
           TextButton(
@@ -247,7 +274,8 @@ class _GamePageState extends State<GamePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(widget.gameTitle,
+            Text(
+              widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(
@@ -261,11 +289,14 @@ class _GamePageState extends State<GamePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            // Question text
             Text(
               questionText.isNotEmpty ? questionText : "Loading question...",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
+
+            // Options grid
             Expanded(
               child: GridView.builder(
                 itemCount: options.length,
@@ -275,30 +306,35 @@ class _GamePageState extends State<GamePage> {
                   crossAxisSpacing: 15,
                 ),
                 itemBuilder: (context, index) {
-                  var option = options[index];
-                  bool isSelected = option['selected'] == true;
-                  bool isCorrect = option['isCorrect'] == true;
+                  bool isSelected = _selectedOptionIndex == index;
+                  bool showResultForThis =
+                      _hasSubmitted && _selectedOptionIndex == index;
+                  bool isCorrect = options[index]['isCorrect'] == true;
 
                   return GestureDetector(
                     onTap: () {
-                      if (!userAnswers.containsKey(currentDocId)) {
-                        checkAnswer(index);
-                      }
+                      _selectOption(index);
                     },
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
+                        // Option container with border
                         Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(15),
-                            border: isSelected
+                            border: isSelected && !_hasSubmitted
                                 ? Border.all(
-                              color: isCorrect
-                                  ? Colors.green
-                                  : Colors.red,
-                              width: 6,
-                            )
-                                : null,
+                                    color: Colors.blue,
+                                    width: 4,
+                                  )
+                                : showResultForThis
+                                    ? Border.all(
+                                        color: isCorrect
+                                            ? Colors.green
+                                            : Colors.red,
+                                        width: 6,
+                                      )
+                                    : null,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.grey.withOpacity(0.3),
@@ -309,31 +345,40 @@ class _GamePageState extends State<GamePage> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(15),
-                            child: Image.network(
-                              option['imageUrl'],
-                              fit: BoxFit.cover,
+                            child: Stack(
+                              children: [
+                                // The option image
+                                Positioned.fill(
+                                  child: Image.network(
+                                    options[index]['imageUrl'],
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+
+                                // Blur overlay if showing result
+                                if (showResultForThis)
+                                  Positioned.fill(
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: 1.0,
+                                        sigmaY: 1.0,
+                                      ),
+                                      child: Container(
+                                        color: Colors.black.withOpacity(0.2),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),
-                        if (isSelected && isCorrect)
-                          Positioned(
-                            bottom: 10,
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                option['description'] ?? '',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
+
+                        // Tick or cross overlay if showing result
+                        if (showResultForThis)
+                          Icon(
+                            isCorrect ? Icons.check_circle : Icons.cancel,
+                            size: 80,
+                            color: isCorrect ? Colors.green : Colors.red,
                           ),
                       ],
                     ),
@@ -341,7 +386,17 @@ class _GamePageState extends State<GamePage> {
                 },
               ),
             ),
+
+            // const SizedBox(height: 15),
+           
+            
+
+            // Submit button (only show if not already answered)
+           
+
             const SizedBox(height: 15),
+
+            // Score display
             Column(
               children: [
                 Text(
@@ -354,31 +409,53 @@ class _GamePageState extends State<GamePage> {
                 ),
               ],
             ),
+
             const SizedBox(height: 15),
+
+            // Navigation buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
                   onPressed: _goToPreviousQuestion,
-                  child: Text("Previous",
+                  child: Text(
+                    "Previous",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                  style:
+                      ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                ),
+
+                   ElevatedButton(
+                  onPressed: _submitAnswer,
+                  child: Text(
+                    "Submit",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange),
+                    backgroundColor: Colors.blue,
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
                 ),
+             
+                
                 ElevatedButton(
                   onPressed: _goToNextQuestion,
-                  child: Text("Next",
-                  style: TextStyle(
+                  child: Text(
+                    "Next",
+                    style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
                   ),
                   style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.green,),
+                      ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 ),
               ],
             ),
