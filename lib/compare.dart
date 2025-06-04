@@ -6,8 +6,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart'; // Import your ResultPage
 
 class ComparePage extends StatefulWidget {
+  final String gameTitle;
   final bool isHindi;
-  const ComparePage({Key? key, required this.isHindi,}) : super(key: key);
+  
+  const ComparePage({Key? key, required this.gameTitle,
+   required this.isHindi,}) : super(key: key);
 
   @override
   _ComparePageState createState() => _ComparePageState();
@@ -46,7 +49,8 @@ class _ComparePageState extends State<ComparePage> {
 
     try {
       final snapshot =
-          await _dbRef.child("users/${user.uid}/games/Compare").get();
+          await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}")
+          .get();
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
@@ -73,7 +77,7 @@ class _ComparePageState extends State<ComparePage> {
     try {
       final formattedAnswers = selectedOptionIndices
           .map((key, value) => MapEntry(key.toString(), value));
-      await _dbRef.child("users/${user.uid}/games/Compare").update({
+      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
         "score": score,
         "correctCount": correctCount,
         "incorrectCount": incorrectCount,
@@ -88,7 +92,7 @@ class _ComparePageState extends State<ComparePage> {
   Future<void> _fetchQuestions() async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection("Compare")
+          .collection(widget.gameTitle)
           .orderBy("timestamp")
           .get();
 
@@ -269,7 +273,7 @@ class _ComparePageState extends State<ComparePage> {
       context,
       MaterialPageRoute(
         builder: (_) => ResultPage(
-          gameTitle: "Compare",
+          gameTitle: widget.gameTitle,
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
@@ -302,8 +306,8 @@ class _ComparePageState extends State<ComparePage> {
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title: const Text(
-          "Compare",
+        title:  Text(
+          widget.isHindi?"तुलना" :"Compare",
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.blue.shade300,
@@ -320,8 +324,13 @@ class _ComparePageState extends State<ComparePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
-                "Compare the number of shapes",
+               Text(
+                widget.isHindi?"सही चिन्ह चुनें:\n"
+                    "बाएँ ______दाएँ"
+:
+
+                " Choose the correct sign:\n"
+                " Left _______  Right",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),

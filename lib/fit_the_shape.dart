@@ -5,8 +5,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
 
 class FitTheShapePage extends StatefulWidget {
+  final String gameTitle;
   final bool isHindi;
-  const FitTheShapePage({Key? key,required this.isHindi}) : super(key: key);
+  const FitTheShapePage({Key? key,
+  required this.gameTitle,
+    required this.isHindi,
+  }) : super(key: key);
 
   @override
   _FitTheShapePageState createState() => _FitTheShapePageState();
@@ -46,7 +50,7 @@ class _FitTheShapePageState extends State<FitTheShapePage> {
     if (user == null) return;
     try {
       final snapshot = await _dbRef
-          .child("users/${user.uid}/games/Fit the Shape")
+          .child("users/${user.uid}/games/${widget.gameTitle}")
           .get();
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
@@ -74,7 +78,7 @@ class _FitTheShapePageState extends State<FitTheShapePage> {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      await _dbRef.child("users/${user.uid}/games/Fit the Shape").update({
+      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
         "score": score,
         "correctCount": correctCount,
         "incorrectCount": incorrectCount,
@@ -91,7 +95,7 @@ class _FitTheShapePageState extends State<FitTheShapePage> {
   Future<void> _fetchQuestionsInOrder() async {
     try {
       final snapshot = await FirebaseFirestore.instance
-          .collection('Fit the Shape')
+          .collection(widget.gameTitle)
           .get();
 
       // Create a map of question docID -> document snapshot.
@@ -198,7 +202,7 @@ class _FitTheShapePageState extends State<FitTheShapePage> {
       context,
       MaterialPageRoute(
         builder: (_) => ResultPage(
-          gameTitle: "Fit the Shape",
+          gameTitle: widget.gameTitle,
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
@@ -268,8 +272,8 @@ class _FitTheShapePageState extends State<FitTheShapePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Fit the Shape",
+             Text(
+              widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(

@@ -26,7 +26,7 @@ class _HomePageState extends State<HomePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // Keep track of scores per game
+  // Keep track of scores per game, keyed by the displayed title
   Map<String, int> correctScores = {};
   Map<String, int> incorrectScores = {};
 
@@ -65,6 +65,16 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // Load scores once when the page first builds
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadGameScores();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Whenever dependencies change (for example, language toggled), reload scores
     _loadGameScores();
   }
 
@@ -72,30 +82,48 @@ class _HomePageState extends State<HomePage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    // Determine current language flag
+    final isHindi =
+        Provider.of<LanguageNotifier>(context, listen: false).isHindi;
+
     try {
       final snapshot = await _dbRef.child("users/${user.uid}/games").get();
+      final Map<String, int> correct = {};
+      final Map<String, int> incorrect = {};
+
       if (snapshot.exists) {
         final data = Map<String, dynamic>.from(snapshot.value as Map);
-        final Map<String, int> correct = {};
-        final Map<String, int> incorrect = {};
 
-        // For each English label, fetch stored counts
-        for (var game in boxTextsEnglish.values) {
-          final gameData = data[game];
+        // For each BoxX key, pick either English or Hindi title as lookup
+        for (var key in boxTextsEnglish.keys) {
+          final engTitle = boxTextsEnglish[key]!; // e.g. "Let us Count"
+          final hinTitle = boxTextsHindi[key]!; // e.g. "चलो गिनें"
+          final displayTitle = isHindi ? hinTitle : engTitle;
+
+          final gameData = data[displayTitle];
           if (gameData != null) {
-            correct[game] = (gameData['correctCount'] ?? 0);
-            incorrect[game] = (gameData['incorrectCount'] ?? 0);
+            final g = Map<String, dynamic>.from(gameData as Map);
+            correct[displayTitle] = (g['correctCount'] ?? 0) as int;
+            incorrect[displayTitle] = (g['incorrectCount'] ?? 0) as int;
           } else {
-            correct[game] = 0;
-            incorrect[game] = 0;
+            correct[displayTitle] = 0;
+            incorrect[displayTitle] = 0;
           }
         }
-
-        setState(() {
-          correctScores = correct;
-          incorrectScores = incorrect;
-        });
+      } else {
+        // No games node exists yet — initialize all to zero
+        for (var key in boxTextsEnglish.keys) {
+          final displayTitle =
+              isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
+          correct[displayTitle] = 0;
+          incorrect[displayTitle] = 0;
+        }
       }
+
+      setState(() {
+        correctScores = correct;
+        incorrectScores = incorrect;
+      });
     } catch (e) {
       print("Error fetching game scores: $e");
     }
@@ -107,59 +135,77 @@ class _HomePageState extends State<HomePage> {
     if (user == null) return;
 
     if (reset) {
+      // Remove the node under the exact displayed title (English or Hindi)
       await _dbRef.child("users/${user.uid}/games/$title").remove();
     }
 
     late Widget destination;
     if (title == boxTextsEnglish['Box3'] || title == boxTextsHindi['Box3']) {
-      destination = ComparePage(isHindi: isHindi);
+      destination = ComparePage(
+        gameTitle: title, // pass the displayed title
+        isHindi: isHindi,
+      );
     } else if (title == boxTextsEnglish['Box2'] ||
         title == boxTextsHindi['Box2']) {
-      destination = GuessTheLetterPage(isHindi: isHindi);
+      destination = GuessTheLetterPage(
+        gameTitle: title,
+        isHindi: isHindi,
+      );
     } else if (title == boxTextsEnglish['Box4'] ||
         title == boxTextsHindi['Box4']) {
-      destination = LetUsCountPage(isHindi: isHindi);
+      destination = LetUsCountPage(
+        gameTitle: title,
+        isHindi: isHindi,
+      );
     } else if (title == boxTextsEnglish['Box7'] ||
         title == boxTextsHindi['Box7']) {
-      destination = LetUsTellTimePage(isHindi: isHindi);
+      destination = LetUsTellTimePage(
+        gameTitle: title,
+        isHindi: isHindi,
+      );
     } else if (title == boxTextsEnglish['Box5'] ||
         title == boxTextsHindi['Box5'] ||
         title == boxTextsEnglish['Box6'] ||
         title == boxTextsHindi['Box6'] ||
         title == boxTextsEnglish['Box9'] ||
         title == boxTextsHindi['Box9']) {
-      // For MatchingPage, pass the English title as gameTitle
-      final gameTitle = boxTextsEnglish.entries
-          .firstWhere((e) => e.value == title || boxTextsHindi[e.key] == title)
-          .value;
-      destination = MatchingPage(gameTitle: gameTitle, isHindi: isHindi);
+      destination = MatchingPage(
+        gameTitle: title,
+        isHindi: isHindi,
+      );
     } else if (title == boxTextsEnglish['Box10'] ||
         title == boxTextsHindi['Box10']) {
-      // destination = LeftorRightPage(isHindi: isHindi);
+      destination = LeftorRightPage(
+        gameTitle: title,
+        isHindi: isHindi,
+      );
     } else if (title == boxTextsEnglish['Box11'] ||
         title == boxTextsHindi['Box11']) {
-      destination = FitTheShapePage(isHindi: isHindi);
+      destination = FitTheShapePage(
+        gameTitle: title,
+        isHindi: isHindi,
+      );
     } else {
-      // Fallback: GamePage with the English title
-      final gameTitle = boxTextsEnglish.entries
-          .firstWhere((e) => e.value == title || boxTextsHindi[e.key] == title)
-          .value;
-      destination = GamePage(gameTitle: gameTitle, isHindi: isHindi);
+      // Fallback: generic GamePage with the displayed title
+      destination = GamePage(
+        gameTitle: title,
+        isHindi: isHindi,
+      );
     }
 
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => destination),
     ).then((_) {
+      // After returning from a game, reload scores (in case something changed)
       _loadGameScores();
     });
   }
 
   Widget buildBox(String key, bool isHindi, Color bgColor) {
     final title = isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
-    final englishTitle = boxTextsEnglish[key]!;
-    final correct = correctScores[englishTitle] ?? 0;
-    final incorrect = incorrectScores[englishTitle] ?? 0;
+    final correct = correctScores[title] ?? 0;
+    final incorrect = incorrectScores[title] ?? 0;
     final hasPlayed = (correct + incorrect) > 0;
 
     return Container(
@@ -224,9 +270,9 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     ElevatedButton(
                       onPressed: () => _navigateBasedOnText(title, isHindi),
-                      child: Text(hasPlayed
-                          ? continueText(isHindi)
-                          : playText(isHindi)),
+                      child: Text(
+                        hasPlayed ? continueText(isHindi) : playText(isHindi),
+                      ),
                     ),
                     if (hasPlayed) const SizedBox(width: 10),
                     if (hasPlayed)
@@ -258,7 +304,7 @@ class _HomePageState extends State<HomePage> {
         onToggleLanguage: (value) {
           Provider.of<LanguageNotifier>(context, listen: false)
               .toggleLanguage(value);
-          setState(() {});
+          setState(() {}); // Rebuild to re-fetch scores in new language
         },
         showMenuButton: true,
       ),

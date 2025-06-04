@@ -7,8 +7,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'result.dart';
 
 class LetUsCountPage extends StatefulWidget {
+  final String gameTitle;
   final bool isHindi;
   const LetUsCountPage({Key? key,
+    required this.gameTitle,
     required this.isHindi,
   }) : super(key: key);
 
@@ -38,7 +40,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
   // The game key used in saving and loading game state—must match the key expected by the homepage.
-  final String gameKey = "Let us Count";
+  
 
   // New state for submission logic
   int? _selectedOptionIndex;
@@ -56,7 +58,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final snap = await _dbRef.child("users/${user.uid}/games/$gameKey").get();
+    final snap = await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
     if (snap.exists && snap.value != null) {
       final data = Map<String, dynamic>.from(snap.value as Map);
       setState(() {
@@ -74,7 +76,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _dbRef.child("users/${user.uid}/games/$gameKey").update({
+    await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
       "score": score,
       "correctCount": correctCount,
       "incorrectCount": incorrectCount,
@@ -86,7 +88,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   Future<void> _fetchQuestionsInOrder() async {
     try {
       final snapshot = await _firestore
-          .collection('Let us Count')
+          .collection(widget.gameTitle)
           .get(const GetOptions(source: Source.serverAndCache));
 
       allQuestions = snapshot.docs;
@@ -220,7 +222,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       context,
       MaterialPageRoute(
         builder: (_) => ResultPage(
-          gameTitle: gameKey,
+          gameTitle: widget.gameTitle,
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
@@ -263,8 +265,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Let Us Count",
+             Text(
+              widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
                IconButton(

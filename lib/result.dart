@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/services.dart';
 import 'package:pie_chart/pie_chart.dart';
 
 // Import the game pages as needed.
@@ -34,19 +35,35 @@ class ResultPage extends StatelessWidget {
   /// Returns the appropriate game page widget based on the gameTitle.
   Widget getGamePage(String gameTitle) {
     // Use the same conditions as in HomePage's _navigateBasedOnText.
-    if (gameTitle == "Compare") {
-      return ComparePage(isHindi: isHindi);
+    if (gameTitle == "Compare" || gameTitle=="तुलना") {
+      return ComparePage(
+         gameTitle: gameTitle,
+        isHindi: isHindi,
+      );
     } else if (gameTitle == "Let us Look at Calendar" ||
-        gameTitle == "Guess the Letter") {
-      return GuessTheLetterPage(isHindi: isHindi);
-    } else if (gameTitle == "Let us Count") {
-      return LetUsCountPage(isHindi: isHindi);
-    } else if (gameTitle == "Let us Tell Time") {
-      return LetUsTellTimePage(isHindi: isHindi);
+        gameTitle == "Guess the Letter" || gameTitle=="अक्षर अनुमान") {
+      return GuessTheLetterPage(
+          gameTitle: gameTitle,
+        isHindi: isHindi,
+      );
+    } else if (gameTitle == "Let us Count" || gameTitle=="चलो गिनें") {
+      return LetUsCountPage(
+          gameTitle: gameTitle,
+        isHindi: isHindi,
+      );
+    } else if (gameTitle == "Let us Tell Time" || gameTitle=="चलो समय बताएँ") {
+      return LetUsTellTimePage(
+          gameTitle: gameTitle,
+        isHindi: isHindi,
+      );
     } else if (gameTitle == "Number Name Matching" ||
         gameTitle == "Name Number Matching" ||
         gameTitle == "Alphabet Knowledge" ||
-        gameTitle == "Name Picture Matching") {
+      
+        gameTitle=="संख्या नाम मिलान"
+        || gameTitle=="नाम संख्या मिलान"
+        || gameTitle=="वर्णमाला ज्ञान"
+       ) {
       // For these games, we assume MatchingPage takes the gameTitle.
       return MatchingPage(gameTitle: gameTitle, isHindi: isHindi);
     } else {
@@ -82,20 +99,20 @@ class ResultPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Map<String, double> dataMap = {
-      "Correct": correctCount.toDouble(),
-      "Incorrect": incorrectCount.toDouble(),
+      isHindi? "सही":"Correct": correctCount.toDouble(),
+      isHindi ? "गलत" : "Incorrect": incorrectCount.toDouble(),
     };
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Result"),
+        title: Text(isHindi?"परिणाम" :"Result"),
         backgroundColor: Colors.blue,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            Text("Your Score: $score",
+            Text( isHindi? "आपका अंक:":"Your Score: $score",
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             SizedBox(height: 30),
             PieChart(
@@ -114,7 +131,7 @@ class ResultPage extends StatelessWidget {
             SizedBox(height: 40),
             ElevatedButton(
               onPressed: () => _resetGame(context),
-              child: Text("Replay"),
+              child: Text(isHindi? "पुनः प्रयास करें" :"Replay"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),

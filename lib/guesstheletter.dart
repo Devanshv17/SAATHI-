@@ -6,8 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'result.dart';
 
 class GuessTheLetterPage extends StatefulWidget {
+    final String gameTitle;
   final bool isHindi;
-  const GuessTheLetterPage({Key? key,
+  const GuessTheLetterPage({Key? key,required this.gameTitle,
     required this.isHindi,
   }) : super(key: key);
 
@@ -54,7 +55,9 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     if (user == null) return;
     try {
       final snapshot =
-          await _dbRef.child("users/${user.uid}/games/Guess the Letter").get();
+          await _dbRef
+          .child("users/${user.uid}/games/${widget.gameTitle}")
+          .get();
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
@@ -81,7 +84,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      await _dbRef.child("users/${user.uid}/games/Guess the Letter").update({
+      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
         "score": score,
         "correctCount": correctCount,
         "incorrectCount": incorrectCount,
@@ -97,7 +100,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   Future<void> _fetchQuestionsInOrder() async {
     try {
       final snapshot =
-          await FirebaseFirestore.instance.collection('Guess the Letter').get();
+          await FirebaseFirestore.instance.collection(widget.gameTitle).get();
 
       Map<String, QueryDocumentSnapshot> questionMap = {
         for (var doc in snapshot.docs) doc.id: doc
@@ -203,7 +206,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       context,
       MaterialPageRoute(
         builder: (_) => ResultPage(
-          gameTitle: "Guess the Letter",
+          gameTitle: widget.gameTitle,
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
@@ -294,8 +297,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Guess the Letter",
+             Text(
+              widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(

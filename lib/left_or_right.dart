@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LeftorRightPage extends StatefulWidget {
-  const LeftorRightPage({Key? key}) : super(key: key);
+   final String gameTitle;
+  final bool isHindi;
+  const LeftorRightPage({Key? key,
+   required this.gameTitle,
+    required this.isHindi,
+  }) : super(key: key,
+  );
 
   @override
   _LeftorRightPageState createState() => _LeftorRightPageState();

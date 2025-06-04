@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:translator_plus/translator_plus.dart';
@@ -31,7 +30,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   // For Compare category: two number fields
   String compareNumber1 = "";
   String compareNumber2 = "";
-  // For Let us Count category: one number field
+  // For Let us Count category: one string field (no longer restricted to integers)
   String letUsCountNumber = "";
   // The answer options remain the same for all game types.
   List<AnswerOption> answerOptions = [];
@@ -50,7 +49,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Future<void> _updateTranslations() async {
-    final isHindi = Provider.of<LanguageNotifier>(context, listen: false).isHindi;
+    final isHindi =
+        Provider.of<LanguageNotifier>(context, listen: false).isHindi;
     if (isHindi) {
       try {
         final result = await translator.translate('Admin Panel', to: 'hi');
@@ -83,10 +83,15 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> saveQuestion() async {
     if (selectedCategory == null ||
-        (questionText.isEmpty && selectedCategory != "Compare" && selectedCategory != "Let us Count")) {
+        (questionText.isEmpty &&
+            selectedCategory != "Compare" &&
+            selectedCategory != "Let us Count" &&
+            selectedCategory != "तुलना" &&
+            selectedCategory != "चलो गिनें")) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text("Please select a category and enter the required question details.")),
+            content: Text(
+                "Please select a category and enter the required question details.")),
       );
       return;
     }
@@ -99,14 +104,26 @@ class _AdminHomePageState extends State<AdminHomePage> {
         questionText: questionText,
         // For question types that need an image.
         questionImageUrl: (selectedCategory == "Guess the Letter" ||
-            selectedCategory == "Left or Right" ||
-            selectedCategory == "Fit the Shape")
+                selectedCategory == "Left or Right" ||
+                selectedCategory == "Fit the Shape" ||
+                selectedCategory == "अक्षर अनुमान" ||
+                selectedCategory == "बाएँ या दाएँ?" ||
+                selectedCategory == "आकार फिट करें")
             ? questionImageUrl
             : null,
         answerOptions: answerOptions.map((option) => option.toMap()).toList(),
-        compareNumber1: selectedCategory == "Compare" ? compareNumber1 : null,
-        compareNumber2: selectedCategory == "Compare" ? compareNumber2 : null,
-        letUsCountNumber: selectedCategory == "Let us Count" ? letUsCountNumber : null,
+        compareNumber1:
+            selectedCategory == "Compare" || selectedCategory == "तुलना"
+                ? compareNumber1
+                : null,
+        compareNumber2:
+            selectedCategory == "Compare" || selectedCategory == "तुलना"
+                ? compareNumber2
+                : null,
+        letUsCountNumber: selectedCategory == "Let us Count" ||
+                selectedCategory == "चलो गिनें"
+            ? letUsCountNumber
+            : null,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,7 +174,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Future<void> _chooseAndUploadImageForQuestion() async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedImage =
-    await picker.pickImage(source: ImageSource.gallery);
+        await picker.pickImage(source: ImageSource.gallery);
     if (pickedImage == null) return;
 
     final url = await _uploadImageToImgur(pickedImage);
@@ -178,16 +195,22 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
     switch (selectedCategory) {
       case "Name Picture Matching":
+      case "नाम चित्र मिलान":
         return buildNamePictureMatchingForm();
       case "Guess the Letter":
+      case "अक्षर अनुमान":
         return buildGuessTheLetterForm();
       case "Compare":
+      case "तुलना":
         return buildCompareForm();
       case "Let us Count":
+      case "चलो गिनें":
         return buildLetUsCountForm();
       case "Left or Right":
+      case "बाएँ या दाएँ?":
         return buildLeftOrRightForm();
       case "Fit the Shape":
+      case "आकार फिट करें":
         return buildFitTheShapeForm();
       default:
         return buildDefaultForm();
@@ -199,11 +222,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
       children: [
         buildTextField("Enter Question", (value) => questionText = value),
         ...answerOptions.map((option) => AnswerOptionWidget(
-          option: option,
-          onRemove: () =>
-              removeAnswerOption(answerOptions.indexOf(option)),
-          uploadFunction: _uploadImageToImgur,
-        )),
+              option: option,
+              onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+              uploadFunction: _uploadImageToImgur,
+            )),
         buildAddOptionButton(),
       ],
     );
@@ -216,8 +238,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ElevatedButton.icon(
           onPressed: _chooseAndUploadImageForQuestion,
           icon: Icon(Icons.photo),
-          label: Text(
-              questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
+          label:
+              Text(questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
         ),
         if (questionImageUrl.isNotEmpty)
           Padding(
@@ -228,11 +250,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
             ),
           ),
         ...answerOptions.map((option) => AnswerOptionWidget(
-          option: option,
-          onRemove: () =>
-              removeAnswerOption(answerOptions.indexOf(option)),
-          uploadFunction: _uploadImageToImgur,
-        )),
+              option: option,
+              onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+              uploadFunction: _uploadImageToImgur,
+            )),
         buildAddOptionButton(),
       ],
     );
@@ -241,30 +262,32 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Widget buildCompareForm() {
     return Column(
       children: [
-        buildNumberField("Enter First Number", (value) => compareNumber1 = value),
-        buildNumberField("Enter Second Number", (value) => compareNumber2 = value),
+        buildNumberField(
+            "Enter First Number", (value) => compareNumber1 = value),
+        buildNumberField(
+            "Enter Second Number", (value) => compareNumber2 = value),
         ...answerOptions.map((option) => AnswerOptionWidget(
-          option: option,
-          onRemove: () =>
-              removeAnswerOption(answerOptions.indexOf(option)),
-          uploadFunction: _uploadImageToImgur,
-        )),
+              option: option,
+              onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+              uploadFunction: _uploadImageToImgur,
+            )),
         buildAddOptionButton(),
       ],
     );
   }
 
+  // Updated Let Us Count form: using a text field instead of a number-only field
   Widget buildLetUsCountForm() {
     return Column(
       children: [
         buildTextField("Enter Question", (value) => questionText = value),
-        buildNumberField("Enter Number", (value) => letUsCountNumber = value),
+        buildTextField(
+            "Enter Count Value", (value) => letUsCountNumber = value),
         ...answerOptions.map((option) => AnswerOptionWidget(
-          option: option,
-          onRemove: () =>
-              removeAnswerOption(answerOptions.indexOf(option)),
-          uploadFunction: _uploadImageToImgur,
-        )),
+              option: option,
+              onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+              uploadFunction: _uploadImageToImgur,
+            )),
         buildAddOptionButton(),
       ],
     );
@@ -277,8 +300,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ElevatedButton.icon(
           onPressed: _chooseAndUploadImageForQuestion,
           icon: Icon(Icons.photo),
-          label: Text(
-              questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
+          label:
+              Text(questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
         ),
         if (questionImageUrl.isNotEmpty)
           Padding(
@@ -289,11 +312,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
             ),
           ),
         ...answerOptions.map((option) => AnswerOptionWidget(
-          option: option,
-          onRemove: () =>
-              removeAnswerOption(answerOptions.indexOf(option)),
-          uploadFunction: _uploadImageToImgur,
-        )),
+              option: option,
+              onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+              uploadFunction: _uploadImageToImgur,
+            )),
         buildAddOptionButton(),
       ],
     );
@@ -308,8 +330,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ElevatedButton.icon(
           onPressed: _chooseAndUploadImageForQuestion,
           icon: Icon(Icons.photo),
-          label: Text(
-              questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
+          label:
+              Text(questionImageUrl.isEmpty ? "Choose Image" : "Change Image"),
         ),
         if (questionImageUrl.isNotEmpty)
           Padding(
@@ -321,11 +343,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ),
         // Answer options are handled same as others.
         ...answerOptions.map((option) => AnswerOptionWidget(
-          option: option,
-          onRemove: () =>
-              removeAnswerOption(answerOptions.indexOf(option)),
-          uploadFunction: _uploadImageToImgur,
-        )),
+              option: option,
+              onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+              uploadFunction: _uploadImageToImgur,
+            )),
         buildAddOptionButton(),
       ],
     );
@@ -336,10 +357,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
       children: [
         buildTextField("Enter Question", (value) => questionText = value),
         ...answerOptions.map((option) => AnswerOptionWidget(
-          option: option,
-          onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
-          uploadFunction: _uploadImageToImgur,
-        )),
+              option: option,
+              onRemove: () => removeAnswerOption(answerOptions.indexOf(option)),
+              uploadFunction: _uploadImageToImgur,
+            )),
         buildAddOptionButton(),
       ],
     );
@@ -351,7 +372,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       child: TextField(
         onChanged: onChanged,
         decoration:
-        InputDecoration(labelText: label, border: OutlineInputBorder()),
+            InputDecoration(labelText: label, border: OutlineInputBorder()),
       ),
     );
   }
@@ -363,7 +384,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         keyboardType: TextInputType.number,
         onChanged: onChanged,
         decoration:
-        InputDecoration(labelText: label, border: OutlineInputBorder()),
+            InputDecoration(labelText: label, border: OutlineInputBorder()),
       ),
     );
   }
@@ -398,8 +419,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text("Select Category:",
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               DropdownButton<String>(
                 value: selectedCategory,
                 isExpanded: true,
@@ -414,10 +434,22 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   "Number Name Matching",
                   "Name Number Matching",
                   "Let us Tell Time",
-                  "Alphabet Knowledge"
+                  "Alphabet Knowledge",
+                  "Left or Right?",
+                  "Fit the Shape",
+                  "नाम चित्र मिलान",
+                  "अक्षर अनुमान",
+                  "तुलना",
+                  "चलो गिनें",
+                  "संख्या नाम मिलान",
+                  "नाम संख्या मिलान",
+                  "चलो समय बताएँ",
+                  "वर्णमाला ज्ञान",
+                  "बाएँ या दाएँ?",
+                  "आकार फिट करें",
                 ]
-                    .map((type) => DropdownMenuItem(
-                    value: type, child: Text(type)))
+                    .map((type) =>
+                        DropdownMenuItem(value: type, child: Text(type)))
                     .toList(),
                 onChanged: (value) {
                   setState(() {
@@ -445,8 +477,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF078FFE),
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 40, vertical: 15)),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 40, vertical: 15)),
                 ),
               ),
             ],
@@ -493,7 +525,7 @@ class _AnswerOptionWidgetState extends State<AnswerOptionWidget> {
   Future<void> _chooseAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? pickedImage =
-    await picker.pickImage(source: ImageSource.gallery);
+        await picker.pickImage(source: ImageSource.gallery);
     if (pickedImage == null) return;
 
     final url = await widget.uploadFunction(pickedImage);
@@ -504,8 +536,8 @@ class _AnswerOptionWidgetState extends State<AnswerOptionWidget> {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Option image uploaded successfully!")));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Option image upload failed.")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Option image upload failed.")));
     }
   }
 

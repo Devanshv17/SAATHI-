@@ -26,7 +26,7 @@ class FirestoreService {
       'imageUrl': questionImageUrl,
     };
 
-    if (category == "Compare") {
+    if (category == "Compare" || category=="तुलना") {
       if (compareNumber1 == null ||
           compareNumber1.isEmpty ||
           compareNumber2 == null ||
@@ -37,7 +37,7 @@ class FirestoreService {
       questionData['text'] = "$compareNumber1 vs $compareNumber2";
       questionData['compareNumber1'] = compareNumber1;
       questionData['compareNumber2'] = compareNumber2;
-    } else if (category == "Let us Count") {
+    } else if (category == "Let us Count" || category=="चलो गिनें") {
       if (letUsCountNumber == null || letUsCountNumber.isEmpty) {
         throw Exception("Number field is required for Let us Count question.");
       }

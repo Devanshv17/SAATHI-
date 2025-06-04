@@ -9,8 +9,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
 
 class LetUsTellTimePage extends StatefulWidget {
+  final String gameTitle;
+  
   final bool isHindi;
-  const LetUsTellTimePage({Key? key, required this.isHindi,}) : super(key: key);
+  const LetUsTellTimePage({Key? key,
+  required this.gameTitle, required this.isHindi,}) : super(key: key);
 
   @override
   _LetUsTellTimePageState createState() => _LetUsTellTimePageState();
@@ -42,7 +45,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final Random _random = Random();
 
-  final String gameKey = 'Let us Tell Time';
+  
+
 
   @override
   void initState() {
@@ -54,7 +58,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    final snap = await _dbRef.child('users/${user.uid}/games/$gameKey').get();
+    final snap = await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
     if (snap.exists && snap.value != null) {
       final data = Map<String, dynamic>.from(snap.value as Map);
       setState(() {
@@ -71,7 +75,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    await _dbRef.child('users/${user.uid}/games/$gameKey').update({
+    await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
       'score': score,
       'correctCount': correctCount,
       'incorrectCount': incorrectCount,
@@ -84,7 +88,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   Future<void> _fetchQuestions() async {
     try {
       final snap = await _firestore
-          .collection('Let us Tell Time')
+          .collection(widget.gameTitle)
           .get(const GetOptions(source: Source.serverAndCache));
       allQuestions = snap.docs;
       if (allQuestions.isEmpty) return;
@@ -206,7 +210,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       context,
       MaterialPageRoute(
         builder: (_) => ResultPage(
-          gameTitle: gameKey,
+          gameTitle: widget.gameTitle,
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
@@ -242,8 +246,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
         backgroundColor: Colors.blue.shade300,
-        title: const Text(
-          'Let Us Tell Time',
+        title:  Text(
+          widget.gameTitle,
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         actions: [
