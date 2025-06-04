@@ -16,12 +16,16 @@ class ResultPage extends StatelessWidget {
   final int score;
   final int correctCount;
   final int incorrectCount;
+  final bool isHindi;
+  
 
   ResultPage({
     required this.gameTitle,
     required this.score,
     required this.correctCount,
     required this.incorrectCount,
+    required this.isHindi,
+    
   });
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -31,23 +35,23 @@ class ResultPage extends StatelessWidget {
   Widget getGamePage(String gameTitle) {
     // Use the same conditions as in HomePage's _navigateBasedOnText.
     if (gameTitle == "Compare") {
-      return ComparePage();
+      return ComparePage(isHindi: isHindi);
     } else if (gameTitle == "Let us Look at Calendar" ||
         gameTitle == "Guess the Letter") {
-      return GuessTheLetterPage();
+      return GuessTheLetterPage(isHindi: isHindi);
     } else if (gameTitle == "Let us Count") {
-      return LetUsCountPage();
+      return LetUsCountPage(isHindi: isHindi);
     } else if (gameTitle == "Let us Tell Time") {
-      return LetUsTellTimePage();
+      return LetUsTellTimePage(isHindi: isHindi);
     } else if (gameTitle == "Number Name Matching" ||
         gameTitle == "Name Number Matching" ||
         gameTitle == "Alphabet Knowledge" ||
         gameTitle == "Name Picture Matching") {
       // For these games, we assume MatchingPage takes the gameTitle.
-      return MatchingPage(gameTitle: gameTitle);
+      return MatchingPage(gameTitle: gameTitle, isHindi: isHindi);
     } else {
       // Fallback to a generic GamePage.
-      return GamePage(gameTitle: gameTitle);
+      return GamePage(gameTitle: gameTitle, isHindi: isHindi);
     }
   }
 

@@ -6,7 +6,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart'; // Import your ResultPage
 
 class ComparePage extends StatefulWidget {
-  const ComparePage({Key? key}) : super(key: key);
+  final bool isHindi;
+  const ComparePage({Key? key, required this.isHindi,}) : super(key: key);
 
   @override
   _ComparePageState createState() => _ComparePageState();
@@ -147,25 +148,31 @@ class _ComparePageState extends State<ComparePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
-            "Instructions",
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
+         title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+          content:  Text(
+            widget.isHindi?
+"१. दिखाए गए आकृतियों की संख्या की तुलना करें।\n"
+"२. किसी एक विकल्प को चुनने के लिए उस पर टैप करें (नीली सीमा दिखाई देगी)।\n"
+"३. अपना उत्तर लॉक करने के लिए जमा करें पर टैप करें।\n"
+"४. यदि उत्तर सही है, तो हरे रंग का टिक चिन्ह दिखाई देगा; यदि गलत है, तो लाल क्रॉस दिखाई देगा।\n"
+"५. अगले और पिछले प्रश्नों पर जाने के लिए अगला और पिछला का उपयोग करें।\n"
+"६. प्रगति स्वतः सहेजी जाती है।"
+
+
+            :
             "1. Compare the number of shapes shown.\n"
             "2. Tap one option to select it (blue border appears).\n"
             "3. Tap Submit to lock in your answer.\n"
-            "4. If correct, a green tick appears; if wrong, a red cross appears top-right with blur.\n"
+            "4. If correct, a green tick appears; if wrong, a red cross appears .\n"
             "5. Use Next and Previous to navigate.\n"
             "6. Progress is saved automatically.",
-            style: TextStyle(fontSize: 20),
+            
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                "Got it!",
-                style: TextStyle(fontSize: 20, color: Colors.blue),
+              child:  Text(widget.isHindi?"ठीक है" : "Got it!",
+                
               ),
             ),
           ],
@@ -266,6 +273,7 @@ class _ComparePageState extends State<ComparePage> {
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
+          isHindi: widget.isHindi,
         ),
       ),
     );
@@ -373,12 +381,14 @@ class _ComparePageState extends State<ComparePage> {
                 child: Column(
                   children: [
                     Text(
-                      "Score: $score",
+                       widget.isHindi ? "अंक: $score" : "Score: $score",
                       style: const TextStyle(
                           fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      "Correct: $correctCount | Incorrect: $incorrectCount",
+                       widget.isHindi
+                          ? "सही: $correctCount | गलत: $incorrectCount"
+                          : "Correct: $correctCount | Incorrect: $incorrectCount",
                       style: const TextStyle(fontSize: 16),
                     ),
                   ],
@@ -396,8 +406,8 @@ class _ComparePageState extends State<ComparePage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
                     ),
-                    child: const Text(
-                      "Previous",
+                    child:  Text(
+                      widget.isHindi ? "पिछला" : "Previous",
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -410,7 +420,7 @@ class _ComparePageState extends State<ComparePage> {
                         (_pendingSelectedIndex != null && !_hasSubmittedCurrent)
                             ? _submitAnswer
                             : null,
-                    child: const Text(
+                    child:  Text(widget.isHindi? "जमा करें":
                       "Submit",
                       style: TextStyle(
                           fontSize: 16,
@@ -435,8 +445,8 @@ class _ComparePageState extends State<ComparePage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
                     ),
-                    child: const Text(
-                      "Next",
+                    child:  Text(
+                      widget.isHindi ? "अगला" : "Next",
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

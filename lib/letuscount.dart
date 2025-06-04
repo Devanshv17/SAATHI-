@@ -7,7 +7,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'result.dart';
 
 class LetUsCountPage extends StatefulWidget {
-  const LetUsCountPage({Key? key}) : super(key: key);
+  final bool isHindi;
+  const LetUsCountPage({Key? key,
+    required this.isHindi,
+  }) : super(key: key);
+
 
   @override
   _LetUsCountPageState createState() => _LetUsCountPageState();
@@ -184,6 +188,33 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     _saveGameState();
   }
 
+  void showInstructions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+        content: Text(
+          widget.isHindi
+              ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
+                  "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
+                  "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
+                  "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
+                  "५. आपकी प्रगति सेव हो जाती है."
+              : "1. Tap an option to select (blue border).\n"
+                  "2. Tap Submit to lock in your choice.\n"
+                  "3. Correct: green tick ; incorrect: red cross .\n"
+                  "4. Use Previous/Next to navigate.\n"
+                  "5. Progress is saved.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
+          ),
+        ],
+      ),
+    );
+  }
   void _navigateToResult() {
     Navigator.pushReplacement(
       context,
@@ -193,6 +224,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
+          isHindi: widget.isHindi,
         ),
       ),
     );
@@ -235,11 +267,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               "Let Us Count",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            IconButton(
-              icon: const Icon(Icons.info_outline),
-              onPressed: () {
-                // Add instructions here if needed
-              },
+               IconButton(
+              icon: Icon(Icons.info_outline, color: Colors.white),
+              onPressed: () => showInstructions(context),
             ),
           ],
         ),
@@ -383,12 +413,14 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               child: Column(
                 children: [
                   Text(
-                    "Score: $score",
+                     widget.isHindi ? "अंक: $score" : "Score: $score",
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    "Correct: $correctCount | Incorrect: $incorrectCount",
+                   widget.isHindi
+                        ? "सही: $correctCount | गलत: $incorrectCount"
+                        : "Correct: $correctCount | Incorrect: $incorrectCount",
                     style: const TextStyle(fontSize: 16),
                   ),
                 ],
@@ -409,8 +441,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
                   ),
-                  child: const Text(
-                    "Previous",
+                  child:  Text(
+                    widget.isHindi ? "पिछला" : "Previous",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -424,8 +456,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                           !userAnswers.containsKey(currentDocId))
                       ? _submitAnswer
                       : null,
-                  child: const Text(
-                    "Submit",
+                  child:  Text(
+                    widget.isHindi ? "जमा करें" : "Submit",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -451,8 +483,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
                   ),
-                  child: const Text(
-                    "Next",
+                  child:  Text(
+                    widget.isHindi ? "अगला" : "Next",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

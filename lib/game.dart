@@ -8,8 +8,10 @@ import 'result.dart';
 
 class GamePage extends StatefulWidget {
   final String gameTitle;
+  final bool isHindi;
+  
 
-  const GamePage({Key? key, required this.gameTitle}) : super(key: key);
+  const GamePage({Key? key, required this.gameTitle, required this.isHindi}) : super(key: key);
 
   @override
   _GamePageState createState() => _GamePageState();
@@ -198,6 +200,7 @@ class _GamePageState extends State<GamePage> {
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
+          isHindi: widget.isHindi,
         ),
       ),
     );
@@ -241,18 +244,24 @@ class _GamePageState extends State<GamePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Instructions"),
+        title: Text(widget.isHindi ?"निर्देश":"Instructions"),
         content: Text(
-          "1. Answered questions are listed first.\n"
-          "2. You start at the first unanswered question.\n"
-          "3. Navigate freely using Next/Previous.\n"
-          "4. Select an option, then tap Submit to lock your answer.\n"
-          "5. The selected option will show a checkmark if correct or a cross if wrong.",
+          widget.isHindi
+              ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
+                  "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
+                  "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
+                  "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
+                  "५. आपकी प्रगति सेव हो जाती है."
+              : "1. Tap an option to select (blue border).\n"
+                  "2. Tap Submit to lock in your choice.\n"
+                  "3. Correct: green tick ; incorrect: red cross .\n"
+                  "4. Use Previous/Next to navigate.\n"
+                  "5. Progress is saved.",
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Got it!"),
+            child: Text(widget.isHindi?"ठीक है" : "Got it!"),
           ),
         ],
       ),
@@ -274,8 +283,8 @@ class _GamePageState extends State<GamePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              widget.gameTitle,
+            Text(widget.isHindi?
+              "नाम चित्र मिलान":widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(
@@ -291,7 +300,7 @@ class _GamePageState extends State<GamePage> {
           children: [
             // Question text
             Text(
-              questionText.isNotEmpty ? questionText : "Loading question...",
+              questionText.isNotEmpty ? questionText : widget.isHindi?"प्रश्न लोड हो रहा है...": "Loading question...",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
@@ -400,11 +409,11 @@ class _GamePageState extends State<GamePage> {
             Column(
               children: [
                 Text(
-                  "Score: $score",
+                  widget.isHindi?"अंक: $score": "Score: $score",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  "Correct: $correctCount | Incorrect: $incorrectCount",
+                  widget.isHindi?"सही: $correctCount | गलत: $incorrectCount" :"Correct: $correctCount | Incorrect: $incorrectCount",
                   style: TextStyle(fontSize: 16),
                 ),
               ],
@@ -418,7 +427,7 @@ class _GamePageState extends State<GamePage> {
               children: [
                 ElevatedButton(
                   onPressed: _goToPreviousQuestion,
-                  child: Text(
+                  child: Text(widget.isHindi?"पिछला":
                     "Previous",
                     style: TextStyle(
                         fontSize: 16,
@@ -430,24 +439,24 @@ class _GamePageState extends State<GamePage> {
                 ),
 
                    ElevatedButton(
-                  onPressed: _submitAnswer,
-                  child: Text(
-                    "Submit",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                ),
+              onPressed: _submitAnswer,
+              child: Text(widget.isHindi?"जमा करें":
+                "Submit",
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
              
                 
                 ElevatedButton(
                   onPressed: _goToNextQuestion,
-                  child: Text(
+                  child: Text(widget.isHindi?"अगला":
                     "Next",
                     style: TextStyle(
                         fontSize: 16,

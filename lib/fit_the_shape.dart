@@ -5,7 +5,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
 
 class FitTheShapePage extends StatefulWidget {
-  const FitTheShapePage({Key? key}) : super(key: key);
+  final bool isHindi;
+  const FitTheShapePage({Key? key,required this.isHindi}) : super(key: key);
 
   @override
   _FitTheShapePageState createState() => _FitTheShapePageState();
@@ -201,6 +202,7 @@ class _FitTheShapePageState extends State<FitTheShapePage> {
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
+          isHindi: widget.isHindi,
         ),
       ),
     );

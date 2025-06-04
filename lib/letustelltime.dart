@@ -9,7 +9,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
 
 class LetUsTellTimePage extends StatefulWidget {
-  const LetUsTellTimePage({Key? key}) : super(key: key);
+  final bool isHindi;
+  const LetUsTellTimePage({Key? key, required this.isHindi,}) : super(key: key);
 
   @override
   _LetUsTellTimePageState createState() => _LetUsTellTimePageState();
@@ -209,6 +210,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
           score: score,
           correctCount: correctCount,
           incorrectCount: incorrectCount,
+          isHindi: widget.isHindi,
         ),
       ),
     );
@@ -251,18 +253,24 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
               showDialog(
                 context: context,
                 builder: (_) => AlertDialog(
-                  title: const Text('Instructions'),
-                  content: const Text(
-                    '1. Tap an option to select it (blue border).\n'
-                    '2. Tap Submit to lock in your choice.\n'
-                    '3. If correct, a green tick appears top-right; if wrong, a red cross appears top-right with blur.\n'
-                    '4. Use Previous/Next to navigate.\n'
-                    '5. Progress is saved automatically.',
+                     title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+                  content:  Text(
+                    widget.isHindi
+                        ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
+                            "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
+                            "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
+                            "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
+                            "५. आपकी प्रगति सेव हो जाती है."
+                        : "1. Tap an option to select (blue border).\n"
+                            "2. Tap Submit to lock in your choice.\n"
+                            "3. Correct: green tick ; incorrect: red cross .\n"
+                            "4. Use Previous/Next to navigate.\n"
+                            "5. Progress is saved.",
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
+                      child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
                     ),
                   ],
                 ),
@@ -401,12 +409,14 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
               child: Column(
                 children: [
                   Text(
-                    "Score: $score",
+                     widget.isHindi ? "अंक: $score" : "Score: $score",
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    "Correct: $correctCount | Incorrect: $incorrectCount",
+                        widget.isHindi
+                        ? "सही: $correctCount | गलत: $incorrectCount"
+                        : "Correct: $correctCount | Incorrect: $incorrectCount",
                     style: const TextStyle(fontSize: 16),
                   ),
                 ],
@@ -424,8 +434,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  child: const Text(
-                    'Previous',
+                  child:  Text(
+                    widget.isHindi ? "पिछला" : "Previous",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -437,8 +447,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
                       ? _submitAnswer
                       : null,
-                  child: const Text(
-                    "Submit",
+                  child:  Text(
+                    widget.isHindi ? "जमा करें" : "Submit",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -462,8 +472,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  child: const Text(
-                    'Next',
+                  child:  Text(
+                    widget.isHindi ? "अगला" : "Next",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

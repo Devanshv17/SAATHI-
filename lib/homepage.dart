@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:saathi/letuscount.dart';
-import 'package:translator_plus/translator_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 
@@ -13,6 +11,7 @@ import 'compare.dart';
 import 'guesstheletter.dart';
 import 'matching.dart';
 import 'letustelltime.dart';
+import 'letuscount.dart';
 import 'left_or_right.dart';
 import 'fit_the_shape.dart';
 
@@ -24,13 +23,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final GoogleTranslator translator = GoogleTranslator();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  String appBarTitle = 'Saathi';
+  // Keep track of scores per game
+  Map<String, int> correctScores = {};
+  Map<String, int> incorrectScores = {};
 
-  Map<String, String> boxTexts = {
+  // Hard-coded English & Hindi labels for each box
+  final Map<String, String> boxTextsEnglish = {
     'Box1': 'Name Picture Matching',
     'Box2': 'Guess the Letter',
     'Box3': 'Compare',
@@ -38,65 +39,33 @@ class _HomePageState extends State<HomePage> {
     'Box5': 'Number Name Matching',
     'Box6': 'Name Number Matching',
     'Box7': 'Let us Tell Time',
-    // 'Box8': 'Let us Look at Calendar',
     'Box9': 'Alphabet Knowledge',
     'Box10': 'Left or Right?',
-    'Box11': 'Fit the Shape'
+    'Box11': 'Fit the Shape',
   };
 
-  Map<String, int> correctScores = {};
-  Map<String, int> incorrectScores = {};
+  final Map<String, String> boxTextsHindi = {
+    'Box1': 'नाम चित्र मिलान',
+    'Box2': 'अक्षर अनुमान',
+    'Box3': 'तुलना',
+    'Box4': 'चलो गिनें',
+    'Box5': 'संख्या नाम मिलान',
+    'Box6': 'नाम संख्या मिलान',
+    'Box7': 'चलो समय बताएँ',
+    'Box9': 'वर्णमाला ज्ञान',
+    'Box10': 'बाएँ या दाएँ?',
+    'Box11': 'आकार फिट करें',
+  };
+
+  // English/Hindi versions of button labels
+  String playText(bool isHindi) => isHindi ? 'खेलें' : 'Play';
+  String continueText(bool isHindi) => isHindi ? 'जारी रखें' : 'Continue';
+  String replayText(bool isHindi) => isHindi ? 'पुनः खेलें' : 'Replay';
 
   @override
   void initState() {
     super.initState();
     _loadGameScores();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _updateTranslations();
-  }
-
-  Future<void> _updateTranslations() async {
-    final isHindi =
-        Provider.of<LanguageNotifier>(context, listen: false).isHindi;
-
-    if (isHindi) {
-      try {
-        final results = await Future.wait([
-          translator.translate('Saathi', to: 'hi'),
-          ...boxTexts.values.map((e) => translator.translate(e, to: 'hi')),
-        ]);
-
-        setState(() {
-          appBarTitle = results[0].text;
-          int i = 1;
-          for (String key in boxTexts.keys) {
-            boxTexts[key] = results[i++].text;
-          }
-        });
-      } catch (e) {
-        print("Translation failed: $e");
-      }
-    } else {
-      setState(() {
-        boxTexts = {
-          'Box1': 'Name Picture Matching',
-          'Box2': 'Guess the Letter',
-          'Box3': 'Compare',
-          'Box4': 'Let us Count',
-          'Box5': 'Number Name Matching',
-          'Box6': 'Name Number Matching',
-          'Box7': 'Let us Tell Time',
-          // 'Box8': 'Let us Look at Calendar',
-          'Box9': 'Alphabet Knowledge',
-          'Box10': 'Left or Right?',
-          'Box11': 'Fit the Shape'
-        };
-      });
-    }
   }
 
   Future<void> _loadGameScores() async {
@@ -107,12 +76,11 @@ class _HomePageState extends State<HomePage> {
       final snapshot = await _dbRef.child("users/${user.uid}/games").get();
       if (snapshot.exists) {
         final data = Map<String, dynamic>.from(snapshot.value as Map);
-        print("Fetched user game data: $data");
-
         final Map<String, int> correct = {};
         final Map<String, int> incorrect = {};
 
-        boxTexts.values.forEach((game) {
+        // For each English label, fetch stored counts
+        for (var game in boxTextsEnglish.values) {
           final gameData = data[game];
           if (gameData != null) {
             correct[game] = (gameData['correctCount'] ?? 0);
@@ -121,21 +89,20 @@ class _HomePageState extends State<HomePage> {
             correct[game] = 0;
             incorrect[game] = 0;
           }
-        });
+        }
 
         setState(() {
           correctScores = correct;
           incorrectScores = incorrect;
         });
-      } else {
-        print("No game data found in Realtime Database.");
       }
     } catch (e) {
       print("Error fetching game scores: $e");
     }
   }
 
-  void _navigateBasedOnText(String title, {bool reset = false}) async {
+  void _navigateBasedOnText(String title, bool isHindi,
+      {bool reset = false}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -143,40 +110,57 @@ class _HomePageState extends State<HomePage> {
       await _dbRef.child("users/${user.uid}/games/$title").remove();
     }
 
-    Widget destination;
-    if (title == "Compare") {
-      destination = ComparePage(); // sample values; adjust as needed
-    } else if (title == "Let us Look at Calendar" || title == "Guess the Letter") {
-      destination = GuessTheLetterPage();
-    } else if (title == "Let us Count"){
-      destination = LetUsCountPage();
-    }
-    else if (title == "Let us Tell Time") {
-      destination = LetUsTellTimePage();
-    } else if (title == "Number Name Matching" || title == "Name Number Matching" || title == "Alphabet Knowledge") {
-      destination = MatchingPage(gameTitle: title);
-    } else if (title == "Left or Right?") {
-      destination = LeftorRightPage();
-    } else if (title == "Fit the Shape") {
-      destination = FitTheShapePage();
+    late Widget destination;
+    if (title == boxTextsEnglish['Box3'] || title == boxTextsHindi['Box3']) {
+      destination = ComparePage(isHindi: isHindi);
+    } else if (title == boxTextsEnglish['Box2'] ||
+        title == boxTextsHindi['Box2']) {
+      destination = GuessTheLetterPage(isHindi: isHindi);
+    } else if (title == boxTextsEnglish['Box4'] ||
+        title == boxTextsHindi['Box4']) {
+      destination = LetUsCountPage(isHindi: isHindi);
+    } else if (title == boxTextsEnglish['Box7'] ||
+        title == boxTextsHindi['Box7']) {
+      destination = LetUsTellTimePage(isHindi: isHindi);
+    } else if (title == boxTextsEnglish['Box5'] ||
+        title == boxTextsHindi['Box5'] ||
+        title == boxTextsEnglish['Box6'] ||
+        title == boxTextsHindi['Box6'] ||
+        title == boxTextsEnglish['Box9'] ||
+        title == boxTextsHindi['Box9']) {
+      // For MatchingPage, pass the English title as gameTitle
+      final gameTitle = boxTextsEnglish.entries
+          .firstWhere((e) => e.value == title || boxTextsHindi[e.key] == title)
+          .value;
+      destination = MatchingPage(gameTitle: gameTitle, isHindi: isHindi);
+    } else if (title == boxTextsEnglish['Box10'] ||
+        title == boxTextsHindi['Box10']) {
+      // destination = LeftorRightPage(isHindi: isHindi);
+    } else if (title == boxTextsEnglish['Box11'] ||
+        title == boxTextsHindi['Box11']) {
+      destination = FitTheShapePage(isHindi: isHindi);
     } else {
-      destination = GamePage(gameTitle: title);
+      // Fallback: GamePage with the English title
+      final gameTitle = boxTextsEnglish.entries
+          .firstWhere((e) => e.value == title || boxTextsHindi[e.key] == title)
+          .value;
+      destination = GamePage(gameTitle: gameTitle, isHindi: isHindi);
     }
-
 
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => destination),
+      MaterialPageRoute(builder: (_) => destination),
     ).then((_) {
-      _loadGameScores(); // Refresh after returning
+      _loadGameScores();
     });
   }
 
-  Widget buildBox(String key, String imagePath, Color bgColor) {
-    final title = boxTexts[key]!;
-    final correct = correctScores[title] ?? 0;
-    final incorrect = incorrectScores[title] ?? 0;
-    final hasPlayed = correct + incorrect > 0;
+  Widget buildBox(String key, bool isHindi, Color bgColor) {
+    final title = isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
+    final englishTitle = boxTextsEnglish[key]!;
+    final correct = correctScores[englishTitle] ?? 0;
+    final incorrect = incorrectScores[englishTitle] ?? 0;
+    final hasPlayed = (correct + incorrect) > 0;
 
     return Container(
       width: MediaQuery.of(context).size.width * 0.85,
@@ -194,8 +178,8 @@ class _HomePageState extends State<HomePage> {
             height: 70,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(50),
-              image: DecorationImage(
-                image: AssetImage(imagePath),
+              image: const DecorationImage(
+                image: AssetImage('assets/image.png'),
                 fit: BoxFit.cover,
               ),
             ),
@@ -207,7 +191,8 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 if (hasPlayed)
                   Padding(
@@ -217,12 +202,18 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           TextSpan(
                             text: '$correct',
-                            style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: Colors.green,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold),
                           ),
-                          const TextSpan(text: ' | '),
+                          const TextSpan(text: '  |  '),
                           TextSpan(
                             text: '$incorrect',
-                            style: const TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -232,18 +223,22 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   children: [
                     ElevatedButton(
-                      onPressed: () => _navigateBasedOnText(title),
-                      child: Text(hasPlayed ? 'Continue' : 'Play'),
+                      onPressed: () => _navigateBasedOnText(title, isHindi),
+                      child: Text(hasPlayed
+                          ? continueText(isHindi)
+                          : playText(isHindi)),
                     ),
                     if (hasPlayed) const SizedBox(width: 10),
                     if (hasPlayed)
                       ElevatedButton(
-                        onPressed: () => _navigateBasedOnText(title, reset: true),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                        child: const Text('Replay'),
+                        onPressed: () =>
+                            _navigateBasedOnText(title, isHindi, reset: true),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange),
+                        child: Text(replayText(isHindi)),
                       ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -258,11 +253,12 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: NavBar(
-        title: appBarTitle,
+        title: isHindi ? 'साथी' : 'Saathi',
         isHindi: isHindi,
         onToggleLanguage: (value) {
-          Provider.of<LanguageNotifier>(context, listen: false).toggleLanguage(value);
-          _updateTranslations();
+          Provider.of<LanguageNotifier>(context, listen: false)
+              .toggleLanguage(value);
+          setState(() {});
         },
         showMenuButton: true,
       ),
@@ -271,17 +267,17 @@ class _HomePageState extends State<HomePage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              buildBox('Box1', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box2', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box3', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box4', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box5', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box6', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box7', 'assets/image.png', Colors.blue.shade100),
-              // buildBox('Box8', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box9', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box10', 'assets/image.png', Colors.blue.shade100),
-              buildBox('Box11', 'assets/image.png', Colors.blue.shade100),
+              buildBox('Box1', isHindi, Colors.blue.shade100),
+              buildBox('Box2', isHindi, Colors.blue.shade100),
+              buildBox('Box3', isHindi, Colors.blue.shade100),
+              buildBox('Box4', isHindi, Colors.blue.shade100),
+              buildBox('Box5', isHindi, Colors.blue.shade100),
+              buildBox('Box6', isHindi, Colors.blue.shade100),
+              buildBox('Box7', isHindi, Colors.blue.shade100),
+              // buildBox('Box8', isHindi, Colors.blue.shade100),
+              buildBox('Box9', isHindi, Colors.blue.shade100),
+              buildBox('Box10', isHindi, Colors.blue.shade100),
+              buildBox('Box11', isHindi, Colors.blue.shade100),
             ],
           ),
         ),
