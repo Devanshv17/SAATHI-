@@ -44,7 +44,7 @@ class _LeftorRightPageState extends State<LeftorRightPage> {
 
     try {
       var snapshot = await FirebaseFirestore.instance
-          .collection('Left or Right')
+          .collection(widget.gameTitle)
           .get(const GetOptions(source: Source.serverAndCache));
 
       if (snapshot.docs.isNotEmpty) {
@@ -203,8 +203,8 @@ class _LeftorRightPageState extends State<LeftorRightPage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Left or Right",
+             Text(
+              widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(
