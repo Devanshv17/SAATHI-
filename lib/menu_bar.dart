@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomMenuBar extends StatelessWidget {
-  const CustomMenuBar({Key? key}) : super(key: key);
+    final bool isHindi;
+  const CustomMenuBar({Key? key,
+  required this.isHindi,
+ }) : super(key: key);
 
   Future<void> _logout(BuildContext context) async {
     // Clear login flag and optionally sign out from FirebaseAuth.
@@ -54,8 +57,8 @@ class CustomMenuBar extends StatelessWidget {
                 width: double.infinity,
                 height: 60,
                 alignment: Alignment.center,
-                child: const Text(
-                  "SAATHI",
+                child:  Text(
+                  isHindi? "साथी":"SAATHI",
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 22,
@@ -70,7 +73,7 @@ class CustomMenuBar extends StatelessWidget {
                   children: [
                     _buildMenuItem(
                       iconData: Icons.person,
-                      title: "Profile",
+                      title: isHindi? "प्रोफ़ाइल":"Profile",
                       onTap: () {
                         // Handle Profile tap.
                         Navigator.pop(context);
@@ -78,7 +81,7 @@ class CustomMenuBar extends StatelessWidget {
                     ),
                     _buildMenuItem(
                       iconData: Icons.info,
-                      title: "About SAATHI",
+                      title: isHindi? "साथी के बारे में" :"About SAATHI",
                       onTap: () {
                         // Handle About SAATHI tap.
                         Navigator.pop(context);
@@ -90,7 +93,7 @@ class CustomMenuBar extends StatelessWidget {
               // Logout option at the bottom.
               _buildMenuItem(
                 iconData: Icons.logout,
-                title: "Logout",
+                title: isHindi? "लॉगआउट":"Logout",
                 onTap: () => _logout(context),
               ),
             ],

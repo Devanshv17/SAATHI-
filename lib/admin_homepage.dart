@@ -107,7 +107,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 selectedCategory == "Left or Right" ||
                 selectedCategory == "Fit the Shape" ||
                 selectedCategory == "अक्षर अनुमान" ||
-                selectedCategory == "बाएँ या दाएँ?" ||
+                selectedCategory == "बाएँ या दाएँ" ||
                 selectedCategory == "आकार फिट करें")
             ? questionImageUrl
             : null,
@@ -411,7 +411,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         },
         showMenuButton: true,
       ),
-      drawer: CustomMenuBar(),
+      drawer: CustomMenuBar(isHindi: isHindi,),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(

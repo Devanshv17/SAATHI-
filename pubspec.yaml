@@ -73,6 +73,19 @@ flutter:
      - assets/image.png
      - assets/circle.png
      - assets/triangle.png
+     - assets/book.png
+     - assets/pencil.png
+     - assets/npp.png
+     - assets/gtl.png
+     - assets/cmp.png
+     - assets/cnt.png
+     - assets/namenm.png
+     - assets/numnp.png
+     - assets/ltt.png
+     - assets/ak.png
+     - assets/lr.png
+     - assets/fs.png
+
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -1,194 +1,234 @@
+import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'result.dart';
 
 class LeftorRightPage extends StatefulWidget {
-   final String gameTitle;
+  final String gameTitle;
   final bool isHindi;
-  const LeftorRightPage({Key? key,
-   required this.gameTitle,
+  const LeftorRightPage({Key? key, required this.gameTitle,
     required this.isHindi,
-  }) : super(key: key,
-  );
+  }) : super(key: key);
 
   @override
   _LeftorRightPageState createState() => _LeftorRightPageState();
 }
 
 class _LeftorRightPageState extends State<LeftorRightPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  List<Map<String, dynamic>> questions = [];
+  int currentQuestionIndex = 0;
+
+  // Stores finalized answers: key = questionId, value = {selectedOptionIndex, isCorrect}
+  Map<String, dynamic> userAnswers = {};
+
   int score = 0;
-  String question = "";
-  String? imageUrl;
-  List<Map<String, dynamic>> options = [];
-  Set<String> shownQuestions = {};
-  List<Map<String, dynamic>> previousQuestions = [];
-  int currentQuestionIndex = -1;
+  int correctCount = 0;
+  int incorrectCount = 0;
+
+  // Pending selection before hitting Submit
+  int? _pendingSelectedIndex;
+  bool _hasSubmitted = false;
+  bool _currentIsCorrect = false;
+
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    fetchNewQuestion();
+    _loadGameState().then((_) => _loadQuestions());
   }
 
-  Future<void> fetchNewQuestion() async {
-    // If navigating forward to a question already answered.
-    if (currentQuestionIndex + 1 < previousQuestions.length) {
-      setState(() {
-        currentQuestionIndex++;
-        var current = previousQuestions[currentQuestionIndex];
-        question = current['question'];
-        imageUrl = current['imageUrl'];
-        options = List<Map<String, dynamic>>.from(current['options']);
-      });
-      return;
-    }
-
+  Future<void> _loadGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
     try {
-      var snapshot = await FirebaseFirestore.instance
-          .collection(widget.gameTitle)
-          .get(const GetOptions(source: Source.serverAndCache));
-
-      if (snapshot.docs.isNotEmpty) {
-        List<QueryDocumentSnapshot> allQuestions = snapshot.docs;
-        allQuestions.shuffle();
-
-        for (var doc in allQuestions) {
-          var data = doc.data() as Map<String, dynamic>;
-          if (!shownQuestions.contains(data['text'])) {
-            var fetchedQuestion = data['text'] ?? "What is this?";
-            var fetchedImageUrl = data['imageUrl'];
-            var fetchedOptions = List<Map<String, dynamic>>.from(data['options'])
-                .map((o) => {...o, 'selected': false})
-                .toList();
-
-            setState(() {
-              question = fetchedQuestion;
-              imageUrl = fetchedImageUrl;
-              options = fetchedOptions;
-              shownQuestions.add(fetchedQuestion);
-              previousQuestions.add({
-                'question': fetchedQuestion,
-                'imageUrl': fetchedImageUrl,
-                'options': fetchedOptions,
-              });
-              currentQuestionIndex++;
-            });
-            return;
-          }
-        }
+      final snapshot = await _dbRef
+          .child("users/${user.uid}/games/${widget.gameTitle}")
+          .get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
-          shownQuestions.clear();
+          score = data['score'] ?? 0;
+          correctCount = data['correctCount'] ?? 0;
+          incorrectCount = data['incorrectCount'] ?? 0;
+          currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
+          if (data['answers'] != null) {
+            userAnswers = Map<String, dynamic>.from(data['answers']);
+          }
         });
-        fetchNewQuestion();
       }
     } catch (e) {
-      print("Error fetching question: $e");
+      print("Error loading game state: $e");
     }
   }
 
-  void goToPreviousQuestion() {
-    if (currentQuestionIndex > 0) {
+  Future<void> _saveGameState() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
+        "score": score,
+        "correctCount": correctCount,
+        "incorrectCount": incorrectCount,
+        "currentQuestionIndex": currentQuestionIndex,
+        "answers": userAnswers,
+      });
+    } catch (e) {
+      print("Error saving game state: $e");
+    }
+  }
+
+  Future<void> _loadQuestions() async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(widget.gameTitle)
+          .orderBy('timestamp')
+          .get();
+
+      questions = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final questionText = data['text'] as String? ?? "";
+        final rawOptions = data['options'] as List<dynamic>? ?? [];
+        final parsedOptions = rawOptions.map((opt) {
+          final mapOpt = opt as Map<String, dynamic>;
+          return {
+            'title': mapOpt['title'] as String? ?? "",
+            'isCorrect': mapOpt['isCorrect'] as bool? ?? false,
+          };
+        }).toList();
+        return {
+          'id': doc.id,
+          'text': questionText,
+          'options': parsedOptions,
+        };
+      }).toList();
+
       setState(() {
-        currentQuestionIndex--;
-        var current = previousQuestions[currentQuestionIndex];
-        question = current['question'];
-        imageUrl = current['imageUrl'];
-        options = List<Map<String, dynamic>>.from(current['options']);
+        isLoading = false;
+      });
+
+      _initQuestionState();
+    } catch (e) {
+      print("Error loading questions: $e");
+      setState(() {
+        isLoading = false;
       });
     }
   }
 
-  void checkAnswer(bool isCorrect, int index) {
-    if (options.any((o) => o['selected'] == true)) return;
+  void _initQuestionState() {
+    if (questions.isEmpty) return;
+    final qId = questions[currentQuestionIndex]['id'];
+    if (userAnswers.containsKey(qId)) {
+      final saved = userAnswers[qId];
+      _pendingSelectedIndex = saved['selectedOptionIndex'] as int;
+      _hasSubmitted = true;
+      _currentIsCorrect = saved['isCorrect'] as bool;
+    } else {
+      _pendingSelectedIndex = null;
+      _hasSubmitted = false;
+      _currentIsCorrect = false;
+    }
+    setState(() {});
+  }
 
+  void _selectOption(int index) {
+    if (_hasSubmitted) return;
     setState(() {
-      if (isCorrect) score++;
-      for (int i = 0; i < options.length; i++) {
-        options[i]['selected'] = (i == index);
-      }
-      previousQuestions[currentQuestionIndex]['options'] = options;
+      _pendingSelectedIndex = index;
     });
   }
 
-  bool get isOptionSelected => options.any((o) => o['selected'] == true);
+  void _submitAnswer() {
+    if (_pendingSelectedIndex == null || _hasSubmitted) return;
+    final currentQ = questions[currentQuestionIndex];
+    final opts = currentQ['options'] as List<dynamic>;
+    bool isCorrect = opts[_pendingSelectedIndex!]['isCorrect'] as bool;
+    setState(() {
+      _hasSubmitted = true;
+      _currentIsCorrect = isCorrect;
+      userAnswers[currentQ['id']] = {
+        'selectedOptionIndex': _pendingSelectedIndex,
+        'isCorrect': isCorrect
+      };
+      if (isCorrect) {
+        score++;
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
+    });
+    _saveGameState();
+  }
 
-  void showInstructions(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Instructions"),
-        content: const Text(
-          "1. Tap the correct option.\n"
-              "2. A green border appears for correct answers.\n"
-              "3. A red border appears for wrong answers.\n"
-              "4. Your score increases only for correct answers.\n"
-              "5. Click 'Previous' or 'Next' to navigate.",
+  void _previousQuestion() {
+    if (currentQuestionIndex > 0) {
+      setState(() {
+        currentQuestionIndex--;
+      });
+      _initQuestionState();
+      _saveGameState();
+    }
+  }
+
+  void _nextQuestion() {
+    final qId = questions[currentQuestionIndex]['id'];
+    if (!_hasSubmitted && !userAnswers.containsKey(qId)) return;
+    if (currentQuestionIndex < questions.length - 1) {
+      setState(() {
+        currentQuestionIndex++;
+      });
+      _initQuestionState();
+      _saveGameState();
+    } else {
+      _navigateToResult();
+    }
+  }
+
+  void _navigateToResult() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultPage(
+          gameTitle: widget.gameTitle,
+          score: score,
+          correctCount: correctCount,
+          incorrectCount: incorrectCount,
+          isHindi: widget.isHindi,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Got it!"),
-          ),
-        ],
       ),
     );
   }
 
-  Widget buildOptionCard(Map<String, dynamic> option, int index) {
-    bool isSelected = option['selected'] == true;
-    bool isCorrect = option['isCorrect'];
-
-    return GestureDetector(
-      onTap: isSelected ? null : () => checkAnswer(isCorrect, index),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: isSelected
-                  ? Border.all(
-                color: isCorrect ? Colors.green : Colors.red,
-                width: 4,
-              )
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                option['title'],
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          if (isSelected && option['description'] != null && option['description'] != "")
-            Positioned(
-              bottom: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  option['description'],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+  void _showInstructionsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+        content:  Text(
+         widget.isHindi
+              ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
+                  "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
+                  "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
+                  "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
+                  "५. आपकी प्रगति सेव हो जाती है."
+              : "1. Tap an option to select (blue border).\n"
+                  "2. Tap Submit to lock in your choice.\n"
+                  "3. Correct: green tick ; incorrect: red cross .\n"
+                  "4. Use Previous/Next to navigate.\n"
+                  "5. Progress is saved.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
+          )
         ],
       ),
     );
@@ -196,105 +236,253 @@ class _LeftorRightPageState extends State<LeftorRightPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (questions.isEmpty) {
+      return const Scaffold(
+        body: Center(child: Text("No questions available.")),
+      );
+    }
+
+    final currentQ = questions[currentQuestionIndex];
+    final qText = currentQ['text'] as String;
+    final opts = currentQ['options'] as List<dynamic>;
+
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade300,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-             Text(
-              widget.gameTitle,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            IconButton(
-              icon: const Icon(Icons.info_outline, color: Colors.white, size: 28),
-              onPressed: () => showInstructions(context),
-            ),
-          ],
+        title: Text(
+          widget.gameTitle,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
+        backgroundColor: Colors.blue.shade300,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: _showInstructionsDialog,
+          )
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0), // reduced padding
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              question.isNotEmpty ? question : "Loading question...",
-              style: TextStyle(
-                fontSize: 20, // reduced font size
-                fontWeight: FontWeight.bold,
-                color: Colors.blue[800],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            children: [
+              Text(
+                widget.isHindi? "वस्तु के संरेखण का चयन करें|" : "Select the alignment of the object",
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
               ),
-            ),
-            const SizedBox(height: 8),
-            if (imageUrl != null)
+              const SizedBox(height: 10),
+
+              // Image
+             
+             if(qText=='l')
+                  Align(
+          alignment: Alignment.centerLeft,
+          child: Image.asset(
+            "assets/pencil.png",
+            height: 50,
+          ),
+        ),
+                     if (qText == 'r')
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Image.asset(
+                    "assets/pencil.png",
+                    height: 50,
+                  ),
+                ),
+                      // Image
+
+              if (qText == 'c')
+                Center(
+  child: Image.asset(
+    "assets/pencil.png",
+    height: 50,
+  ),
+),
+
+                           
+             
+              const SizedBox(height: 30),
+              Expanded(
+                child: GridView.builder(
+                  itemCount: opts.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: 1.1,
+                  ),
+                  itemBuilder: (context, index) {
+                    final option = opts[index];
+                    bool isPending =
+                        _pendingSelectedIndex == index && !_hasSubmitted;
+                    bool showResult =
+                        _pendingSelectedIndex == index && _hasSubmitted;
+                    bool isCorrect = option['isCorrect'] as bool;
+
+                    Color borderColor = Colors.white10;
+                    Widget? overlayIcon;
+
+                    if (isPending) {
+                      borderColor = Colors.blue;
+                    } else if (showResult) {
+                      borderColor = isCorrect ? Colors.green : Colors.red;
+                      overlayIcon = Icon(
+                        isCorrect ? Icons.check_circle : Icons.cancel,
+                        color: isCorrect ? Colors.green : Colors.red,
+                        size: 50,
+                      );
+                    }
+
+                    return GestureDetector(
+                      onTap: _hasSubmitted ? null : () => _selectOption(index),
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: borderColor, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: Center(
+                                      child: Text(
+                                        option['title'] as String,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                                  if (showResult)
+                                    Positioned.fill(
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                            sigmaX: 1.0, sigmaY: 1.0),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0.2),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (overlayIcon != null)
+                            Positioned(
+                              top: 5,
+                              right: 5,
+                              child: overlayIcon,
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // const SizedBox(height: 15),
+              
+              const SizedBox(height: 15),
               Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Image.network(
-                    imageUrl!,
-                    height: 120, // reduced image height
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                       widget.isHindi ? "अंक: $score" : "Score: $score",
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                         widget.isHindi
+                          ? "सही: $correctCount | गलत: $incorrectCount"
+                          : "Correct: $correctCount | Incorrect: $incorrectCount",
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(), // disable scrolling
-                padding: const EdgeInsets.only(bottom: 8),
-                itemCount: options.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8, // tighter spacing
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.2, // increased ratio for shorter vertical boxes
-                ),
-                itemBuilder: (context, index) =>
-                    buildOptionCard(options[index], index),
+              const SizedBox(height: 15),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed:
+                        currentQuestionIndex > 0 ? _previousQuestion : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: currentQuestionIndex > 0
+                          ? Colors.orange
+                          : Colors.grey,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 15),
+                    ),
+                    child:  Text(
+                      widget.isHindi ? "पिछला" : "Previous",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                  ),
+
+                  ElevatedButton(
+                    onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
+                        ? _submitAnswer
+                        : null,
+                    child:  Text(
+                      widget.isHindi ? "जमा करें" : "Submit",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 15),
+                    ),
+                  ),
+
+                  ElevatedButton(
+                    onPressed: (_hasSubmitted ||
+                            userAnswers.containsKey(
+                                questions[currentQuestionIndex]['id']))
+                        ? _nextQuestion
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 15),
+                    ),
+                    child:  Text(
+                      widget.isHindi ? "अगला" : "Next",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                "Your Score: $score",
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  ),
-                  onPressed: currentQuestionIndex > 0 ? goToPreviousQuestion : null,
-                  child: const Text(
-                    "Previous",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isOptionSelected ? Colors.green : Colors.grey,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  ),
-                  onPressed: isOptionSelected ? fetchNewQuestion : null,
-                  child: const Text(
-                    "Next",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

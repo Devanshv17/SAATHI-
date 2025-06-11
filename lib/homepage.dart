@@ -13,7 +13,6 @@ import 'matching.dart';
 import 'letustelltime.dart';
 import 'letuscount.dart';
 import 'left_or_right.dart';
-import 'fit_the_shape.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -40,7 +39,7 @@ class _HomePageState extends State<HomePage> {
     'Box6': 'Name Number Matching',
     'Box7': 'Let us Tell Time',
     'Box9': 'Alphabet Knowledge',
-    'Box10': 'Left or Right?',
+    'Box10': 'Left or Right',
     'Box11': 'Fit the Shape',
   };
 
@@ -146,7 +145,8 @@ class _HomePageState extends State<HomePage> {
         isHindi: isHindi,
       );
     } else if (title == boxTextsEnglish['Box2'] ||
-        title == boxTextsHindi['Box2']) {
+        title == boxTextsHindi['Box2'] || title == boxTextsEnglish['Box11'] ||
+        title == boxTextsHindi['Box11']) {
       destination = GuessTheLetterPage(
         gameTitle: title,
         isHindi: isHindi,
@@ -179,13 +179,7 @@ class _HomePageState extends State<HomePage> {
         gameTitle: title,
         isHindi: isHindi,
       );
-    } else if (title == boxTextsEnglish['Box11'] ||
-        title == boxTextsHindi['Box11']) {
-      destination = FitTheShapePage(
-        gameTitle: title,
-        isHindi: isHindi,
-      );
-    } else {
+    }  else {
       // Fallback: generic GamePage with the displayed title
       destination = GamePage(
         gameTitle: title,
@@ -202,7 +196,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Widget buildBox(String key, bool isHindi, Color bgColor) {
+  Widget buildBox(String key, bool isHindi, Color bgColor,String imgpath) {
     final title = isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
     final correct = correctScores[title] ?? 0;
     final incorrect = incorrectScores[title] ?? 0;
@@ -224,8 +218,8 @@ class _HomePageState extends State<HomePage> {
             height: 70,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(50),
-              image: const DecorationImage(
-                image: AssetImage('assets/image.png'),
+              image:  DecorationImage(
+                image: AssetImage(imgpath),
                 fit: BoxFit.cover,
               ),
             ),
@@ -308,22 +302,22 @@ class _HomePageState extends State<HomePage> {
         },
         showMenuButton: true,
       ),
-      drawer: const CustomMenuBar(),
+      drawer:  CustomMenuBar(isHindi:isHindi),
       body: Center(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              buildBox('Box1', isHindi, Colors.blue.shade100),
-              buildBox('Box2', isHindi, Colors.blue.shade100),
-              buildBox('Box3', isHindi, Colors.blue.shade100),
-              buildBox('Box4', isHindi, Colors.blue.shade100),
-              buildBox('Box5', isHindi, Colors.blue.shade100),
-              buildBox('Box6', isHindi, Colors.blue.shade100),
-              buildBox('Box7', isHindi, Colors.blue.shade100),
+              buildBox('Box1', isHindi, Colors.blue.shade100,'assets/npp.png'),
+              buildBox('Box2', isHindi, Colors.blue.shade100,'assets/gtl.png'),
+              buildBox('Box3', isHindi, Colors.blue.shade100,'assets/cmp.png'),
+              buildBox('Box4', isHindi, Colors.blue.shade100, 'assets/cnt.png'),
+              buildBox('Box5', isHindi, Colors.blue.shade100,'assets/namenm.png'),
+              buildBox('Box6', isHindi, Colors.blue.shade100, 'assets/numnp.png'),
+              buildBox('Box7', isHindi, Colors.blue.shade100, 'assets/ltt.png'),
               // buildBox('Box8', isHindi, Colors.blue.shade100),
-              buildBox('Box9', isHindi, Colors.blue.shade100),
-              buildBox('Box10', isHindi, Colors.blue.shade100),
-              buildBox('Box11', isHindi, Colors.blue.shade100),
+              buildBox('Box9', isHindi, Colors.blue.shade100, 'assets/ak.png'),
+              buildBox('Box10', isHindi, Colors.blue.shade100, 'assets/lr.png'),
+              buildBox('Box11', isHindi, Colors.blue.shade100, 'assets/fs.png'),
             ],
           ),
         ),

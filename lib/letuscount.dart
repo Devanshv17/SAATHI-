@@ -9,11 +9,11 @@ import 'result.dart';
 class LetUsCountPage extends StatefulWidget {
   final String gameTitle;
   final bool isHindi;
-  const LetUsCountPage({Key? key,
+  const LetUsCountPage({
+    Key? key,
     required this.gameTitle,
     required this.isHindi,
   }) : super(key: key);
-
 
   @override
   _LetUsCountPageState createState() => _LetUsCountPageState();
@@ -39,13 +39,19 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // The game key used in saving and loading game state—must match the key expected by the homepage.
-  
+  // pool of images
+  final List<String> shapeAssets = [
+    'assets/circle.png',
+    'assets/triangle.png',
+    'assets/book.png',
+    'assets/pencil.png',
+  ];
 
-  // New state for submission logic
+  // fixed-per-question random assignment
+  final Map<String, List<String>> _assetsByQuestion = {};
+
   int? _selectedOptionIndex;
   bool _hasSubmitted = false;
-  bool _isCorrectSubmission = false;
 
   @override
   void initState() {
@@ -53,12 +59,11 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     _loadGameState().then((_) => _fetchQuestionsInOrder());
   }
 
-  /// Load saved game state from Realtime Database
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-
-    final snap = await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
+    final snap =
+        await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
     if (snap.exists && snap.value != null) {
       final data = Map<String, dynamic>.from(snap.value as Map);
       setState(() {
@@ -71,11 +76,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     }
   }
 
-  /// Save game state to Realtime Database
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-
     await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
       "score": score,
       "correctCount": correctCount,
@@ -90,11 +93,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       final snapshot = await _firestore
           .collection(widget.gameTitle)
           .get(const GetOptions(source: Source.serverAndCache));
-
       allQuestions = snapshot.docs;
       if (allQuestions.isEmpty) return;
 
-      // Build or persist questionOrder
       if (questionOrder.isEmpty) {
         final answered = allQuestions
             .where((doc) => userAnswers.containsKey(doc.id))
@@ -104,21 +105,20 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
             .where((doc) => !userAnswers.containsKey(doc.id))
             .map((doc) => doc.id)
             .toList();
-
         questionOrder = [...answered, ...unanswered];
         await _saveGameState();
       }
 
-      // If all answered, go to result
-      bool allDone = questionOrder.every((id) => userAnswers.containsKey(id));
+      final allDone = questionOrder.every((id) => userAnswers.containsKey(id));
       if (allDone) {
         _navigateToResult();
         return;
       }
 
-      _loadQuestionFromIndex(questionOrder.indexWhere(
+      final nextIndex = questionOrder.indexWhere(
         (id) => !userAnswers.containsKey(id),
-      ));
+      );
+      _loadQuestionFromIndex(nextIndex);
     } catch (e) {
       debugPrint("Error fetching questions: $e");
     }
@@ -126,11 +126,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
 
   void _loadQuestionFromIndex(int index) {
     if (index < 0 || index >= allQuestions.length) return;
-
     final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
-
-    // Check if already answered
     final saved = userAnswers[doc.id];
 
     setState(() {
@@ -138,85 +135,55 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       currentDocId = doc.id;
       question = data['text'] ?? "How many objects do you see?";
       imageCount = int.tryParse(data['numberField']?.toString() ?? "0") ?? 0;
-      imageAssets = List.generate(
-        imageCount,
-        (_) => _random.nextBool() ? 'assets/circle.png' : 'assets/triangle.png',
-      );
+
+      // Only generate once
+      if (!_assetsByQuestion.containsKey(doc.id)) {
+        _assetsByQuestion[doc.id] = List.generate(
+          imageCount,
+          (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
+        );
+      }
+      imageAssets = _assetsByQuestion[doc.id]!;
+
       options = (data['options'] as List)
           .map((o) => {...(o as Map<String, dynamic>), 'selected': false})
           .toList();
 
       if (saved != null) {
-        int idx = saved['selectedOptionIndex'] as int;
-        bool wasCorrect = saved['isCorrect'] as bool? ?? false;
+        final idx = saved['selectedOptionIndex'] as int;
         _selectedOptionIndex = idx;
         _hasSubmitted = true;
-        _isCorrectSubmission = wasCorrect;
         if (idx < options.length) {
           options[idx]['selected'] = true;
         }
       } else {
         _selectedOptionIndex = null;
         _hasSubmitted = false;
-        _isCorrectSubmission = false;
       }
     });
   }
 
   void _submitAnswer() {
     if (_hasSubmitted || _selectedOptionIndex == null) return;
-
-    int index = _selectedOptionIndex!;
-    bool isCorrect = options[index]['isCorrect'] == true;
-
+    final idx = _selectedOptionIndex!;
+    final isCorrect = options[idx]['isCorrect'] == true;
     setState(() {
-      options[index]['selected'] = true;
+      options[idx]['selected'] = true;
       _hasSubmitted = true;
-      _isCorrectSubmission = isCorrect;
-
       if (isCorrect) {
         score++;
         correctCount++;
       } else {
         incorrectCount++;
       }
-
       userAnswers[currentDocId] = {
-        'selectedOptionIndex': index,
+        'selectedOptionIndex': idx,
         'isCorrect': isCorrect,
       };
     });
-
     _saveGameState();
   }
 
-  void showInstructions(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-        content: Text(
-          widget.isHindi
-              ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
-                  "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
-                  "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
-                  "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
-                  "५. आपकी प्रगति सेव हो जाती है."
-              : "1. Tap an option to select (blue border).\n"
-                  "2. Tap Submit to lock in your choice.\n"
-                  "3. Correct: green tick ; incorrect: red cross .\n"
-                  "4. Use Previous/Next to navigate.\n"
-                  "5. Progress is saved.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
-          ),
-        ],
-      ),
-    );
-  }
   void _navigateToResult() {
     Navigator.pushReplacement(
       context,
@@ -239,9 +206,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   }
 
   void _goToNextQuestion() {
-    // Only proceed if answered/submitted
     if (_hasSubmitted || userAnswers.containsKey(currentDocId)) {
-      bool allDone = questionOrder.every((id) => userAnswers.containsKey(id));
+      final allDone = questionOrder.every((id) => userAnswers.containsKey(id));
       if (allDone) {
         _navigateToResult();
       } else if (currentQuestionIndex < allQuestions.length - 1) {
@@ -265,238 +231,246 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-             Text(
+            Text(
               widget.gameTitle,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-               IconButton(
-              icon: Icon(Icons.info_outline, color: Colors.white),
-              onPressed: () => showInstructions(context),
+            IconButton(
+              icon: const Icon(Icons.info_outline, color: Colors.white),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+                  content: Text(widget.isHindi
+                      ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
+                          "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैپ करें.\n"
+                          "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस.\n"
+                          "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
+                          "५. आपकी प्रगति सेव हो जाती है."
+                      : "1. Tap an option to select (blue border).\n"
+                          "2. Tap Submit to lock in your choice.\n"
+                          "3. Correct: green tick; incorrect: red cross.\n"
+                          "4. Use Previous/Next to navigate.\n"
+                          "5. Progress is saved."),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
+                    )
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Question text
-            Text(
-              question,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 17),
-
-            // Display generated images
-            Wrap(
-              spacing: 10,
-              children: imageAssets
-                  .map((asset) => Image.asset(asset, width: 45, height: 45))
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-
-            // Options grid
-            Expanded(
-              child: GridView.builder(
-                itemCount: options.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 15,
-                  crossAxisSpacing: 15,
-                  childAspectRatio: 1.5,
-                ),
-                itemBuilder: (context, i) {
-                  final o = options[i];
-                  bool isSelected = _selectedOptionIndex == i;
-                  bool showResultForThis =
-                      _hasSubmitted && _selectedOptionIndex == i;
-                  bool corr = o['isCorrect'] == true;
-
-                  return GestureDetector(
-                    onTap: () {
-                      // Only allow selecting if not already submitted/answered
-                      if (!_hasSubmitted &&
-                          !userAnswers.containsKey(currentDocId)) {
-                        setState(() {
-                          _selectedOptionIndex = i;
-                        });
-                      }
-                    },
-                    child: Stack(
-                      children: [
-                        // Option container with appropriate border
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(15),
-                            border: isSelected && !_hasSubmitted
-                                // Blue border when selected but not submitted
-                                ? Border.all(color: Colors.blue, width: 4)
-                                // Green or red border after submission
-                                : showResultForThis
-                                    ? Border.all(
-                                        color: corr ? Colors.green : Colors.red,
-                                        width: 4)
-                                    : null,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.3),
-                                spreadRadius: 2,
-                                blurRadius: 5,
-                              )
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(15),
-                            child: Stack(
-                              children: [
-                                // Option text
-                                Positioned.fill(
-                                  child: Center(
-                                    child: Text(
-                                      o['description'] ?? '',
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: showResultForThis
-                                            ? (corr ? Colors.green : Colors.red)
-                                            : Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                // Blur overlay if showing result
-                                if (showResultForThis)
-                                  Positioned.fill(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                        sigmaX: 1.0,
-                                        sigmaY: 1.0,
-                                      ),
-                                      child: Container(
-                                        color: Colors.black.withOpacity(0.2),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Tick or cross in top-right corner if showing result
-                        if (showResultForThis)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Icon(
-                              corr ? Icons.check_circle : Icons.cancel,
-                              size: 50,
-                              color: corr ? Colors.green : Colors.red,
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            // const SizedBox(height: 15),
-
-            // Submit button (always visible but disabled if no selection or already submitted)
-            
-
-            const SizedBox(height: 15),
-
-            // Score display
-            Center(
+      body: Column(
+        children: [
+          // 1) scrollable content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
                   Text(
-                     widget.isHindi ? "अंक: $score" : "Score: $score",
+                    question,
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                   widget.isHindi
-                        ? "सही: $correctCount | गलत: $incorrectCount"
-                        : "Correct: $correctCount | Incorrect: $incorrectCount",
-                    style: const TextStyle(fontSize: 16),
+                  const SizedBox(height: 17),
+                  Wrap(
+                    spacing: 10,
+                    children: imageAssets
+                        .map((asset) =>
+                            Image.asset(asset, width: 45, height: 45))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: options.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 15,
+                      crossAxisSpacing: 15,
+                      childAspectRatio: 1.5,
+                    ),
+                    itemBuilder: (context, i) {
+                      final o = options[i];
+                      final isSel = _selectedOptionIndex == i;
+                      final showRes =
+                          _hasSubmitted && _selectedOptionIndex == i;
+                      final corr = o['isCorrect'] == true;
+                      return GestureDetector(
+                        onTap: () {
+                          if (!_hasSubmitted &&
+                              !userAnswers.containsKey(currentDocId)) {
+                            setState(() => _selectedOptionIndex = i);
+                          }
+                        },
+                        child: Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(15),
+                                border: isSel && !_hasSubmitted
+                                    ? Border.all(color: Colors.blue, width: 4)
+                                    : showRes
+                                        ? Border.all(
+                                            color: corr
+                                                ? Colors.green
+                                                : Colors.red,
+                                            width: 4)
+                                        : null,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.3),
+                                    spreadRadius: 2,
+                                    blurRadius: 5,
+                                  )
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: Center(
+                                        child: Text(
+                                          o['description'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                            color: showRes
+                                                ? (corr
+                                                    ? Colors.green
+                                                    : Colors.red)
+                                                : Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (showRes)
+                                      Positioned.fill(
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(
+                                              sigmaX: 1.0, sigmaY: 1.0),
+                                          child: Container(
+                                            color:
+                                                Colors.black.withOpacity(0.2),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (showRes)
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Icon(
+                                  corr ? Icons.check_circle : Icons.cancel,
+                                  size: 50,
+                                  color: corr ? Colors.green : Colors.red,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
+          ),
 
-            const SizedBox(height: 15),
-
-            // Navigation buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          // 2) fixed footer
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
               children: [
-                ElevatedButton(
-                  onPressed: _goToPreviousQuestion,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 15),
-                  ),
-                  child:  Text(
-                    widget.isHindi ? "पिछला" : "Previous",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
+                Text(
+                  widget.isHindi ? "अंक: $score" : "Score: $score",
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-
-                ElevatedButton(
-                  onPressed: (_selectedOptionIndex != null &&
-                          !_hasSubmitted &&
-                          !userAnswers.containsKey(currentDocId))
-                      ? _submitAnswer
-                      : null,
-                  child:  Text(
-                    widget.isHindi ? "जमा करें" : "Submit",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 15),
-                  ),
+                Text(
+                  widget.isHindi
+                      ? "सही: $correctCount | गलत: $incorrectCount"
+                      : "Correct: $correctCount | Incorrect: $incorrectCount",
+                  style: const TextStyle(fontSize: 16),
                 ),
-
-                ElevatedButton(
-                  onPressed:
-                      (_hasSubmitted || userAnswers.containsKey(currentDocId))
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _goToPreviousQuestion,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: currentQuestionIndex > 0
+                            ? Colors.orange
+                            : Colors.grey,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 15),
+                      ),
+                      child: Text(
+                        widget.isHindi ? "पिछला" : "Previous",
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: (_selectedOptionIndex != null &&
+                              !_hasSubmitted &&
+                              !userAnswers.containsKey(currentDocId))
+                          ? _submitAnswer
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 15),
+                      ),
+                      child: Text(
+                        widget.isHindi ? "जमा करें" : "Submit",
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: (_hasSubmitted ||
+                              userAnswers.containsKey(currentDocId))
                           ? _goToNextQuestion
                           : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        (_hasSubmitted || userAnswers.containsKey(currentDocId))
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: (_hasSubmitted ||
+                                userAnswers.containsKey(currentDocId))
                             ? Colors.green
                             : Colors.grey,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 15),
-                  ),
-                  child:  Text(
-                    widget.isHindi ? "अगला" : "Next",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 15),
+                      ),
+                      child: Text(
+                        widget.isHindi ? "अगला" : "Next",
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

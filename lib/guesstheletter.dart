@@ -6,9 +6,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'result.dart';
 
 class GuessTheLetterPage extends StatefulWidget {
-    final String gameTitle;
+  final String gameTitle;
   final bool isHindi;
-  const GuessTheLetterPage({Key? key,required this.gameTitle,
+  const GuessTheLetterPage({
+    Key? key,
+    required this.gameTitle,
     required this.isHindi,
   }) : super(key: key);
 
@@ -17,31 +19,25 @@ class GuessTheLetterPage extends StatefulWidget {
 }
 
 class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
-  // Current question data
   String questionText = "";
   String currentDocId = "";
   List<Map<String, dynamic>> options = [];
 
-  // Scoring and answer tracking
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
   String? imageUrl;
   Map<String, dynamic> userAnswers = {};
 
-  // Order of questions (answered first, then unanswered)
   List<String> questionOrder = [];
   List<QueryDocumentSnapshot> allQuestions = [];
   int currentQuestionIndex = 0;
 
-  // Firebase instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // New state for submission logic
   int? _selectedOptionIndex;
   bool _hasSubmitted = false;
-  bool _isCorrectSubmission = false;
 
   @override
   void initState() {
@@ -49,149 +45,137 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     _loadGameState().then((_) => _fetchQuestionsInOrder());
   }
 
-  // Load saved game state (score, counts, answers, questionOrder) from Realtime DB
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    try {
-      final snapshot =
-          await _dbRef
-          .child("users/${user.uid}/games/${widget.gameTitle}")
-          .get();
-      if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
-        setState(() {
-          score = data['score'] ?? 0;
-          correctCount = data['correctCount'] ?? 0;
-          incorrectCount = data['incorrectCount'] ?? 0;
-          if (data['answers'] != null) {
-            userAnswers = Map<String, dynamic>.from(data['answers']);
-          }
-          if (data['questionOrder'] != null) {
-            questionOrder = List<String>.from(data['questionOrder']);
-          }
-        });
-      } else {
-        // No previous state
-      }
-    } catch (e) {
-      print("Error loading game state: $e");
+    final snap =
+        await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
+    if (snap.exists && snap.value != null) {
+      final data = Map<String, dynamic>.from(snap.value as Map);
+      setState(() {
+        score = data['score'] ?? 0;
+        correctCount = data['correctCount'] ?? 0;
+        incorrectCount = data['incorrectCount'] ?? 0;
+        userAnswers = Map<String, dynamic>.from(data['answers'] ?? {});
+        questionOrder = List<String>.from(data['questionOrder'] ?? []);
+      });
     }
   }
 
-  // Save current game state to Realtime DB
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    try {
-      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
-        "score": score,
-        "correctCount": correctCount,
-        "incorrectCount": incorrectCount,
-        "answers": userAnswers,
-        "questionOrder": questionOrder,
-      });
-    } catch (e) {
-      print("Error saving game state: $e");
-    }
+    await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
+      "score": score,
+      "correctCount": correctCount,
+      "incorrectCount": incorrectCount,
+      "answers": userAnswers,
+      "questionOrder": questionOrder,
+    });
   }
 
-  // Fetch questions from Firestore and reorder them based on whether they are answered
   Future<void> _fetchQuestionsInOrder() async {
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection(widget.gameTitle).get();
+    final snapshot =
+        await FirebaseFirestore.instance.collection(widget.gameTitle).get();
 
-      Map<String, QueryDocumentSnapshot> questionMap = {
-        for (var doc in snapshot.docs) doc.id: doc
-      };
+    final qMap = {for (var d in snapshot.docs) d.id: d};
 
-      if (questionOrder.isEmpty) {
-        List<String> answered = [];
-        List<String> unanswered = [];
-        for (var doc in snapshot.docs) {
-          if (userAnswers.containsKey(doc.id)) {
-            answered.add(doc.id);
-          } else {
-            unanswered.add(doc.id);
-          }
-        }
-        questionOrder = [...answered, ...unanswered];
-        await _saveGameState();
-      }
-
-      bool allAnswered =
-          questionOrder.every((id) => userAnswers.containsKey(id));
-      if (allAnswered) {
-        _navigateToResult();
-        return;
-      }
-
-      setState(() {
-        allQuestions = questionOrder
-            .map((id) => questionMap[id])
-            .where((doc) => doc != null)
-            .cast<QueryDocumentSnapshot>()
-            .toList();
-
-        int startIndex = _firstUnansweredIndex();
-        _loadQuestionFromIndex(startIndex);
-      });
-    } catch (e) {
-      print("Error fetching questions: $e");
+    if (questionOrder.isEmpty) {
+      final answered = snapshot.docs
+          .where((d) => userAnswers.containsKey(d.id))
+          .map((d) => d.id)
+          .toList();
+      final unanswered = snapshot.docs
+          .where((d) => !userAnswers.containsKey(d.id))
+          .map((d) => d.id)
+          .toList();
+      questionOrder = [...answered, ...unanswered];
+      await _saveGameState();
     }
+
+    final allDone = questionOrder.every((id) => userAnswers.containsKey(id));
+    if (allDone) {
+      _navigateToResult();
+      return;
+    }
+
+    setState(() {
+      allQuestions = questionOrder
+          .map((id) => qMap[id])
+          .whereType<QueryDocumentSnapshot>()
+          .toList();
+    });
+
+    _loadQuestionFromIndex(_firstUnansweredIndex());
   }
 
   int _firstUnansweredIndex() {
-    for (int i = 0; i < questionOrder.length; i++) {
-      if (!userAnswers.containsKey(questionOrder[i])) {
-        return i;
-      }
+    for (var i = 0; i < questionOrder.length; i++) {
+      if (!userAnswers.containsKey(questionOrder[i])) return i;
     }
     return 0;
   }
 
-  // Load a question based on its index in the ordered list.
-  void _loadQuestionFromIndex(int index) {
-    if (index < 0 || index >= allQuestions.length) return;
-    final doc = allQuestions[index];
+  void _loadQuestionFromIndex(int idx) {
+    if (idx < 0 || idx >= allQuestions.length) return;
+    final doc = allQuestions[idx];
     final data = doc.data() as Map<String, dynamic>;
     final saved = userAnswers[doc.id];
 
     setState(() {
-      currentQuestionIndex = index;
+      currentQuestionIndex = idx;
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
-      imageUrl = data['imageUrl'];
-      options = List<Map<String, dynamic>>.from(data['options'] ?? []);
-      for (var opt in options) {
-        opt['selected'] = false;
-      }
+      imageUrl = data['imageUrl'] as String?;
+      options = List<Map<String, dynamic>>.from(data['options'] as List? ?? []);
+      for (var o in options) o['selected'] = false;
+
       if (saved != null) {
-        int idx = saved['selectedOptionIndex'] as int;
-        bool wasCorrect = saved['isCorrect'] as bool? ?? false;
-        _selectedOptionIndex = idx;
+        final i = saved['selectedOptionIndex'] as int? ?? 0;
+        _selectedOptionIndex = i;
         _hasSubmitted = true;
-        _isCorrectSubmission = wasCorrect;
-        if (idx < options.length) {
-          options[idx]['selected'] = true;
-        }
+        if (i < options.length) options[i]['selected'] = true;
       } else {
         _selectedOptionIndex = null;
         _hasSubmitted = false;
-        _isCorrectSubmission = false;
       }
     });
   }
 
-  // Navigate to previous question (if available)
-  void _goToPreviousQuestion() {
-    if (currentQuestionIndex > 0) {
-      _loadQuestionFromIndex(currentQuestionIndex - 1);
-    }
+  void _selectOption(int i) {
+    if (_hasSubmitted) return;
+    setState(() {
+      _selectedOptionIndex = i;
+      for (var j = 0; j < options.length; j++) options[j]['selected'] = false;
+      options[i]['selected'] = true;
+    });
   }
 
-  // Navigate to next question or to result page if done.
+  void _submitAnswer() {
+    if (_hasSubmitted || _selectedOptionIndex == null) return;
+    final i = _selectedOptionIndex!;
+    final correct = options[i]['isCorrect'] as bool? ?? false;
+    setState(() {
+      _hasSubmitted = true;
+      if (correct) {
+        score++;
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
+      userAnswers[currentDocId] = {
+        'selectedOptionIndex': i,
+        'isCorrect': correct,
+      };
+    });
+    _saveGameState();
+  }
+
+  void _goToPreviousQuestion() {
+    if (currentQuestionIndex > 0)
+      _loadQuestionFromIndex(currentQuestionIndex - 1);
+  }
+
   void _goToNextQuestion() {
     if (currentQuestionIndex < allQuestions.length - 1) {
       _loadQuestionFromIndex(currentQuestionIndex + 1);
@@ -200,7 +184,6 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     }
   }
 
-  // Navigate to the result page.
   void _navigateToResult() {
     Navigator.pushReplacement(
       context,
@@ -212,72 +195,6 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
           incorrectCount: incorrectCount,
           isHindi: widget.isHindi,
         ),
-      ),
-    );
-  }
-
-  // Handle option tap: select but do not grade until submit
-  void _selectOption(int index) {
-    if (_hasSubmitted || userAnswers.containsKey(currentDocId)) return;
-    setState(() {
-      _selectedOptionIndex = index;
-      for (var i = 0; i < options.length; i++) {
-        options[i]['selected'] = false;
-      }
-      options[index]['selected'] = true;
-    });
-  }
-
-  // Submit the currently selected option
-  void _submitAnswer() {
-    if (_hasSubmitted || _selectedOptionIndex == null) return;
-
-    int index = _selectedOptionIndex!;
-    bool isCorrect = options[index]['isCorrect'] == true;
-
-    setState(() {
-      _hasSubmitted = true;
-      _isCorrectSubmission = isCorrect;
-      options[index]['selected'] = true;
-      if (isCorrect) {
-        score++;
-        correctCount++;
-      } else {
-        incorrectCount++;
-      }
-      userAnswers[currentDocId] = {
-        "selectedOptionIndex": index,
-        "isCorrect": isCorrect,
-      };
-    });
-    _saveGameState();
-  }
-
-  // Instruction dialog.
-  void showInstructions(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-         title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-        content:  Text(
-          widget.isHindi
-              ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
-                  "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
-                  "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
-                  "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
-                  "५. आपकी प्रगति सेव हो जाती है."
-              : "1. Tap an option to select (blue border).\n"
-                  "2. Tap Submit to lock in your choice.\n"
-                  "3. Correct: green tick ; incorrect: red cross .\n"
-                  "4. Use Previous/Next to navigate.\n"
-                  "5. Progress is saved.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child:  Text(widget.isHindi ? "ठीक है" : "Got it!"),
-          ),
-        ],
       ),
     );
   }
@@ -295,136 +212,133 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       appBar: AppBar(
         backgroundColor: Colors.blue.shade300,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-             Text(
-              widget.gameTitle,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                widget.gameTitle,
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
             ),
             IconButton(
-              icon:
-                  const Icon(Icons.info_outline, color: Colors.white, size: 28),
-              onPressed: () => showInstructions(context),
+              icon: const Icon(Icons.info_outline, size: 28),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+                  content: Text(
+                    widget.isHindi
+                        ? "१. विकल्प चुनें (नीला बॉर्डर).\n"
+                            "२. जमा करें पर टैप करें.\n"
+                            "३. सही: हरा टिक; गलत: लाल क्रॉस.\n"
+                            "४. Prev/Next.\n"
+                            "५. प्रगति सेव."
+                        : "1. Tap an option (blue border).\n"
+                            "2. Tap Submit.\n"
+                            "3. Correct: green tick; incorrect: red cross.\n"
+                            "4. Use Previous/Next.\n"
+                            "5. Progress is saved.",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
+                    )
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Question text
+            // Question
             Text(
-              questionText.isNotEmpty ? questionText : widget.isHindi
-                      ? "प्रश्न लोड हो रहा है..."
-                      : "Loading question...",
+              questionText,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            if (imageUrl != null)
-              Center(
-                child: Image.network(
-                  imageUrl!,
-                  height: 100,
-                ),
-              ),
+
+            // Image
+            if (imageUrl != null) Image.network(imageUrl!, height: 100),
             const SizedBox(height: 15),
-            Expanded(
-              child: GridView.builder(
-                itemCount: options.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.2,
-                ),
-                itemBuilder: (context, index) {
-                  return buildOptionCard(options[index], index);
-                },
+
+            // Options grid (non-scrollable)
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: options.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.2,
               ),
+              itemBuilder: (ctx, i) => buildOptionCard(options[i], i),
             ),
-            // const SizedBox(height: 15),
 
-            // Submit button
-          
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 15),
-            Center(
-              child: Column(
-                children: [
-                  Text(
-                    widget.isHindi ? "अंक: $score" : "Score: $score",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    widget.isHindi
-                        ? "सही: $correctCount | गलत: $incorrectCount"
-                        : "Correct: $correctCount | Incorrect: $incorrectCount",
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
+            // Score & buttons
+            Text(
+              widget.isHindi ? "अंक: $score" : "Score: $score",
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.isHindi
+                  ? "सही: $correctCount | गलत: $incorrectCount"
+                  : "Correct: $correctCount | Incorrect: $incorrectCount",
+              style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 15),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
+                  onPressed: _goToPreviousQuestion,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                    padding:  EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  onPressed:
-                      currentQuestionIndex > 0 ? _goToPreviousQuestion : null,
-                  child:  Text(
+                  child: Text(
                     widget.isHindi ? "पिछला" : "Previous",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
-
-
-                  ElevatedButton(
-                  onPressed: (_selectedOptionIndex != null &&
-                          !_hasSubmitted &&
-                          !userAnswers.containsKey(currentDocId))
+                ElevatedButton(
+                  onPressed: (_selectedOptionIndex != null && !_hasSubmitted)
                       ? _submitAnswer
                       : null,
-                  child:  Text(
-                    widget.isHindi ? "जमा करें" : "Submit",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
-                    color: Colors.white),
-                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    padding:  EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
+                  ),
+                  child: Text(
+                    widget.isHindi ? "जमा करें" : "Submit",
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
-
                 ElevatedButton(
+                  onPressed: _goToNextQuestion,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        (_hasSubmitted || userAnswers.containsKey(currentDocId))
-                            ? Colors.green
-                            : Colors.grey,
-                    padding:  EdgeInsets.symmetric(
+                    backgroundColor: _hasSubmitted ? Colors.green : Colors.grey,
+                    padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  onPressed:
-                      (_hasSubmitted || userAnswers.containsKey(currentDocId))
-                          ? _goToNextQuestion
-                          : null,
-                  child:  Text( widget.isHindi?"अगला":
-                    "Next",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
+                  child: Text(
+                    widget.isHindi ? "अगला" : "Next",
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -436,9 +350,9 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   }
 
   Widget buildOptionCard(Map<String, dynamic> option, int index) {
-    bool isSelected = _selectedOptionIndex == index;
-    bool showResultForThis = _hasSubmitted && _selectedOptionIndex == index;
-    bool corr = option['isCorrect'] == true;
+    final isSel = _selectedOptionIndex == index;
+    final showRes = _hasSubmitted && isSel;
+    final corr = option['isCorrect'] as bool? ?? false;
 
     return GestureDetector(
       onTap: () => _selectOption(index),
@@ -448,9 +362,9 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: isSelected && !_hasSubmitted
+              border: isSel && !_hasSubmitted
                   ? Border.all(color: Colors.blue, width: 4)
-                  : showResultForThis
+                  : showRes
                       ? Border.all(
                           color: corr ? Colors.green : Colors.red, width: 4)
                       : null,
@@ -464,31 +378,16 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Center(
-                      child: Text(
-                        option['title'],
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  if (showResultForThis)
-                    Positioned.fill(
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 1.0, sigmaY: 1.0),
-                        child: Container(
-                          color: Colors.black.withOpacity(0.2),
-                        ),
-                      ),
-                    ),
-                ],
+              child: Center(
+                child: Text(
+                  option['title'] as String,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),
-          if (showResultForThis)
+          if (showRes)
             Positioned(
               top: 8,
               right: 8,

@@ -9,9 +9,9 @@ import 'result.dart';
 class GamePage extends StatefulWidget {
   final String gameTitle;
   final bool isHindi;
-  
 
-  const GamePage({Key? key, required this.gameTitle, required this.isHindi}) : super(key: key);
+  const GamePage({Key? key, required this.gameTitle, required this.isHindi})
+      : super(key: key);
 
   @override
   _GamePageState createState() => _GamePageState();
@@ -114,10 +114,8 @@ class _GamePageState extends State<GamePage> {
         await _saveGameState();
       }
 
-      // All questions answered? -> navigate to result directly.
       bool allAnswered =
           questionOrder.every((id) => userAnswers.containsKey(id));
-
       if (allAnswered) {
         _navigateToResult();
         return;
@@ -148,7 +146,6 @@ class _GamePageState extends State<GamePage> {
     final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
 
-    // Determine if this question was already answered
     bool alreadyAnswered = userAnswers.containsKey(doc.id);
     int? savedIndex;
     bool savedCorrect = false;
@@ -163,8 +160,6 @@ class _GamePageState extends State<GamePage> {
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
       options = List<Map<String, dynamic>>.from(data['options'] ?? []);
-
-      // Reset selection/submission state
       if (alreadyAnswered && savedIndex != null) {
         _selectedOptionIndex = savedIndex;
         _hasSubmitted = true;
@@ -207,7 +202,6 @@ class _GamePageState extends State<GamePage> {
   }
 
   void _selectOption(int index) {
-    // Only allow selection if not yet submitted and not previously answered
     if (_hasSubmitted || userAnswers.containsKey(currentDocId)) return;
     setState(() {
       _selectedOptionIndex = index;
@@ -216,21 +210,18 @@ class _GamePageState extends State<GamePage> {
 
   void _submitAnswer() {
     if (_hasSubmitted) return;
-    if (_selectedOptionIndex == null) return; // No option selected
+    if (_selectedOptionIndex == null) return;
     bool isCorrect = options[_selectedOptionIndex!]['isCorrect'] == true;
 
     setState(() {
       _hasSubmitted = true;
       _isCorrectSubmission = isCorrect;
-
       if (isCorrect) {
         score++;
         correctCount++;
       } else {
         incorrectCount++;
       }
-
-      // Save to userAnswers
       userAnswers[currentDocId] = {
         "selectedOptionIndex": _selectedOptionIndex,
         "isCorrect": isCorrect,
@@ -244,7 +235,7 @@ class _GamePageState extends State<GamePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(widget.isHindi ?"निर्देश":"Instructions"),
+        title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
         content: Text(
           widget.isHindi
               ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
@@ -261,7 +252,7 @@ class _GamePageState extends State<GamePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(widget.isHindi?"ठीक है" : "Got it!"),
+            child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
           ),
         ],
       ),
@@ -276,6 +267,13 @@ class _GamePageState extends State<GamePage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canGoPrevious = currentQuestionIndex > 0;
+    final bool canSubmit = !_hasSubmitted &&
+        _selectedOptionIndex != null &&
+        !userAnswers.containsKey(currentDocId);
+    final bool canGoNext =
+        _hasSubmitted || userAnswers.containsKey(currentDocId);
+
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
@@ -283,8 +281,8 @@ class _GamePageState extends State<GamePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(widget.isHindi?
-              "नाम चित्र मिलान":widget.gameTitle,
+            Text(
+              widget.isHindi ? "नाम चित्र मिलान" : widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(
@@ -300,7 +298,11 @@ class _GamePageState extends State<GamePage> {
           children: [
             // Question text
             Text(
-              questionText.isNotEmpty ? questionText : widget.isHindi?"प्रश्न लोड हो रहा है...": "Loading question...",
+              questionText.isNotEmpty
+                  ? questionText
+                  : widget.isHindi
+                      ? "प्रश्न लोड हो रहा है..."
+                      : "Loading question...",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
@@ -396,24 +398,19 @@ class _GamePageState extends State<GamePage> {
               ),
             ),
 
-            // const SizedBox(height: 15),
-           
-            
-
-            // Submit button (only show if not already answered)
-           
-
             const SizedBox(height: 15),
 
             // Score display
             Column(
               children: [
                 Text(
-                  widget.isHindi?"अंक: $score": "Score: $score",
+                  widget.isHindi ? "अंक: $score" : "Score: $score",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  widget.isHindi?"सही: $correctCount | गलत: $incorrectCount" :"Correct: $correctCount | Incorrect: $incorrectCount",
+                  widget.isHindi
+                      ? "सही: $correctCount | गलत: $incorrectCount"
+                      : "Correct: $correctCount | Incorrect: $incorrectCount",
                   style: TextStyle(fontSize: 16),
                 ),
               ],
@@ -421,50 +418,57 @@ class _GamePageState extends State<GamePage> {
 
             const SizedBox(height: 15),
 
-            // Navigation buttons
+            // Navigation and Submit buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
+                // Previous button
                 ElevatedButton(
-                  onPressed: _goToPreviousQuestion,
-                  child: Text(widget.isHindi?"पिछला":
-                    "Previous",
+                  onPressed: canGoPrevious ? _goToPreviousQuestion : null,
+                  child: Text(
+                    widget.isHindi ? "पिछला" : "Previous",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
                   ),
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
                 ),
 
-                   ElevatedButton(
-              onPressed: _submitAnswer,
-              child: Text(widget.isHindi?"जमा करें":
-                "Submit",
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-            ),
-             
-                
+                // Submit button
                 ElevatedButton(
-                  onPressed: _goToNextQuestion,
-                  child: Text(widget.isHindi?"अगला":
-                    "Next",
+                  onPressed: canSubmit ? _submitAnswer : null,
+                  child: Text(
+                    widget.isHindi ? "जमा करें" : "Submit",
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
                   ),
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    disabledBackgroundColor: Colors.grey,
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+
+                // Next button
+                ElevatedButton(
+                  onPressed: canGoNext ? _goToNextQuestion : null,
+                  child: Text(
+                    widget.isHindi ? "अगला" : "Next",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
                 ),
               ],
             ),

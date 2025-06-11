@@ -1,4 +1,5 @@
 import 'dart:ui'; // for ImageFilter
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,9 +9,12 @@ import 'result.dart'; // Import your ResultPage
 class ComparePage extends StatefulWidget {
   final String gameTitle;
   final bool isHindi;
-  
-  const ComparePage({Key? key, required this.gameTitle,
-   required this.isHindi,}) : super(key: key);
+
+  const ComparePage({
+    Key? key,
+    required this.gameTitle,
+    required this.isHindi,
+  }) : super(key: key);
 
   @override
   _ComparePageState createState() => _ComparePageState();
@@ -37,6 +41,24 @@ class _ComparePageState extends State<ComparePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
+  // List of all asset image paths in your folder.
+  // Replace these with the actual filenames you have under assets/.
+  final List<String> shapeAssets = [
+    
+    'assets/triangle.png',
+    'assets/circle.png',
+    'assets/book.png',
+    'assets/pencil.png',
+    // 'assets/toothbrush.jpg'
+    // …add as many as you keep in that folder…
+  ];
+  final Random _random = Random();
+
+  // For each question (by index), store two lists of chosen asset paths:
+  // one for the left shapes, one for the right shapes.
+  final Map<int, List<String>> _leftAssetsByQuestion = {};
+  final Map<int, List<String>> _rightAssetsByQuestion = {};
+
   @override
   void initState() {
     super.initState();
@@ -48,8 +70,8 @@ class _ComparePageState extends State<ComparePage> {
     if (user == null) return;
 
     try {
-      final snapshot =
-          await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}")
+      final snapshot = await _dbRef
+          .child("users/${user.uid}/games/${widget.gameTitle}")
           .get();
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
@@ -116,6 +138,23 @@ class _ComparePageState extends State<ComparePage> {
         isLoading = false;
       });
 
+      // For each question, if we do not already have random assets assigned,
+      // generate fixed lists of random asset paths for left and right shapes.
+      for (int i = 0; i < questions.length; i++) {
+        if (!_leftAssetsByQuestion.containsKey(i)) {
+          _leftAssetsByQuestion[i] = List.generate(
+            questions[i].compareNumber1,
+            (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
+          );
+        }
+        if (!_rightAssetsByQuestion.containsKey(i)) {
+          _rightAssetsByQuestion[i] = List.generate(
+            questions[i].compareNumber2,
+            (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
+          );
+        }
+      }
+
       if (selectedOptionIndices.length == questions.length) {
         _navigateToResult();
       }
@@ -152,32 +191,24 @@ class _ComparePageState extends State<ComparePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-         title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-          content:  Text(
-            widget.isHindi?
-"१. दिखाए गए आकृतियों की संख्या की तुलना करें।\n"
-"२. किसी एक विकल्प को चुनने के लिए उस पर टैप करें (नीली सीमा दिखाई देगी)।\n"
-"३. अपना उत्तर लॉक करने के लिए जमा करें पर टैप करें।\n"
-"४. यदि उत्तर सही है, तो हरे रंग का टिक चिन्ह दिखाई देगा; यदि गलत है, तो लाल क्रॉस दिखाई देगा।\n"
-"५. अगले और पिछले प्रश्नों पर जाने के लिए अगला और पिछला का उपयोग करें।\n"
-"६. प्रगति स्वतः सहेजी जाती है।"
-
-
-            :
-            "1. Compare the number of shapes shown.\n"
-            "2. Tap one option to select it (blue border appears).\n"
-            "3. Tap Submit to lock in your answer.\n"
-            "4. If correct, a green tick appears; if wrong, a red cross appears .\n"
-            "5. Use Next and Previous to navigate.\n"
-            "6. Progress is saved automatically.",
-            
-          ),
+          title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+          content: Text(widget.isHindi
+              ? "१. दिखाए गए आकृतियों की संख्या की तुलना करें।\n"
+                  "२. किसी एक विकल्प को चुनने के लिए उस पर टैप करें (नीली सीमा दिखाई देगी)।\n"
+                  "३. अपना उत्तर लॉक करने के लिए जमा करें पर टैप करें।\n"
+                  "४. यदि उत्तर सही है, तो हरे रंग का टिक चिन्ह दिखाई देगा; यदि गलत है, तो लाल क्रॉस दिखाई देगा।\n"
+                  "५. अगले और पिछले प्रश्नों पर जाने के लिए अगला और पिछला का उपयोग करें।\n"
+                  "६. प्रगति स्वतः सहेजी जाती है।"
+              : "1. Compare the number of shapes shown.\n"
+                  "2. Tap one option to select it (blue border appears).\n"
+                  "3. Tap Submit to lock in your answer.\n"
+                  "4. If correct, a green tick appears; if wrong, a red cross appears.\n"
+                  "5. Use Next and Previous to navigate.\n"
+                  "6. Progress is saved automatically."),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child:  Text(widget.isHindi?"ठीक है" : "Got it!",
-                
-              ),
+              child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
             ),
           ],
         );
@@ -185,10 +216,11 @@ class _ComparePageState extends State<ComparePage> {
     );
   }
 
-  Widget _buildShapeGrid(int count, String assetPath) {
+  /// Builds a “grid” of images from a precomputed [assetList].
+  /// Uses a Wrap so it expands to fit all images without internal scrolling.
+  Widget _buildShapeGrid(List<String> assetList) {
     return Container(
-      width: 150,
-      height: 150,
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.black54, width: 2),
@@ -202,17 +234,12 @@ class _ComparePageState extends State<ComparePage> {
           )
         ],
       ),
-      child: GridView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: count,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 5,
-          crossAxisSpacing: 5,
-        ),
-        itemBuilder: (context, index) {
+      child: Wrap(
+        spacing: 5,
+        runSpacing: 5,
+        children: assetList.map((assetPath) {
           return Image.asset(assetPath, width: 40, height: 40);
-        },
+        }).toList(),
       ),
     );
   }
@@ -303,12 +330,16 @@ class _ComparePageState extends State<ComparePage> {
     }
     final currentQuestion = questions[currentIndex];
 
+    // Retrieve the precomputed asset lists for this question index
+    final leftAssets = _leftAssetsByQuestion[currentIndex]!;
+    final rightAssets = _rightAssetsByQuestion[currentIndex]!;
+
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title:  Text(
-          widget.isHindi?"तुलना" :"Compare",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        title: Text(
+          widget.isHindi ? "तुलना" : "Compare",
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.blue.shade300,
         actions: [
@@ -324,27 +355,34 @@ class _ComparePageState extends State<ComparePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-               Text(
-                widget.isHindi?"सही चिन्ह चुनें:\n"
-                    "बाएँ ______दाएँ"
-:
-
-                " Choose the correct sign:\n"
-                " Left _______  Right",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              Text(
+                widget.isHindi
+                    ? "सही चिन्ह चुनें:\nबाएँ ______ दाएँ"
+                    : "Choose the correct sign:\nLeft _______ Right",
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
+
+              // Use Expanded-like behavior by wrapping both in a Row with equal space
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildShapeGrid(
-                      currentQuestion.compareNumber1, 'assets/circle.png'),
-                  _buildShapeGrid(
-                      currentQuestion.compareNumber2, 'assets/triangle.png'),
+                  // Left container: uses its list of assets
+                  Expanded(
+                    child: _buildShapeGrid(leftAssets),
+                  ),
+                  const SizedBox(width: 10),
+                  // Right container: uses its list of assets
+                  Expanded(
+                    child: _buildShapeGrid(rightAssets),
+                  ),
                 ],
               ),
+
               const SizedBox(height: 15),
+
               // Options list
               Column(
                 children:
@@ -381,21 +419,17 @@ class _ComparePageState extends State<ComparePage> {
                 }),
               ),
 
-              // const SizedBox(height: 15),
-              // Submit button above score
-             
-
               const SizedBox(height: 15),
               Center(
                 child: Column(
                   children: [
                     Text(
-                       widget.isHindi ? "अंक: $score" : "Score: $score",
+                      widget.isHindi ? "अंक: $score" : "Score: $score",
                       style: const TextStyle(
                           fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                       widget.isHindi
+                      widget.isHindi
                           ? "सही: $correctCount | गलत: $incorrectCount"
                           : "Correct: $correctCount | Incorrect: $incorrectCount",
                       style: const TextStyle(fontSize: 16),
@@ -403,6 +437,7 @@ class _ComparePageState extends State<ComparePage> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 15),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -415,35 +450,32 @@ class _ComparePageState extends State<ComparePage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
                     ),
-                    child:  Text(
+                    child: Text(
                       widget.isHindi ? "पिछला" : "Previous",
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white),
                     ),
                   ),
-
-                   ElevatedButton(
+                  ElevatedButton(
                     onPressed:
                         (_pendingSelectedIndex != null && !_hasSubmittedCurrent)
                             ? _submitAnswer
                             : null,
-                    child:  Text(widget.isHindi? "जमा करें":
-                      "Submit",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
                     ),
+                    child: Text(
+                      widget.isHindi ? "जमा करें" : "Submit",
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
-
-                  
                   ElevatedButton(
                     onPressed: (_hasSubmittedCurrent ||
                             selectedOptionIndices.containsKey(currentIndex))
@@ -454,9 +486,9 @@ class _ComparePageState extends State<ComparePage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
                     ),
-                    child:  Text(
+                    child: Text(
                       widget.isHindi ? "अगला" : "Next",
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white),
