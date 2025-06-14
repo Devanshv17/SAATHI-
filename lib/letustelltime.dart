@@ -10,10 +10,12 @@ import 'result.dart';
 
 class LetUsTellTimePage extends StatefulWidget {
   final String gameTitle;
-  
   final bool isHindi;
-  const LetUsTellTimePage({Key? key,
-  required this.gameTitle, required this.isHindi,}) : super(key: key);
+  const LetUsTellTimePage({
+    Key? key,
+    required this.gameTitle,
+    required this.isHindi,
+  }) : super(key: key);
 
   @override
   _LetUsTellTimePageState createState() => _LetUsTellTimePageState();
@@ -45,20 +47,17 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final Random _random = Random();
 
-  
-
-
   @override
   void initState() {
     super.initState();
     _loadGameState().then((_) => _fetchQuestions());
   }
 
-  /// Load saved game state from RTDB.
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-    final snap = await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
+    final snap =
+        await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
     if (snap.exists && snap.value != null) {
       final data = Map<String, dynamic>.from(snap.value as Map);
       setState(() {
@@ -71,7 +70,6 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     }
   }
 
-  /// Persist state to RTDB.
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -84,7 +82,6 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     });
   }
 
-  /// Fetches all questions, initializes order, and loads the first unanswered.
   Future<void> _fetchQuestions() async {
     try {
       final snap = await _firestore
@@ -145,7 +142,6 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         .map((o) => {...o, 'selected': false})
         .toList();
 
-    // Initialize pending/submitted state for this question
     final saved = userAnswers[docId];
     if (saved != null) {
       final idx = saved['selectedOptionIndex'] as int;
@@ -182,11 +178,10 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
 
   void _submitAnswer() {
     if (_pendingSelectedIndex == null || _hasSubmitted) return;
-    final formatted1 = DateFormat('H:mm').format(clockTime!);
-    final formatted2 = DateFormat('HH:mm').format(clockTime!);
-    final selectedTitle = options[_pendingSelectedIndex!]['title'] as String;
-    final isCorrect =
-        (selectedTitle == formatted1 || selectedTitle == formatted2);
+
+    // ←── here’s the fix: use your stored flag!
+    final isCorrect = options[_pendingSelectedIndex!]['isCorrect'] as bool;
+
     setState(() {
       _hasSubmitted = true;
       _currentIsCorrect = isCorrect;
@@ -246,7 +241,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
         backgroundColor: Colors.blue.shade300,
-        title:  Text(
+        title: Text(
           widget.gameTitle,
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
@@ -257,8 +252,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
               showDialog(
                 context: context,
                 builder: (_) => AlertDialog(
-                     title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-                  content:  Text(
+                  title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+                  content: Text(
                     widget.isHindi
                         ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
                             "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
@@ -405,20 +400,17 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 },
               ),
             ),
-            // const SizedBox(height: 15),
-            // Submit button above score
-          
             const SizedBox(height: 15),
             Center(
               child: Column(
                 children: [
                   Text(
-                     widget.isHindi ? "अंक: $score" : "Score: $score",
+                    widget.isHindi ? "अंक: $score" : "Score: $score",
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                        widget.isHindi
+                    widget.isHindi
                         ? "सही: $correctCount | गलत: $incorrectCount"
                         : "Correct: $correctCount | Incorrect: $incorrectCount",
                     style: const TextStyle(fontSize: 16),
@@ -438,7 +430,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  child:  Text(
+                  child: Text(
                     widget.isHindi ? "पिछला" : "Previous",
                     style: TextStyle(
                         fontSize: 16,
@@ -446,14 +438,13 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                         color: Colors.white),
                   ),
                 ),
-
-                  ElevatedButton(
+                ElevatedButton(
                   onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
                       ? _submitAnswer
                       : null,
-                  child:  Text(
+                  child: Text(
                     widget.isHindi ? "जमा करें" : "Submit",
-                    style: TextStyle(
+                    style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
@@ -464,21 +455,21 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                         horizontal: 20, vertical: 10),
                   ),
                 ),
-
-
                 ElevatedButton(
-                  onPressed: _allAnswered() ? _navigateToResult : _goNext,
+                  // ←── only enabled once you’ve submitted or all Q’s done
+                  onPressed: (_hasSubmitted || _allAnswered())
+                      ? (_allAnswered() ? _navigateToResult : _goNext)
+                      : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        (_pendingSelectedIndex != null && _hasSubmitted)
-                            ? Colors.green
-                            : Colors.grey,
+                    backgroundColor: (_hasSubmitted || _allAnswered())
+                        ? Colors.green
+                        : Colors.grey,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  child:  Text(
+                  child: Text(
                     widget.isHindi ? "अगला" : "Next",
-                    style: TextStyle(
+                    style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),

@@ -179,7 +179,10 @@ class _HomePageState extends State<HomePage> {
         gameTitle: title,
         isHindi: isHindi,
       );
-    }  else {
+    }  else if (
+        title == boxTextsEnglish['Box1'] ||
+        title == boxTextsHindi['Box1']
+    ){
       // Fallback: generic GamePage with the displayed title
       destination = GamePage(
         gameTitle: title,

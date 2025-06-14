@@ -27,35 +27,27 @@ class _ComparePageState extends State<ComparePage> {
   int correctCount = 0;
   int incorrectCount = 0;
 
-  // Map storing the submitted answer index for each question.
+  /// Map storing the submitted answer index for each question.
   Map<int, int> selectedOptionIndices = {};
 
-  // Pending selection before submit.
+  /// Pending selection before submit.
   int? _pendingSelectedIndex;
   bool _hasSubmittedCurrent = false;
   bool _currentIsCorrect = false;
 
   bool isLoading = true;
 
-  // Firebase instances for authentication and realtime DB.
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // List of all asset image paths in your folder.
-  // Replace these with the actual filenames you have under assets/.
   final List<String> shapeAssets = [
-    
     'assets/triangle.png',
     'assets/circle.png',
     'assets/book.png',
     'assets/pencil.png',
-    // 'assets/toothbrush.jpg'
-    // …add as many as you keep in that folder…
   ];
   final Random _random = Random();
 
-  // For each question (by index), store two lists of chosen asset paths:
-  // one for the left shapes, one for the right shapes.
   final Map<int, List<String>> _leftAssetsByQuestion = {};
   final Map<int, List<String>> _rightAssetsByQuestion = {};
 
@@ -73,18 +65,30 @@ class _ComparePageState extends State<ComparePage> {
       final snapshot = await _dbRef
           .child("users/${user.uid}/games/${widget.gameTitle}")
           .get();
-      if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
+      if (!snapshot.exists) return;
+
+      final data = snapshot.value;
+      if (data is Map) {
         setState(() {
           score = data['score'] ?? 0;
           correctCount = data['correctCount'] ?? 0;
           incorrectCount = data['incorrectCount'] ?? 0;
           currentIndex = data['currentIndex'] ?? 0;
-          if (data['selectedOptionIndices'] != null) {
-            final Map<dynamic, dynamic> savedMap =
-                data['selectedOptionIndices'];
-            selectedOptionIndices = savedMap.map((key, value) =>
-                MapEntry(int.tryParse(key.toString()) ?? key, value));
+
+          // Load saved answers: handle both List and Map
+          final raw = data['selectedOptionIndices'];
+          if (raw is List) {
+            for (int i = 0; i < raw.length; i++) {
+              final val = raw[i];
+              if (val is int) selectedOptionIndices[i] = val;
+            }
+          } else if (raw is Map) {
+            raw.forEach((key, value) {
+              final idx = int.tryParse(key.toString());
+              if (idx != null && value is int) {
+                selectedOptionIndices[idx] = value;
+              }
+            });
           }
         });
       }
@@ -96,9 +100,11 @@ class _ComparePageState extends State<ComparePage> {
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
+
     try {
       final formattedAnswers = selectedOptionIndices
           .map((key, value) => MapEntry(key.toString(), value));
+
       await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
         "score": score,
         "correctCount": correctCount,
@@ -118,7 +124,7 @@ class _ComparePageState extends State<ComparePage> {
           .orderBy("timestamp")
           .get();
 
-      List<CompareQuestion> loadedQuestions = snapshot.docs.map((doc) {
+      questions = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         return CompareQuestion(
           compareNumber1:
@@ -133,47 +139,35 @@ class _ComparePageState extends State<ComparePage> {
         );
       }).toList();
 
-      setState(() {
-        questions = loadedQuestions;
-        isLoading = false;
-      });
-
-      // For each question, if we do not already have random assets assigned,
-      // generate fixed lists of random asset paths for left and right shapes.
+      // Prepare random assets
       for (int i = 0; i < questions.length; i++) {
-        if (!_leftAssetsByQuestion.containsKey(i)) {
-          _leftAssetsByQuestion[i] = List.generate(
-            questions[i].compareNumber1,
-            (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
-          );
-        }
-        if (!_rightAssetsByQuestion.containsKey(i)) {
-          _rightAssetsByQuestion[i] = List.generate(
-            questions[i].compareNumber2,
-            (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
-          );
-        }
+        _leftAssetsByQuestion.putIfAbsent(
+            i,
+            () => List.generate(questions[i].compareNumber1,
+                (_) => shapeAssets[_random.nextInt(shapeAssets.length)]));
+        _rightAssetsByQuestion.putIfAbsent(
+            i,
+            () => List.generate(questions[i].compareNumber2,
+                (_) => shapeAssets[_random.nextInt(shapeAssets.length)]));
       }
 
+      // If all answered, go to results
       if (selectedOptionIndices.length == questions.length) {
-        _navigateToResult();
+        return _navigateToResult();
       }
+
       if (currentIndex >= questions.length) {
         currentIndex = questions.length - 1;
       }
-
-      // Initialize pending/submitted status for the current question
       _initCurrentQuestionState();
+      setState(() => isLoading = false);
     } catch (e) {
       print("Error fetching questions: $e");
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
   }
 
   void _initCurrentQuestionState() {
-    // If this question was already answered, restore its state
     if (selectedOptionIndices.containsKey(currentIndex)) {
       _pendingSelectedIndex = selectedOptionIndices[currentIndex];
       _hasSubmittedCurrent = true;

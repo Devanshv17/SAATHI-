@@ -51,9 +51,14 @@ class _GamePageState extends State<GamePage> {
 
     try {
       final snapshot = await _dbRef
+      
           .child("users/${user.uid}/games/${widget.gameTitle}")
           .get();
+      
+
+      
       if (snapshot.exists) {
+      
         final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
           score = data['score'] ?? 0;
@@ -70,6 +75,7 @@ class _GamePageState extends State<GamePage> {
     } catch (e) {
       print("Error loading game state: $e");
     }
+    
   }
 
   Future<void> _saveGameState() async {
@@ -282,7 +288,7 @@ class _GamePageState extends State<GamePage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              widget.isHindi ? "नाम चित्र मिलान" : widget.gameTitle,
+              widget.gameTitle,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             IconButton(

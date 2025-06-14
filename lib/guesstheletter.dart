@@ -329,7 +329,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: _goToNextQuestion,
+                  onPressed: _hasSubmitted ? _goToNextQuestion : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _hasSubmitted ? Colors.green : Colors.grey,
                     padding: const EdgeInsets.symmetric(
