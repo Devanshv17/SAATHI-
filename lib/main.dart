@@ -1,13 +1,17 @@
+// main.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_phone_auth_handler/firebase_phone_auth_handler.dart';
+import 'firebase_options.dart';            // your generated Firebase options
+import 'language_notifier.dart';
 import 'register.dart';
 import 'login.dart';
+import 'verify_otp.dart';
 import 'homepage.dart';
 import 'admin_homepage.dart';
-import 'package:provider/provider.dart';
-import 'language_notifier.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,27 +19,25 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Retrieve saved login state and role from SharedPreferences.
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  bool loggedIn = prefs.getBool('loggedIn') ?? false;
-  String? role = prefs.getString('role');
+  // Load saved login state and role
+  final prefs = await SharedPreferences.getInstance();
+  final bool loggedIn = prefs.getBool('loggedIn') ?? false;
+  final String? role  = prefs.getString('role');
 
-  // Determine initial route based on login state and role.
+  // Choose initial route
   String initialRoute;
   if (loggedIn) {
-    if (role == 'admin') {
-      initialRoute = '/admin_homepage';
-    } else {
-      initialRoute = '/homepage';
-    }
+    initialRoute = (role == 'admin') ? '/admin_homepage' : '/homepage';
   } else {
-    initialRoute = '/login';
+    initialRoute = '/register';
   }
 
   runApp(
     ChangeNotifierProvider<LanguageNotifier>(
       create: (_) => LanguageNotifier(),
-      child: MyApp(initialRoute: initialRoute),
+      child: FirebasePhoneAuthProvider(
+        child: MyApp(initialRoute: initialRoute),
+      ),
     ),
   );
 }
@@ -54,10 +56,11 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: initialRoute,
       routes: {
-        '/register': (context) => const RegisterPage(),
-        '/login': (context) => const LoginPage(),
-        '/homepage': (context) => const HomePage(),
-        '/admin_homepage': (context) => const AdminHomePage(),
+        '/register':        (context) => const RegisterPage(),
+        '/login':           (context) => const LoginPage(),
+        '/verify':          (context) => VerifyOtpPage(),
+        '/homepage':        (context) => const HomePage(),
+        '/admin_homepage':  (context) => const AdminHomePage(),
       },
     );
   }

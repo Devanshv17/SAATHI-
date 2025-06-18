@@ -5,8 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'services/firestore_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:saathi/services/firestore_service.dart';
 
 import 'navbar.dart';
 import 'menu_bar.dart';
