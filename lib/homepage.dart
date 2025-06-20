@@ -12,7 +12,7 @@ import 'guesstheletter.dart';
 import 'matching.dart';
 import 'letustelltime.dart';
 import 'letuscount.dart';
-import 'left_or_right.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -39,20 +39,20 @@ class _HomePageState extends State<HomePage> {
     'Box6': 'Name Number Matching',
     'Box7': 'Let us Tell Time',
     'Box9': 'Alphabet Knowledge',
-    'Box10': 'Left or Right',
+    'Box10': 'Left Middle Right',
     'Box11': 'Fit the Shape',
   };
 
   final Map<String, String> boxTextsHindi = {
     'Box1': 'नाम चित्र मिलान',
-    'Box2': 'अक्षर अनुमान',
+    'Box2': 'अक्षर ज्ञान',
     'Box3': 'तुलना',
     'Box4': 'चलो गिनें',
     'Box5': 'संख्या नाम मिलान',
     'Box6': 'नाम संख्या मिलान',
     'Box7': 'चलो समय बताएँ',
     'Box9': 'वर्णमाला ज्ञान',
-    'Box10': 'बाएँ या दाएँ?',
+    'Box10': 'बाएँ दाएँ मध्य',
     'Box11': 'आकार फिट करें',
   };
 
@@ -168,14 +168,10 @@ class _HomePageState extends State<HomePage> {
         title == boxTextsEnglish['Box6'] ||
         title == boxTextsHindi['Box6'] ||
         title == boxTextsEnglish['Box9'] ||
-        title == boxTextsHindi['Box9']) {
+        title == boxTextsHindi['Box9'] ||
+        title == boxTextsEnglish['Box10'] ||
+        title == boxTextsHindi['Box10']  ) {
       destination = MatchingPage(
-        gameTitle: title,
-        isHindi: isHindi,
-      );
-    } else if (title == boxTextsEnglish['Box10'] ||
-        title == boxTextsHindi['Box10']) {
-      destination = LeftorRightPage(
         gameTitle: title,
         isHindi: isHindi,
       );

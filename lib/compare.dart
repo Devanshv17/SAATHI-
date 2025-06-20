@@ -331,8 +331,7 @@ class _ComparePageState extends State<ComparePage> {
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title: Text(
-          widget.isHindi ? "तुलना" : "Compare",
+        title: Text(widget.gameTitle,
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.blue.shade300,
@@ -351,8 +350,8 @@ class _ComparePageState extends State<ComparePage> {
             children: [
               Text(
                 widget.isHindi
-                    ? "सही चिन्ह चुनें:\nबाएँ ______ दाएँ"
-                    : "Choose the correct sign:\nLeft _______ Right",
+                    ? "सही चिन्ह चुनें:"
+                    : "Choose the correct sign:",
                 style:
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
@@ -375,6 +374,13 @@ class _ComparePageState extends State<ComparePage> {
                 ],
               ),
 
+
+              const SizedBox(height: 10), 
+              // Question text
+              Text(
+                    widget.isHindi? "अ                          ब" : "A                          B",
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 15),
 
               // Options list
@@ -408,6 +414,7 @@ class _ComparePageState extends State<ComparePage> {
                               selectedOptionIndices.containsKey(currentIndex)
                           ? null
                           : () => _selectOption(index),
+                           isHindi: widget.isHindi,// Pass isHindi flag
                     ),
                   );
                 }),
@@ -504,6 +511,7 @@ class OptionTile extends StatelessWidget {
   final Color borderColor;
   final Widget? overlayIcon;
   final VoidCallback? onTap;
+  final bool isHindi; // Assuming this is set somewhere in your app
 
   const OptionTile({
     Key? key,
@@ -511,6 +519,7 @@ class OptionTile extends StatelessWidget {
     required this.borderColor,
     this.overlayIcon,
     this.onTap,
+    required this.isHindi,
   }) : super(key: key);
 
   @override
@@ -521,14 +530,14 @@ class OptionTile extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: borderColor, width: 4),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              text,
+              isHindi ? "अ   $text   ब" : "A   $text   B",
               textAlign: TextAlign.center,
               style: const TextStyle(
                   fontSize: 24,

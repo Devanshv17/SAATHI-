@@ -282,6 +282,15 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
+            Text(
+              widget.isHindi ? "सही समय चुनें" : "Select the correct time",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 10),
             if (clockTime != null)
               Center(
                 child: Container(
@@ -312,7 +321,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 8,
                   crossAxisSpacing: 8,
-                  childAspectRatio: 1.2,
+                  childAspectRatio: 1.4,
                 ),
                 itemBuilder: (_, i) {
                   final opt = options[i];

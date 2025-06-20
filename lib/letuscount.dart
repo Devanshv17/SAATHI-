@@ -47,7 +47,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     'assets/pencil.png',
   ];
 
-  // fixed-per-question random assignment
+  // cache per-question assignment
   final Map<String, List<String>> _assetsByQuestion = {};
 
   int? _selectedOptionIndex;
@@ -92,6 +92,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     try {
       final snapshot = await _firestore
           .collection(widget.gameTitle)
+          .orderBy("timestamp")
           .get(const GetOptions(source: Source.serverAndCache));
       allQuestions = snapshot.docs;
       if (allQuestions.isEmpty) return;
@@ -115,9 +116,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         return;
       }
 
-      final nextIndex = questionOrder.indexWhere(
-        (id) => !userAnswers.containsKey(id),
-      );
+      final nextIndex =
+          questionOrder.indexWhere((id) => !userAnswers.containsKey(id));
       _loadQuestionFromIndex(nextIndex);
     } catch (e) {
       debugPrint("Error fetching questions: $e");
@@ -136,12 +136,18 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       question = data['text'] ?? "How many objects do you see?";
       imageCount = int.tryParse(data['numberField']?.toString() ?? "0") ?? 0;
 
-      // Only generate once
+      // assign images once per question, with some cases all identical
       if (!_assetsByQuestion.containsKey(doc.id)) {
-        _assetsByQuestion[doc.id] = List.generate(
-          imageCount,
-          (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
-        );
+        final useSame = _random.nextBool();
+        if (useSame) {
+          final idx = _random.nextInt(shapeAssets.length);
+          _assetsByQuestion[doc.id] = List.filled(imageCount, shapeAssets[idx]);
+        } else {
+          _assetsByQuestion[doc.id] = List.generate(
+            imageCount,
+            (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
+          );
+        }
       }
       imageAssets = _assetsByQuestion[doc.id]!;
 
@@ -153,9 +159,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         final idx = saved['selectedOptionIndex'] as int;
         _selectedOptionIndex = idx;
         _hasSubmitted = true;
-        if (idx < options.length) {
-          options[idx]['selected'] = true;
-        }
+        if (idx < options.length) options[idx]['selected'] = true;
       } else {
         _selectedOptionIndex = null;
         _hasSubmitted = false;
@@ -340,7 +344,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                                     Positioned.fill(
                                       child: Center(
                                         child: Text(
-                                          o['description'] ?? '',
+                                          o['title'] ?? '',
                                           style: TextStyle(
                                             fontSize: 24,
                                             fontWeight: FontWeight.bold,
