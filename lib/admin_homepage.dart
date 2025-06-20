@@ -104,10 +104,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
         questionText: questionText,
         // For question types that need an image.
         questionImageUrl: (selectedCategory == "Guess the Letter" ||
-                selectedCategory == "Left or Right" ||
+                selectedCategory == "Left Middle Right" ||
                 selectedCategory == "Fit the Shape" ||
-                selectedCategory == "अक्षर अनुमान" ||
-                selectedCategory == "बाएँ या दाएँ" ||
+                selectedCategory == "अक्षर ज्ञान" ||
+                selectedCategory == "बाएँ दाएँ मध्य" ||
                 selectedCategory == "आकार फिट करें")
             ? questionImageUrl
             : null,
@@ -198,7 +198,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       case "नाम चित्र मिलान":
         return buildNamePictureMatchingForm();
       case "Guess the Letter":
-      case "अक्षर अनुमान":
+      case "अक्षर ज्ञान":
         return buildGuessTheLetterForm();
       case "Compare":
       case "तुलना":
@@ -206,8 +206,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
       case "Let us Count":
       case "चलो गिनें":
         return buildLetUsCountForm();
-      case "Left or Right":
-      case "बाएँ या दाएँ?":
+      case "Left Middle Right":
+      case "बाएँ दाएँ मध्य":
         return buildLeftOrRightForm();
       case "Fit the Shape":
       case "आकार फिट करें":
@@ -429,23 +429,22 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   "Guess the Letter",
                   "Compare",
                   "Let us Count",
-                  "Left or Right",
+                  "Left Middle Right",
                   "Fit the Shape",
                   "Number Name Matching",
                   "Name Number Matching",
                   "Let us Tell Time",
                   "Alphabet Knowledge",
-                  "Left or Right?",
                   "Fit the Shape",
                   "नाम चित्र मिलान",
-                  "अक्षर अनुमान",
+                  "अक्षर ज्ञान",
                   "तुलना",
                   "चलो गिनें",
                   "संख्या नाम मिलान",
                   "नाम संख्या मिलान",
                   "चलो समय बताएँ",
                   "वर्णमाला ज्ञान",
-                  "बाएँ या दाएँ?",
+                  "बाएँ दाएँ मध्य",
                   "आकार फिट करें",
                 ]
                     .map((type) =>
