@@ -1,0 +1,2 @@
+C:/Users/sumit/OneDrive/Desktop/saathi/SAATHI-/android/app/.cxx/RelWithDebInfo/6u2u2m3w/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/sumit/OneDrive/Desktop/saathi/SAATHI-/android/app/.cxx/RelWithDebInfo/6u2u2m3w/x86_64/CMakeFiles/rebuild_cache.dir

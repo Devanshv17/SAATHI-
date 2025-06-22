@@ -1,124 +1,180 @@
-// register.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:translator_plus/translator_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
-
   @override
   _RegisterPageState createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final _countryCodeController = TextEditingController(text: "+91");
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final GoogleTranslator _translator = GoogleTranslator();
-
-  // Localized strings
-  String phoneLabel     = 'Phone number';
-  String phoneValidator = 'Enter a valid phone number';
-  String continueText   = 'Continue';
-  String appBarTitle    = 'Register';
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _updateTranslations();
-  }
-
-  Future<void> _updateTranslations() async {
-    final isHindi = Provider.of<LanguageNotifier>(context, listen: false).isHindi;
-    if (isHindi) {
-      try {
-        final results = await Future.wait([
-          _translator.translate('Phone number', to: 'hi'),
-          _translator.translate('Enter a valid phone number', to: 'hi'),
-          _translator.translate('Continue', to: 'hi'),
-          _translator.translate('Register', to: 'hi'),
-        ]);
-        setState(() {
-          phoneLabel     = results[0].text;
-          phoneValidator = results[1].text;
-          continueText   = results[2].text;
-          appBarTitle    = results[3].text;
-        });
-      } catch (_) { /* fallback */ }
-    } else {
-      setState(() {
-        phoneLabel     = 'Phone number';
-        phoneValidator = 'Enter a valid phone number';
-        continueText   = 'Continue';
-        appBarTitle    = 'Register';
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
-
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: NavBar(
-        title: appBarTitle,
         isHindi: isHindi,
         onToggleLanguage: (val) {
-          Provider.of<LanguageNotifier>(context, listen: false).toggleLanguage(val);
-          _updateTranslations();
+          Provider.of<LanguageNotifier>(context, listen: false)
+              .toggleLanguage(val);
         },
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 20).copyWith(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 80),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(labelText: phoneLabel),
-                    validator: (v) => (v == null || v.length < 10) ? phoneValidator : null,
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          Navigator.pushNamed(
-                            context,
-                            '/verify',
-                            arguments: {
-                              'phone': _phoneController.text.trim(),
-                              'isLogin': false,
-                            },
-                          );
-                        }
-                      },
-                      child: Text(continueText),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-                    child: Text(
-                      isHindi
-                          ? 'खाता है? लॉगिन'
-                          : 'Already have an account? Login',
-                    ),
-                  ),
-                ],
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            children: [
+  
+              // Logo above the card
+              Image.asset(
+                'logo.png',
+                height: 150,
               ),
-            ),
-          ],
+               const SizedBox(height: 15),
+              // Welcome text
+              Text(
+                isHindi ? 'स्वागत है' : 'Create a new Account',
+                style: GoogleFonts.poppins(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isHindi
+                    ? 'कृपया अपने फ़ोन नंबर से पंजीकरण करें'
+                    : 'Please register with your phone number',
+                style:
+                    GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 15),
+              Card(
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isHindi
+                            ? 'अपना फ़ोन नंबर दर्ज करें'
+                            : 'Enter Your Phone Number',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Form(
+                        key: _formKey,
+                        child: Row(
+                          children: [
+                            Flexible(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: _countryCodeController,
+                                keyboardType: TextInputType.phone,
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.flag),
+                                  labelText: isHindi ? 'कोड' : 'Code',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                validator: (v) => (v == null || v.isEmpty)
+                                    ? (isHindi ? 'कोड दर्ज करें' : 'Enter code')
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Flexible(
+                              flex: 5,
+                              child: TextFormField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.phone),
+                                  labelText:
+                                      isHindi ? 'मोबाइल नंबर' : 'Mobile Number',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                validator: (v) => (v == null || v.length < 10)
+                                    ? (isHindi
+                                        ? 'मान्य नंबर दर्ज करें'
+                                        : 'Enter valid number')
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: EdgeInsets.zero,
+                          ),
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              final fullPhone =
+                                  "${_countryCodeController.text.trim()}${_phoneController.text.trim()}";
+                              Navigator.pushNamed(context, '/verify',
+                                  arguments: {'phone': fullPhone});
+                            }
+                          },
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                isHindi ? 'ओटीपी  भेजें' : 'Send OTP',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 16, fontWeight: FontWeight.w500,
+                                    color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pushReplacementNamed(context, '/login'),
+                        child: Text(
+                          isHindi
+                              ? 'खाता है? लॉगिन'
+                              : 'Already have an account? Login',
+                          style: GoogleFonts.poppins(color: Colors.blueAccent),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -105,10 +105,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
         // For question types that need an image.
         questionImageUrl: (selectedCategory == "Guess the Letter" ||
                 selectedCategory == "Left Middle Right" ||
-                selectedCategory == "Fit the Shape" ||
+                selectedCategory == "Shape Knowledge" ||
                 selectedCategory == "अक्षर ज्ञान" ||
                 selectedCategory == "बाएँ दाएँ मध्य" ||
-                selectedCategory == "आकार फिट करें")
+                selectedCategory == "आकार ज्ञान")
             ? questionImageUrl
             : null,
         answerOptions: answerOptions.map((option) => option.toMap()).toList(),
@@ -209,8 +209,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
       case "Left Middle Right":
       case "बाएँ दाएँ मध्य":
         return buildLeftOrRightForm();
-      case "Fit the Shape":
-      case "आकार फिट करें":
+      case "Shape Knowledge":
+      case "आकार ज्ञान":
         return buildFitTheShapeForm();
       default:
         return buildDefaultForm();
@@ -402,7 +402,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
     return Scaffold(
       appBar: NavBar(
-        title: appBarTitle,
+  
         isHindi: isHindi,
         onToggleLanguage: (value) {
           Provider.of<LanguageNotifier>(context, listen: false)
@@ -430,12 +430,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   "Compare",
                   "Let us Count",
                   "Left Middle Right",
-                  "Fit the Shape",
+                  "Shape Knowledge",
                   "Number Name Matching",
                   "Name Number Matching",
                   "Let us Tell Time",
                   "Alphabet Knowledge",
-                  "Fit the Shape",
+  
                   "नाम चित्र मिलान",
                   "अक्षर ज्ञान",
                   "तुलना",
@@ -445,7 +445,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   "चलो समय बताएँ",
                   "वर्णमाला ज्ञान",
                   "बाएँ दाएँ मध्य",
-                  "आकार फिट करें",
+                  "आकार ज्ञान",
                 ]
                     .map((type) =>
                         DropdownMenuItem(value: type, child: Text(type)))

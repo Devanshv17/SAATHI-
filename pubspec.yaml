@@ -46,6 +46,8 @@ dependencies:
   flutter_analog_clock: ^1.0.3
   intl: ^0.17.0
   firebase_phone_auth_handler: ^1.1.0+1
+  google_fonts: ^5.0.0
+  url_launcher: ^6.1.5
 
 dev_dependencies:
   flutter_test:

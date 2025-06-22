@@ -27,14 +27,15 @@ class _GamePageState extends State<GamePage> {
   int incorrectCount = 0;
   Map<String, dynamic> userAnswers = {};
 
-  List<String> questionOrder = [];
   List<QueryDocumentSnapshot> allQuestions = [];
   int currentQuestionIndex = 0;
 
-  // New state variables for selection/submission logic
   int? _selectedOptionIndex;
   bool _hasSubmitted = false;
   bool _isCorrectSubmission = false;
+
+  DateTime? _questionStartTime;
+  DateTime? _gameStartTime;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
@@ -42,113 +43,95 @@ class _GamePageState extends State<GamePage> {
   @override
   void initState() {
     super.initState();
-    _loadGameState().then((_) => _fetchQuestionsInOrder());
+    _gameStartTime = DateTime.now(); 
+    _loadGameState().then((_) => _fetchQuestions());
   }
 
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-
     try {
       final snapshot = await _dbRef
-      
           .child("users/${user.uid}/games/${widget.gameTitle}")
           .get();
-      
-
-      
       if (snapshot.exists) {
-      
         final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
           score = data['score'] ?? 0;
           correctCount = data['correctCount'] ?? 0;
           incorrectCount = data['incorrectCount'] ?? 0;
+          currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
           if (data['answers'] != null) {
             userAnswers = Map<String, dynamic>.from(data['answers']);
-          }
-          if (data['questionOrder'] != null) {
-            questionOrder = List<String>.from(data['questionOrder']);
           }
         });
       }
     } catch (e) {
       print("Error loading game state: $e");
     }
-    
   }
 
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
-
     try {
       await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
         "score": score,
         "correctCount": correctCount,
         "incorrectCount": incorrectCount,
+        "currentQuestionIndex": currentQuestionIndex,
         "answers": userAnswers,
-        "questionOrder": questionOrder,
       });
     } catch (e) {
       print("Error saving game state: $e");
     }
   }
 
-  Future<void> _fetchQuestionsInOrder() async {
+  Future<void> _recordGameVisit() async {
+    final user = _auth.currentUser;
+    final start = _gameStartTime;
+    if (user == null || start == null) return;
+
+    final now = DateTime.now();
+    final seconds = now.difference(start).inSeconds;
+    final dateKey = now.toIso8601String().substring(0, 10); // “YYYY-MM-DD”
+
+    // Path in your Realtime DB:
+    final path =
+        "users/${user.uid}/games/${widget.gameTitle}/gameVisits/$dateKey";
+
+    // 1) Read previous total (or zero)
+    final snap = await _dbRef.child(path).get();
+    final prev = (snap.exists && snap.value is int) ? snap.value as int : 0;
+
+    // 2) Write updated total
+    await _dbRef.child(path).set(prev + seconds);
+  }
+
+
+  Future<void> _fetchQuestions() async {
     try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection(widget.gameTitle).get();
-
-      Map<String, QueryDocumentSnapshot> questionMap = {
-        for (var doc in snapshot.docs) doc.id: doc
-      };
-
-      if (questionOrder.isEmpty) {
-        List<String> answered = [];
-        List<String> unanswered = [];
-
-        for (var doc in snapshot.docs) {
-          if (userAnswers.containsKey(doc.id)) {
-            answered.add(doc.id);
-          } else {
-            unanswered.add(doc.id);
-          }
-        }
-
-        questionOrder = [...answered, ...unanswered];
-        await _saveGameState();
-      }
-
-      bool allAnswered =
-          questionOrder.every((id) => userAnswers.containsKey(id));
-      if (allAnswered) {
-        _navigateToResult();
-        return;
-      }
+      final snapshot = await FirebaseFirestore.instance
+          .collection(widget.gameTitle)
+          .orderBy('timestamp')
+          .get();
 
       setState(() {
-        allQuestions = questionOrder
-            .map((id) => questionMap[id])
-            .where((doc) => doc != null)
-            .cast<QueryDocumentSnapshot>()
-            .toList();
-
-        int startIndex = answeredQuestionCount();
-        _loadQuestionFromIndex(startIndex);
+        allQuestions = snapshot.docs;
       });
+
+      if (currentQuestionIndex >= allQuestions.length) {
+        _navigateToResult();
+      } else {
+        _loadQuestionFromIndex(currentQuestionIndex);
+      }
     } catch (e) {
       print("Error fetching questions: $e");
     }
   }
 
-  int answeredQuestionCount() {
-    return questionOrder.indexWhere((id) => !userAnswers.containsKey(id));
-  }
-
   void _loadQuestionFromIndex(int index) {
     if (index < 0 || index >= allQuestions.length) return;
-
     final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
 
@@ -156,9 +139,9 @@ class _GamePageState extends State<GamePage> {
     int? savedIndex;
     bool savedCorrect = false;
     if (alreadyAnswered) {
-      final savedAnswer = userAnswers[doc.id];
-      savedIndex = savedAnswer['selectedOptionIndex'] as int?;
-      savedCorrect = savedAnswer['isCorrect'] as bool? ?? false;
+      final saved = userAnswers[doc.id];
+      savedIndex = saved['selectedOptionIndex'] as int?;
+      savedCorrect = saved['isCorrect'] as bool? ?? false;
     }
 
     setState(() {
@@ -166,6 +149,7 @@ class _GamePageState extends State<GamePage> {
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
       options = List<Map<String, dynamic>>.from(data['options'] ?? []);
+      _questionStartTime = DateTime.now(); // start timer
       if (alreadyAnswered && savedIndex != null) {
         _selectedOptionIndex = savedIndex;
         _hasSubmitted = true;
@@ -181,12 +165,14 @@ class _GamePageState extends State<GamePage> {
   void _goToPreviousQuestion() {
     if (currentQuestionIndex > 0) {
       _loadQuestionFromIndex(currentQuestionIndex - 1);
+      _saveGameState();
     }
   }
 
   void _goToNextQuestion() {
     if (currentQuestionIndex < allQuestions.length - 1) {
       _loadQuestionFromIndex(currentQuestionIndex + 1);
+      _saveGameState();
     } else {
       _navigateToResult();
     }
@@ -215,8 +201,11 @@ class _GamePageState extends State<GamePage> {
   }
 
   void _submitAnswer() {
-    if (_hasSubmitted) return;
-    if (_selectedOptionIndex == null) return;
+    if (_hasSubmitted || _selectedOptionIndex == null) return;
+    final now = DateTime.now();
+    final duration = _questionStartTime != null
+        ? now.difference(_questionStartTime!)
+        : Duration.zero;
     bool isCorrect = options[_selectedOptionIndex!]['isCorrect'] == true;
 
     setState(() {
@@ -231,6 +220,7 @@ class _GamePageState extends State<GamePage> {
       userAnswers[currentDocId] = {
         "selectedOptionIndex": _selectedOptionIndex,
         "isCorrect": isCorrect,
+        "timeTakenSeconds": duration.inSeconds, // store time taken
       };
     });
 
@@ -240,21 +230,19 @@ class _GamePageState extends State<GamePage> {
   void showInstructions(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-        content: Text(
-          widget.isHindi
-              ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
-                  "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
-                  "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
-                  "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
-                  "५. आपकी प्रगति सेव हो जाती है."
-              : "1. Tap an option to select (blue border).\n"
-                  "2. Tap Submit to lock in your choice.\n"
-                  "3. Correct: green tick ; incorrect: red cross .\n"
-                  "4. Use Previous/Next to navigate.\n"
-                  "5. Progress is saved.",
-        ),
+        content: Text(widget.isHindi
+            ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
+                "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
+                "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
+                "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
+                "५. आपकी प्रगति सेव हो जाती है."
+            : "1. Tap an option to select (blue border).\n"
+                "2. Tap Submit to lock in your choice.\n"
+                "3. Correct: green tick ; incorrect: red cross .\n"
+                "4. Use Previous/Next to navigate.\n"
+                "5. Progress is saved."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -268,17 +256,17 @@ class _GamePageState extends State<GamePage> {
   @override
   void dispose() {
     _saveGameState();
+    _recordGameVisit();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool canGoPrevious = currentQuestionIndex > 0;
-    final bool canSubmit = !_hasSubmitted &&
+    final canGoPrevious = currentQuestionIndex > 0;
+    final canSubmit = !_hasSubmitted &&
         _selectedOptionIndex != null &&
         !userAnswers.containsKey(currentDocId);
-    final bool canGoNext =
-        _hasSubmitted || userAnswers.containsKey(currentDocId);
+    final canGoNext = _hasSubmitted || userAnswers.containsKey(currentDocId);
 
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
@@ -287,10 +275,8 @@ class _GamePageState extends State<GamePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              widget.gameTitle,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            Text(widget.gameTitle,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             IconButton(
               icon: Icon(Icons.info_outline, color: Colors.white),
               onPressed: () => showInstructions(context),
@@ -299,10 +285,9 @@ class _GamePageState extends State<GamePage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Question text
             Text(
               questionText.isNotEmpty
                   ? questionText
@@ -312,8 +297,6 @@ class _GamePageState extends State<GamePage> {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-
-            // Options grid
             Expanded(
               child: GridView.builder(
                 itemCount: options.length,
@@ -322,35 +305,26 @@ class _GamePageState extends State<GamePage> {
                   mainAxisSpacing: 15,
                   crossAxisSpacing: 15,
                 ),
-                itemBuilder: (context, index) {
+                itemBuilder: (_, index) {
                   bool isSelected = _selectedOptionIndex == index;
-                  bool showResultForThis =
-                      _hasSubmitted && _selectedOptionIndex == index;
+                  bool showResult = _hasSubmitted && isSelected;
                   bool isCorrect = options[index]['isCorrect'] == true;
-
                   return GestureDetector(
-                    onTap: () {
-                      _selectOption(index);
-                    },
+                    onTap: () => _selectOption(index),
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Option container with border
                         Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(15),
                             border: isSelected && !_hasSubmitted
-                                ? Border.all(
-                                    color: Colors.blue,
-                                    width: 4,
-                                  )
-                                : showResultForThis
+                                ? Border.all(color: Colors.blue, width: 4)
+                                : showResult
                                     ? Border.all(
                                         color: isCorrect
                                             ? Colors.green
                                             : Colors.red,
-                                        width: 6,
-                                      )
+                                        width: 6)
                                     : null,
                             boxShadow: [
                               BoxShadow(
@@ -364,117 +338,82 @@ class _GamePageState extends State<GamePage> {
                             borderRadius: BorderRadius.circular(15),
                             child: Stack(
                               children: [
-                                // The option image
                                 Positioned.fill(
                                   child: Image.network(
                                     options[index]['imageUrl'],
                                     fit: BoxFit.cover,
                                   ),
                                 ),
-
-                                // Blur overlay if showing result
-                                if (showResultForThis)
+                                if (showResult)
                                   Positioned.fill(
                                     child: BackdropFilter(
                                       filter: ImageFilter.blur(
-                                        sigmaX: 1.0,
-                                        sigmaY: 1.0,
-                                      ),
+                                          sigmaX: 1, sigmaY: 1),
                                       child: Container(
-                                        color: Colors.black.withOpacity(0.2),
-                                      ),
+                                          color: Colors.black.withOpacity(0.2)),
                                     ),
                                   ),
                               ],
                             ),
                           ),
                         ),
-
-                        // Tick or cross overlay if showing result
-                        if (showResultForThis)
-                          Icon(
-                            isCorrect ? Icons.check_circle : Icons.cancel,
-                            size: 80,
-                            color: isCorrect ? Colors.green : Colors.red,
-                          ),
+                        if (showResult)
+                          Icon(isCorrect ? Icons.check_circle : Icons.cancel,
+                              size: 80,
+                              color: isCorrect ? Colors.green : Colors.red),
                       ],
                     ),
                   );
                 },
               ),
             ),
-
             const SizedBox(height: 15),
-
-            // Score display
             Column(
               children: [
+                Text(widget.isHindi ? "अंक: $score" : "Score: $score",
+                    style:
+                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 Text(
-                  widget.isHindi ? "अंक: $score" : "Score: $score",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  widget.isHindi
-                      ? "सही: $correctCount | गलत: $incorrectCount"
-                      : "Correct: $correctCount | Incorrect: $incorrectCount",
-                  style: TextStyle(fontSize: 16),
-                ),
+                    widget.isHindi
+                        ? "सही: $correctCount | गलत: $incorrectCount"
+                        : "Correct: $correctCount | Incorrect: $incorrectCount",
+                    style: TextStyle(fontSize: 16)),
               ],
             ),
-
             const SizedBox(height: 15),
-
-            // Navigation and Submit buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Previous button
                 ElevatedButton(
                   onPressed: canGoPrevious ? _goToPreviousQuestion : null,
-                  child: Text(
-                    widget.isHindi ? "पिछला" : "Previous",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    disabledBackgroundColor: Colors.grey,
-                  ),
+                      backgroundColor:
+                          canGoPrevious ? Colors.orange : Colors.grey),
+                  child: Text(widget.isHindi ? "पिछला" : "Previous",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
                 ),
-
-                // Submit button
                 ElevatedButton(
                   onPressed: canSubmit ? _submitAnswer : null,
-                  child: Text(
-                    widget.isHindi ? "जमा करें" : "Submit",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    disabledBackgroundColor: Colors.grey,
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
+                      backgroundColor: canSubmit ? Colors.blue : Colors.grey),
+                  child: Text(widget.isHindi ? "जमा करें" : "Submit",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
                 ),
-
-                // Next button
                 ElevatedButton(
                   onPressed: canGoNext ? _goToNextQuestion : null,
-                  child: Text(
-                    widget.isHindi ? "अगला" : "Next",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    disabledBackgroundColor: Colors.grey,
-                  ),
+                      backgroundColor: canGoNext ? Colors.green : Colors.grey),
+                  child: Text(widget.isHindi ? "अगला" : "Next",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
                 ),
               ],
             ),

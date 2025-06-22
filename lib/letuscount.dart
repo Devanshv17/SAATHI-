@@ -1,3 +1,5 @@
+// letuscount.dart
+
 import 'dart:math';
 import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
@@ -29,9 +31,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   List<Map<String, dynamic>> options = [];
   String currentDocId = "";
 
-  List<String> questionOrder = [];
   List<QueryDocumentSnapshot> allQuestions = [];
-  int currentQuestionIndex = -1;
+  int currentQuestionIndex = 0;
   Map<String, dynamic> userAnswers = {};
 
   final Random _random = Random();
@@ -39,7 +40,6 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // pool of images
   final List<String> shapeAssets = [
     'assets/circle.png',
     'assets/triangle.png',
@@ -47,16 +47,19 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     'assets/pencil.png',
   ];
 
-  // cache per-question assignment
   final Map<String, List<String>> _assetsByQuestion = {};
 
   int? _selectedOptionIndex;
   bool _hasSubmitted = false;
 
+  late DateTime _questionStartTime;
+  DateTime? _gameStartTime;
+
   @override
   void initState() {
     super.initState();
-    _loadGameState().then((_) => _fetchQuestionsInOrder());
+     _gameStartTime = DateTime.now();    
+    _loadGameState().then((_) => _fetchQuestions());
   }
 
   Future<void> _loadGameState() async {
@@ -70,8 +73,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         score = data['score'] ?? 0;
         correctCount = data['correctCount'] ?? 0;
         incorrectCount = data['incorrectCount'] ?? 0;
+        currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
         userAnswers = Map<String, dynamic>.from(data['answers'] ?? {});
-        questionOrder = List<String>.from(data['questionOrder'] ?? []);
       });
     }
   }
@@ -84,41 +87,48 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       "correctCount": correctCount,
       "incorrectCount": incorrectCount,
       "answers": userAnswers,
-      "questionOrder": questionOrder,
+      "currentQuestionIndex": currentQuestionIndex,
     });
   }
 
-  Future<void> _fetchQuestionsInOrder() async {
+Future<void> _recordGameVisit() async {
+    final user = _auth.currentUser;
+    final start = _gameStartTime;
+    if (user == null || start == null) return;
+
+    final now = DateTime.now();
+    final seconds = now.difference(start).inSeconds;
+    final dateKey = now.toIso8601String().substring(0, 10); // “YYYY-MM-DD”
+
+    // Path in your Realtime DB:
+    final path =
+        "users/${user.uid}/games/${widget.gameTitle}/gameVisits/$dateKey";
+
+    // 1) Read previous total (or zero)
+    final snap = await _dbRef.child(path).get();
+    final prev = (snap.exists && snap.value is int) ? snap.value as int : 0;
+
+    // 2) Write updated total
+    await _dbRef.child(path).set(prev + seconds);
+  }
+
+
+  Future<void> _fetchQuestions() async {
     try {
       final snapshot = await _firestore
           .collection(widget.gameTitle)
           .orderBy("timestamp")
           .get(const GetOptions(source: Source.serverAndCache));
+
       allQuestions = snapshot.docs;
       if (allQuestions.isEmpty) return;
 
-      if (questionOrder.isEmpty) {
-        final answered = allQuestions
-            .where((doc) => userAnswers.containsKey(doc.id))
-            .map((doc) => doc.id)
-            .toList();
-        final unanswered = allQuestions
-            .where((doc) => !userAnswers.containsKey(doc.id))
-            .map((doc) => doc.id)
-            .toList();
-        questionOrder = [...answered, ...unanswered];
-        await _saveGameState();
-      }
-
-      final allDone = questionOrder.every((id) => userAnswers.containsKey(id));
-      if (allDone) {
+      if (currentQuestionIndex >= allQuestions.length) {
         _navigateToResult();
         return;
       }
 
-      final nextIndex =
-          questionOrder.indexWhere((id) => !userAnswers.containsKey(id));
-      _loadQuestionFromIndex(nextIndex);
+      _loadQuestionFromIndex(currentQuestionIndex);
     } catch (e) {
       debugPrint("Error fetching questions: $e");
     }
@@ -126,6 +136,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
 
   void _loadQuestionFromIndex(int index) {
     if (index < 0 || index >= allQuestions.length) return;
+
     final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
     final saved = userAnswers[doc.id];
@@ -136,7 +147,6 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       question = data['text'] ?? "How many objects do you see?";
       imageCount = int.tryParse(data['numberField']?.toString() ?? "0") ?? 0;
 
-      // assign images once per question, with some cases all identical
       if (!_assetsByQuestion.containsKey(doc.id)) {
         final useSame = _random.nextBool();
         if (useSame) {
@@ -164,13 +174,18 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         _selectedOptionIndex = null;
         _hasSubmitted = false;
       }
+
+      _questionStartTime = DateTime.now(); // Start timer
     });
   }
 
   void _submitAnswer() {
     if (_hasSubmitted || _selectedOptionIndex == null) return;
+
     final idx = _selectedOptionIndex!;
     final isCorrect = options[idx]['isCorrect'] == true;
+    final timeTaken = DateTime.now().difference(_questionStartTime).inSeconds;
+
     setState(() {
       options[idx]['selected'] = true;
       _hasSubmitted = true;
@@ -180,11 +195,14 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       } else {
         incorrectCount++;
       }
+
       userAnswers[currentDocId] = {
         'selectedOptionIndex': idx,
         'isCorrect': isCorrect,
+        'timeTakenSeconds': timeTaken,
       };
     });
+
     _saveGameState();
   }
 
@@ -211,11 +229,10 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
 
   void _goToNextQuestion() {
     if (_hasSubmitted || userAnswers.containsKey(currentDocId)) {
-      final allDone = questionOrder.every((id) => userAnswers.containsKey(id));
-      if (allDone) {
-        _navigateToResult();
-      } else if (currentQuestionIndex < allQuestions.length - 1) {
+      if (currentQuestionIndex < allQuestions.length - 1) {
         _loadQuestionFromIndex(currentQuestionIndex + 1);
+      } else {
+        _navigateToResult();
       }
     }
   }
@@ -223,6 +240,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   @override
   void dispose() {
     _saveGameState();
+    _recordGameVisit();
     super.dispose();
   }
 
@@ -247,7 +265,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                   title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
                   content: Text(widget.isHindi
                       ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
-                          "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैپ करें.\n"
+                          "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
                           "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस.\n"
                           "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
                           "५. आपकी प्रगति सेव हो जाती है."
@@ -270,7 +288,6 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       ),
       body: Column(
         children: [
-          // 1) scrollable content
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
@@ -391,8 +408,6 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               ),
             ),
           ),
-
-          // 2) fixed footer
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(

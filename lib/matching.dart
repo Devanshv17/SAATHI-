@@ -8,9 +8,8 @@ import 'result.dart';
 class MatchingPage extends StatefulWidget {
   final String gameTitle;
   final bool isHindi;
-  const MatchingPage({Key? key, required this.gameTitle,
-    required this.isHindi,
-  }) : super(key: key);
+  const MatchingPage({Key? key, required this.gameTitle, required this.isHindi})
+      : super(key: key);
 
   @override
   _MatchingPageState createState() => _MatchingPageState();
@@ -23,26 +22,34 @@ class _MatchingPageState extends State<MatchingPage> {
 
   List<Map<String, dynamic>> questions = [];
   int currentQuestionIndex = 0;
-
-  // Stores finalized answers: key = questionId, value = {selectedOptionIndex, isCorrect}
   Map<String, dynamic> userAnswers = {};
 
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
 
-  // Pending selection before hitting Submit
   int? _pendingSelectedIndex;
   bool _hasSubmitted = false;
   bool _currentIsCorrect = false;
-
   bool isLoading = true;
+
+
+  DateTime? _questionStartTime;
+  DateTime? _gameStartTime; // 🕒 New: track when question is shown
 
   @override
   void initState() {
     super.initState();
+    _gameStartTime = DateTime.now();
     _loadGameState().then((_) => _loadQuestions());
   }
+  @override
+  void dispose() {
+    _saveGameState(); // your existing save
+    _recordGameVisit(); // ← write duration to RTDB
+    super.dispose();
+  }
+
 
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
@@ -83,6 +90,28 @@ class _MatchingPageState extends State<MatchingPage> {
       print("Error saving game state: $e");
     }
   }
+  /// Compute seconds between open/close and add to:
+  /// users/{uid}/games/{gameTitle}/gameVisits/{YYYY-MM-DD}
+  Future<void> _recordGameVisit() async {
+    final user = _auth.currentUser;
+    final start = _gameStartTime;
+    if (user == null || start == null) return;
+
+    final now = DateTime.now();
+    final seconds = now.difference(start).inSeconds;
+    final dateKey = now.toIso8601String().substring(0, 10); // "YYYY-MM-DD"
+
+    final path =
+        "users/${user.uid}/games/${widget.gameTitle}/gameVisits/$dateKey";
+
+    // 1) Read existing total or default to 0
+    final snap = await _dbRef.child(path).get();
+    final prev = (snap.exists && snap.value is int) ? snap.value as int : 0;
+
+    // 2) Write updated total
+    await _dbRef.child(path).set(prev + seconds);
+  }
+
 
   Future<void> _loadQuestions() async {
     try {
@@ -135,6 +164,8 @@ class _MatchingPageState extends State<MatchingPage> {
       _hasSubmitted = false;
       _currentIsCorrect = false;
     }
+
+    _questionStartTime = DateTime.now(); // 🕒 Reset start time for new question
     setState(() {});
   }
 
@@ -150,12 +181,19 @@ class _MatchingPageState extends State<MatchingPage> {
     final currentQ = questions[currentQuestionIndex];
     final opts = currentQ['options'] as List<dynamic>;
     bool isCorrect = opts[_pendingSelectedIndex!]['isCorrect'] as bool;
+
+    final now = DateTime.now();
+    final timeTakenSeconds = _questionStartTime != null
+        ? now.difference(_questionStartTime!).inSeconds
+        : 0; // ⏱️ Calculate duration
+
     setState(() {
       _hasSubmitted = true;
       _currentIsCorrect = isCorrect;
       userAnswers[currentQ['id']] = {
         'selectedOptionIndex': _pendingSelectedIndex,
-        'isCorrect': isCorrect
+        'isCorrect': isCorrect,
+        'timeTakenSeconds': timeTakenSeconds, // ⏱️ Save it
       };
       if (isCorrect) {
         score++;
@@ -211,18 +249,10 @@ class _MatchingPageState extends State<MatchingPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-        content:  Text(
-         widget.isHindi
-              ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
-                  "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
-                  "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
-                  "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
-                  "५. आपकी प्रगति सेव हो जाती है."
-              : "1. Tap an option to select (blue border).\n"
-                  "2. Tap Submit to lock in your choice.\n"
-                  "3. Correct: green tick ; incorrect: red cross .\n"
-                  "4. Use Previous/Next to navigate.\n"
-                  "5. Progress is saved.",
+        content: Text(
+          widget.isHindi
+              ? "१. विकल्प चुनें (नीला बॉर्डर).\n२. जमा करें पर टैप करें.\n३. सही: हरा टिक; गलत: लाल क्रॉस.\n४. Prev/Next.\n५. प्रगति सेव."
+              : "1. Tap an option (blue border).\n2. Tap Submit.\n3. Correct: green tick; incorrect: red cross.\n4. Use Prev/Next.\n5. Progress is saved.",
         ),
         actions: [
           TextButton(
@@ -237,14 +267,11 @@ class _MatchingPageState extends State<MatchingPage> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (questions.isEmpty) {
       return const Scaffold(
-        body: Center(child: Text("No questions available.")),
-      );
+          body: Center(child: Text("No questions available.")));
     }
 
     final currentQ = questions[currentQuestionIndex];
@@ -254,16 +281,13 @@ class _MatchingPageState extends State<MatchingPage> {
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title: Text(
-          widget.gameTitle,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
+        title: Text(widget.gameTitle,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.blue.shade300,
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _showInstructionsDialog,
-          )
+              icon: const Icon(Icons.info_outline),
+              onPressed: _showInstructionsDialog)
         ],
       ),
       body: SafeArea(
@@ -271,12 +295,10 @@ class _MatchingPageState extends State<MatchingPage> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             children: [
-              Text(
-                qText,
-                textAlign: TextAlign.center,
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-              ),
+              Text(qText,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w600)),
               const SizedBox(height: 30),
               Expanded(
                 child: GridView.builder(
@@ -303,10 +325,9 @@ class _MatchingPageState extends State<MatchingPage> {
                     } else if (showResult) {
                       borderColor = isCorrect ? Colors.green : Colors.red;
                       overlayIcon = Icon(
-                        isCorrect ? Icons.check_circle : Icons.cancel,
-                        color: isCorrect ? Colors.green : Colors.red,
-                        size: 50,
-                      );
+                          isCorrect ? Icons.check_circle : Icons.cancel,
+                          color: borderColor,
+                          size: 50);
                     }
 
                     return GestureDetector(
@@ -320,10 +341,9 @@ class _MatchingPageState extends State<MatchingPage> {
                               border: Border.all(color: borderColor, width: 3),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.grey.withOpacity(0.2),
-                                  blurRadius: 4,
-                                  spreadRadius: 1,
-                                ),
+                                    color: Colors.grey.withOpacity(0.2),
+                                    blurRadius: 4,
+                                    spreadRadius: 1)
                               ],
                             ),
                             child: ClipRRect(
@@ -332,13 +352,11 @@ class _MatchingPageState extends State<MatchingPage> {
                                 children: [
                                   Positioned.fill(
                                     child: Center(
-                                      child: Text(
-                                        option['title'] as String,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold),
-                                      ),
+                                      child: Text(option['title'] as String,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold)),
                                     ),
                                   ),
                                   if (showResult)
@@ -347,8 +365,8 @@ class _MatchingPageState extends State<MatchingPage> {
                                         filter: ImageFilter.blur(
                                             sigmaX: 1.0, sigmaY: 1.0),
                                         child: Container(
-                                          color: Colors.black.withOpacity(0.2),
-                                        ),
+                                            color:
+                                                Colors.black.withOpacity(0.2)),
                                       ),
                                     ),
                                 ],
@@ -356,36 +374,25 @@ class _MatchingPageState extends State<MatchingPage> {
                             ),
                           ),
                           if (overlayIcon != null)
-                            Positioned(
-                              top: 5,
-                              right: 5,
-                              child: overlayIcon,
-                            ),
+                            Positioned(top: 5, right: 5, child: overlayIcon),
                         ],
                       ),
                     );
                   },
                 ),
               ),
-              // const SizedBox(height: 15),
-              
               const SizedBox(height: 15),
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                       widget.isHindi ? "अंक: $score" : "Score: $score",
+              Column(
+                children: [
+                  Text(widget.isHindi ? "अंक: $score" : "Score: $score",
                       style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                         widget.isHindi
+                          fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(
+                      widget.isHindi
                           ? "सही: $correctCount | गलत: $incorrectCount"
                           : "Correct: $correctCount | Incorrect: $incorrectCount",
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
+                      style: const TextStyle(fontSize: 16)),
+                ],
               ),
               const SizedBox(height: 15),
               Row(
@@ -401,33 +408,26 @@ class _MatchingPageState extends State<MatchingPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 15),
                     ),
-                    child:  Text(
-                      widget.isHindi ? "पिछला" : "Previous",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
+                    child: Text(widget.isHindi ? "पिछला" : "Previous",
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
                   ),
-
                   ElevatedButton(
                     onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
                         ? _submitAnswer
                         : null,
-                    child:  Text(
-                      widget.isHindi ? "जमा करें" : "Submit",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 15),
-                    ),
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 15)),
+                    child: Text(widget.isHindi ? "जमा करें" : "Submit",
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
                   ),
-
                   ElevatedButton(
                     onPressed: (_hasSubmitted ||
                             userAnswers.containsKey(
@@ -435,17 +435,14 @@ class _MatchingPageState extends State<MatchingPage> {
                         ? _nextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 15),
-                    ),
-                    child:  Text(
-                      widget.isHindi ? "अगला" : "Next",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 15)),
+                    child: Text(widget.isHindi ? "अगला" : "Next",
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
                   ),
                 ],
               ),

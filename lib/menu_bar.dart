@@ -72,11 +72,21 @@ class CustomMenuBar extends StatelessWidget {
                 child: ListView(
                   children: [
                     _buildMenuItem(
+                      iconData: Icons.home,
+                      title: isHindi ? "होम" : "Home",
+                      onTap: () {
+                        // Handle Profile tap.
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/homepage');
+                      },
+                    ),
+                    _buildMenuItem(
                       iconData: Icons.person,
                       title: isHindi? "प्रोफ़ाइल":"Profile",
                       onTap: () {
                         // Handle Profile tap.
-                        Navigator.pop(context);
+                            Navigator.pop(context);
+                        Navigator.pushNamed(context, '/profile');
                       },
                     ),
                     _buildMenuItem(
@@ -84,7 +94,8 @@ class CustomMenuBar extends StatelessWidget {
                       title: isHindi? "साथी के बारे में" :"About SAATHI",
                       onTap: () {
                         // Handle About SAATHI tap.
-                        Navigator.pop(context);
+                         Navigator.pop(context);
+                        Navigator.pushNamed(context, '/about');
                       },
                     ),
                   ],

@@ -21,25 +21,35 @@ class ComparePage extends StatefulWidget {
 }
 
 class _ComparePageState extends State<ComparePage> {
-  List<CompareQuestion> questions = [];
+  // Full question documents fetched from Firestore
+  List<QueryDocumentSnapshot> allQuestions = [];
+  String currentDocId = '';
+
+  // Current progress counters
   int currentIndex = 0;
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
 
-  /// Map storing the submitted answer index for each question.
-  Map<int, int> selectedOptionIndices = {};
+  // Map<docId, answerData>
+  // answerData: { selectedOptionIndex, isCorrect, timeTakenSeconds }
+  Map<String, Map<String, dynamic>> userAnswers = {};
 
-  /// Pending selection before submit.
-  int? _pendingSelectedIndex;
-  bool _hasSubmittedCurrent = false;
-  bool _currentIsCorrect = false;
+  // Current question options & UI state
+  List<CompareOption> options = [];
+  int? _selectedOptionIndex;
+  bool _hasSubmitted = false;
+  DateTime? _questionStartTime;
+  // Add this alongside your other fields:
+  DateTime? _gameStartTime;
+
 
   bool isLoading = true;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
+  // Assets for shapes
   final List<String> shapeAssets = [
     'assets/triangle.png',
     'assets/circle.png',
@@ -48,232 +58,146 @@ class _ComparePageState extends State<ComparePage> {
   ];
   final Random _random = Random();
 
-  final Map<int, List<String>> _leftAssetsByQuestion = {};
-  final Map<int, List<String>> _rightAssetsByQuestion = {};
-
   @override
   void initState() {
     super.initState();
+    _gameStartTime = DateTime.now(); 
     _loadGameState().then((_) => _fetchQuestions());
   }
 
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
+    final snap =
+        await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
+    if (!snap.exists || snap.value == null) return;
 
-    try {
-      final snapshot = await _dbRef
-          .child("users/${user.uid}/games/${widget.gameTitle}")
-          .get();
-      if (!snapshot.exists) return;
-
-      final data = snapshot.value;
-      if (data is Map) {
-        setState(() {
-          score = data['score'] ?? 0;
-          correctCount = data['correctCount'] ?? 0;
-          incorrectCount = data['incorrectCount'] ?? 0;
-          currentIndex = data['currentIndex'] ?? 0;
-
-          // Load saved answers: handle both List and Map
-          final raw = data['selectedOptionIndices'];
-          if (raw is List) {
-            for (int i = 0; i < raw.length; i++) {
-              final val = raw[i];
-              if (val is int) selectedOptionIndices[i] = val;
-            }
-          } else if (raw is Map) {
-            raw.forEach((key, value) {
-              final idx = int.tryParse(key.toString());
-              if (idx != null && value is int) {
-                selectedOptionIndices[idx] = value;
-              }
-            });
-          }
-        });
-      }
-    } catch (e) {
-      print("Error loading game state: $e");
-    }
+    final data = Map<String, dynamic>.from(snap.value as Map);
+    setState(() {
+      score = data['score'] ?? 0;
+      correctCount = data['correctCount'] ?? 0;
+      incorrectCount = data['incorrectCount'] ?? 0;
+      currentIndex = data['currentIndex'] ?? 0;
+      final saved = Map<String, dynamic>.from(data['answers'] ?? {});
+      userAnswers =
+          saved.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map)));
+    });
   }
 
   Future<void> _saveGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
+    await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
+      "score": score,
+      "correctCount": correctCount,
+      "incorrectCount": incorrectCount,
+      "currentIndex": currentIndex,
+      "answers": userAnswers,
+    });
+  }
 
-    try {
-      final formattedAnswers = selectedOptionIndices
-          .map((key, value) => MapEntry(key.toString(), value));
+Future<void> _recordGameVisit() async {
+    final user = _auth.currentUser;
+    final start = _gameStartTime;
+    if (user == null || start == null) return;
 
-      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
-        "score": score,
-        "correctCount": correctCount,
-        "incorrectCount": incorrectCount,
-        "currentIndex": currentIndex,
-        "selectedOptionIndices": formattedAnswers,
-      });
-    } catch (e) {
-      print("Error saving game state: $e");
-    }
+    final now = DateTime.now();
+    final seconds = now.difference(start).inSeconds;
+    final dateKey = now.toIso8601String().substring(0, 10); // “YYYY-MM-DD”
+
+    // Path in your Realtime DB:
+    final path =
+        "users/${user.uid}/games/${widget.gameTitle}/gameVisits/$dateKey";
+
+    // 1) Read previous total (or zero)
+    final snap = await _dbRef.child(path).get();
+    final prev = (snap.exists && snap.value is int) ? snap.value as int : 0;
+
+    // 2) Write updated total
+    await _dbRef.child(path).set(prev + seconds);
   }
 
   Future<void> _fetchQuestions() async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
           .collection(widget.gameTitle)
-          .orderBy("timestamp")
+          .orderBy('timestamp')
           .get();
+      allQuestions = snapshot.docs;
 
-      questions = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return CompareQuestion(
-          compareNumber1:
-              int.tryParse(data['compareNumber1']?.toString() ?? '') ?? 0,
-          compareNumber2:
-              int.tryParse(data['compareNumber2']?.toString() ?? '') ?? 0,
-          options: (data['options'] as List<dynamic>?)
-                  ?.map((option) => CompareOption.fromMap(option))
-                  .toList() ??
-              [],
-          text: data['text'] ?? "",
-        );
-      }).toList();
-
-      // Prepare random assets
-      for (int i = 0; i < questions.length; i++) {
-        _leftAssetsByQuestion.putIfAbsent(
-            i,
-            () => List.generate(questions[i].compareNumber1,
-                (_) => shapeAssets[_random.nextInt(shapeAssets.length)]));
-        _rightAssetsByQuestion.putIfAbsent(
-            i,
-            () => List.generate(questions[i].compareNumber2,
-                (_) => shapeAssets[_random.nextInt(shapeAssets.length)]));
+      if (allQuestions.isEmpty) {
+        setState(() => isLoading = false);
+        return;
       }
-
-      // If all answered, go to results
-      if (selectedOptionIndices.length == questions.length) {
-        return _navigateToResult();
+      if (currentIndex >= allQuestions.length) {
+        _navigateToResult();
+        return;
       }
-
-      if (currentIndex >= questions.length) {
-        currentIndex = questions.length - 1;
-      }
-      _initCurrentQuestionState();
-      setState(() => isLoading = false);
+      _loadQuestionFromIndex(currentIndex);
     } catch (e) {
-      print("Error fetching questions: $e");
+      print('Error fetching questions: $e');
+    } finally {
       setState(() => isLoading = false);
     }
   }
 
-  void _initCurrentQuestionState() {
-    if (selectedOptionIndices.containsKey(currentIndex)) {
-      _pendingSelectedIndex = selectedOptionIndices[currentIndex];
-      _hasSubmittedCurrent = true;
-      _currentIsCorrect =
-          questions[currentIndex].options[_pendingSelectedIndex!].isCorrect;
-    } else {
-      _pendingSelectedIndex = null;
-      _hasSubmittedCurrent = false;
-      _currentIsCorrect = false;
-    }
-  }
+  void _loadQuestionFromIndex(int idx) {
+    final doc = allQuestions[idx];
+    final data = doc.data() as Map<String, dynamic>;
+    final saved = userAnswers[doc.id];
 
-  void _showInstructionsDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-          content: Text(widget.isHindi
-              ? "१. दिखाए गए आकृतियों की संख्या की तुलना करें।\n"
-                  "२. किसी एक विकल्प को चुनने के लिए उस पर टैप करें (नीली सीमा दिखाई देगी)।\n"
-                  "३. अपना उत्तर लॉक करने के लिए जमा करें पर टैप करें।\n"
-                  "४. यदि उत्तर सही है, तो हरे रंग का टिक चिन्ह दिखाई देगा; यदि गलत है, तो लाल क्रॉस दिखाई देगा।\n"
-                  "५. अगले और पिछले प्रश्नों पर जाने के लिए अगला और पिछला का उपयोग करें।\n"
-                  "६. प्रगति स्वतः सहेजी जाती है।"
-              : "1. Compare the number of shapes shown.\n"
-                  "2. Tap one option to select it (blue border appears).\n"
-                  "3. Tap Submit to lock in your answer.\n"
-                  "4. If correct, a green tick appears; if wrong, a red cross appears.\n"
-                  "5. Use Next and Previous to navigate.\n"
-                  "6. Progress is saved automatically."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// Builds a “grid” of images from a precomputed [assetList].
-  /// Uses a Wrap so it expands to fit all images without internal scrolling.
-  Widget _buildShapeGrid(List<String> assetList) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black54, width: 2),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 5,
-            spreadRadius: 1,
-            offset: Offset(2, 2),
-          )
-        ],
-      ),
-      child: Wrap(
-        spacing: 5,
-        runSpacing: 5,
-        children: assetList.map((assetPath) {
-          return Image.asset(assetPath, width: 40, height: 40);
-        }).toList(),
-      ),
-    );
-  }
-
-  void _selectOption(int optionIndex) {
-    if (_hasSubmittedCurrent || selectedOptionIndices.containsKey(currentIndex))
-      return;
     setState(() {
-      _pendingSelectedIndex = optionIndex;
-      // No scoring yet, only highlight border
+      currentDocId = doc.id;
+      options = (data['options'] as List<dynamic>?)
+              ?.map((opt) => CompareOption.fromMap(opt))
+              .toList() ??
+          [];
+      _selectedOptionIndex = saved?['selectedOptionIndex'] as int?;
+      _hasSubmitted = saved != null;
+      _questionStartTime = DateTime.now();
     });
   }
 
+  void _selectOption(int i) {
+    if (_hasSubmitted) return;
+    setState(() => _selectedOptionIndex = i);
+  }
+
   void _submitAnswer() {
-    if (_hasSubmittedCurrent || _pendingSelectedIndex == null) return;
-    bool isCorrect =
-        questions[currentIndex].options[_pendingSelectedIndex!].isCorrect;
+    if (_hasSubmitted || _selectedOptionIndex == null) return;
+    final now = DateTime.now();
+    final duration = _questionStartTime != null
+        ? now.difference(_questionStartTime!)
+        : Duration.zero;
+    final selected = _selectedOptionIndex!;
+    final isCorrect = options[selected].isCorrect;
+
     setState(() {
-      _hasSubmittedCurrent = true;
-      _currentIsCorrect = isCorrect;
-      selectedOptionIndices[currentIndex] = _pendingSelectedIndex!;
+      _hasSubmitted = true;
       if (isCorrect) {
         score++;
         correctCount++;
       } else {
         incorrectCount++;
       }
+      userAnswers[currentDocId] = {
+        'selectedOptionIndex': selected,
+        'isCorrect': isCorrect,
+        'timeTakenSeconds': duration.inSeconds,
+      };
     });
     _saveGameState();
   }
 
   void _goToNextQuestion() {
-    if (!_hasSubmittedCurrent &&
-        !selectedOptionIndices.containsKey(currentIndex)) return;
-    if (currentIndex < questions.length - 1) {
+    if (!_hasSubmitted && !userAnswers.containsKey(currentDocId)) return;
+    if (currentIndex < allQuestions.length - 1) {
       setState(() {
         currentIndex++;
+        _hasSubmitted = false;
+        _selectedOptionIndex = null;
       });
-      _initCurrentQuestionState();
-      _saveGameState();
+      _loadQuestionFromIndex(currentIndex);
     } else {
       _navigateToResult();
     }
@@ -283,9 +207,10 @@ class _ComparePageState extends State<ComparePage> {
     if (currentIndex > 0) {
       setState(() {
         currentIndex--;
+        _hasSubmitted = false;
+        _selectedOptionIndex = null;
       });
-      _initCurrentQuestionState();
-      _saveGameState();
+      _loadQuestionFromIndex(currentIndex);
     }
   }
 
@@ -307,6 +232,7 @@ class _ComparePageState extends State<ComparePage> {
   @override
   void dispose() {
     _saveGameState();
+     _recordGameVisit();  
     super.dispose();
   }
 
@@ -317,23 +243,27 @@ class _ComparePageState extends State<ComparePage> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    if (questions.isEmpty) {
+    if (allQuestions.isEmpty) {
       return const Scaffold(
-        body: Center(child: Text("No Compare questions available.")),
+        body: Center(child: Text('No Compare questions available.')),
       );
     }
-    final currentQuestion = questions[currentIndex];
 
-    // Retrieve the precomputed asset lists for this question index
-    final leftAssets = _leftAssetsByQuestion[currentIndex]!;
-    final rightAssets = _rightAssetsByQuestion[currentIndex]!;
+    final data = allQuestions[currentIndex].data() as Map<String, dynamic>;
+    final num1 = int.tryParse(data['compareNumber1']?.toString() ?? '') ?? 0;
+    final num2 = int.tryParse(data['compareNumber2']?.toString() ?? '') ?? 0;
+
+    // Generate shape grids
+    final leftAssets = List<String>.generate(
+        num1, (_) => shapeAssets[_random.nextInt(shapeAssets.length)]);
+    final rightAssets = List<String>.generate(
+        num2, (_) => shapeAssets[_random.nextInt(shapeAssets.length)]);
 
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
         title: Text(widget.gameTitle,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.blue.shade300,
         actions: [
           IconButton(
@@ -344,101 +274,70 @@ class _ComparePageState extends State<ComparePage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 widget.isHindi
-                    ? "सही चिन्ह चुनें:"
-                    : "Choose the correct sign:",
+                    ? 'सही चिन्ह चुनें:'
+                    : 'Choose the correct sign:',
                 style:
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-
-              // Use Expanded-like behavior by wrapping both in a Row with equal space
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left container: uses its list of assets
-                  Expanded(
-                    child: _buildShapeGrid(leftAssets),
-                  ),
+                  Expanded(child: _buildShapeGrid(leftAssets)),
                   const SizedBox(width: 10),
-                  // Right container: uses its list of assets
-                  Expanded(
-                    child: _buildShapeGrid(rightAssets),
-                  ),
+                  Expanded(child: _buildShapeGrid(rightAssets)),
                 ],
               ),
-
-
-              const SizedBox(height: 10), 
-              // Question text
+              const SizedBox(height: 10),
               Text(
-                    widget.isHindi? "अ                          ब" : "A                          B",
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                widget.isHindi
+                    ? 'अ                          ब'
+                    : 'A                          B',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 15),
-
-              // Options list
               Column(
-                children:
-                    List.generate(currentQuestion.options.length, (index) {
-                  final option = currentQuestion.options[index];
-                  bool isPending = _pendingSelectedIndex == index;
-                  bool showResult =
-                      _hasSubmittedCurrent && _pendingSelectedIndex == index;
-                  bool isCorrect = option.isCorrect;
-                  Color borderColor = Colors.grey;
-                  if (isPending && !_hasSubmittedCurrent) {
-                    borderColor = Colors.blue;
-                  } else if (showResult) {
-                    borderColor = isCorrect ? Colors.green : Colors.red;
-                  }
+                children: List.generate(options.length, (i) {
+                  final opt = options[i];
+                  final isSel = _selectedOptionIndex == i;
+                  final show = _hasSubmitted && isSel;
+                  final ok = opt.isCorrect;
+                  Color border = Colors.grey;
+                  if (isSel && !_hasSubmitted) border = Colors.blue;
+                  if (show) border = ok ? Colors.green : Colors.red;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: OptionTile(
-                      text: option.title,
-                      borderColor: borderColor,
-                      overlayIcon: showResult
-                          ? Icon(
-                              isCorrect ? Icons.check_circle : Icons.cancel,
-                              color: isCorrect ? Colors.green : Colors.red,
-                              size: 50,
-                            )
+                      text: opt.title,
+                      borderColor: border,
+                      overlayIcon: show
+                          ? Icon(ok ? Icons.check_circle : Icons.cancel,
+                              color: ok ? Colors.green : Colors.red, size: 50)
                           : null,
-                      onTap: _hasSubmittedCurrent ||
-                              selectedOptionIndices.containsKey(currentIndex)
-                          ? null
-                          : () => _selectOption(index),
-                           isHindi: widget.isHindi,// Pass isHindi flag
+                      onTap: () => _selectOption(i),
+                      isHindi: widget.isHindi,
                     ),
                   );
                 }),
               ),
-
               const SizedBox(height: 15),
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      widget.isHindi ? "अंक: $score" : "Score: $score",
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      widget.isHindi
-                          ? "सही: $correctCount | गलत: $incorrectCount"
-                          : "Correct: $correctCount | Incorrect: $incorrectCount",
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
+              Text(
+                widget.isHindi ? 'अंक: $score' : 'Score: $score',
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-
+              Text(
+                widget.isHindi
+                    ? 'सही: $correctCount | गलत: $incorrectCount'
+                    : 'Correct: $correctCount | Incorrect: $incorrectCount',
+                style: const TextStyle(fontSize: 16),
+              ),
               const SizedBox(height: 15),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -446,54 +345,33 @@ class _ComparePageState extends State<ComparePage> {
                   ElevatedButton(
                     onPressed: currentIndex > 0 ? _goToPreviousQuestion : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          currentIndex > 0 ? Colors.orange : Colors.grey,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                    ),
-                    child: Text(
-                      widget.isHindi ? "पिछला" : "Previous",
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
+                        backgroundColor:
+                            currentIndex > 0 ? Colors.orange : Colors.grey),
+                    child: Text(widget.isHindi ? 'पिछला' : 'Previous',
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                   ElevatedButton(
-                    onPressed:
-                        (_pendingSelectedIndex != null && !_hasSubmittedCurrent)
-                            ? _submitAnswer
-                            : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                    ),
-                    child: Text(
-                      widget.isHindi ? "जमा करें" : "Submit",
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: (_hasSubmittedCurrent ||
-                            selectedOptionIndices.containsKey(currentIndex))
-                        ? _goToNextQuestion
+                    onPressed: (_selectedOptionIndex != null && !_hasSubmitted)
+                        ? _submitAnswer
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                    ),
-                    child: Text(
-                      widget.isHindi ? "अगला" : "Next",
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
+                        backgroundColor:
+                            (_selectedOptionIndex != null && !_hasSubmitted)
+                                ? Colors.blue
+                                : Colors.grey),
+                    child: Text(widget.isHindi ? 'जमा करें' : 'Submit',
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                  ElevatedButton(
+                    onPressed: _hasSubmitted ? _goToNextQuestion : null,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            _hasSubmitted ? Colors.green : Colors.grey),
+                    child: Text(widget.isHindi ? 'अगला' : 'Next',
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -503,15 +381,61 @@ class _ComparePageState extends State<ComparePage> {
       ),
     );
   }
+
+  void _showInstructionsDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(widget.isHindi ? 'निर्देश' : 'Instructions'),
+        content: Text(
+          widget.isHindi
+              ? '१. आकृतियों की तुलना करें।\n२. विकल्प चुनें।\n३. जमा करें पर टैप करें।\n४. सही/गलत टिक देखें।\n५. प्रगति सहेजी जाती है।'
+              : '1. Compare shapes.\n2. Tap option.\n3. Tap Submit.\n4. See correct/incorrect.\n5. Progress is saved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(widget.isHindi ? 'ठीक है' : 'Got it!'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShapeGrid(List<String> assets) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black54, width: 2),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 5,
+            spreadRadius: 1,
+            offset: Offset(2, 2),
+          ),
+        ],
+      ),
+      child: Wrap(
+        spacing: 5,
+        runSpacing: 5,
+        children: assets
+            .map((path) => Image.asset(path, width: 40, height: 40))
+            .toList(),
+      ),
+    );
+  }
 }
 
-// OptionTile widget: a clickable option with border and optional overlay icon.
+// OptionTile widget
 class OptionTile extends StatelessWidget {
   final String text;
   final Color borderColor;
   final Widget? overlayIcon;
   final VoidCallback? onTap;
-  final bool isHindi; // Assuming this is set somewhere in your app
+  final bool isHindi;
 
   const OptionTile({
     Key? key,
@@ -537,12 +461,9 @@ class OptionTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              isHindi ? "अ   $text   ब" : "A   $text   B",
+              isHindi ? 'अ   $text   ब' : 'A   $text   B',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ),
           if (overlayIcon != null)
@@ -552,11 +473,8 @@ class OptionTile extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 1.0, sigmaY: 1.0),
-                  child: Container(
-                    color: Colors.transparent,
-                    child: overlayIcon,
-                  ),
+                  filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                  child: overlayIcon!,
                 ),
               ),
             ),
@@ -566,22 +484,7 @@ class OptionTile extends StatelessWidget {
   }
 }
 
-// Model for a Compare question.
-class CompareQuestion {
-  final int compareNumber1;
-  final int compareNumber2;
-  final List<CompareOption> options;
-  final String text;
-
-  CompareQuestion({
-    required this.compareNumber1,
-    required this.compareNumber2,
-    required this.options,
-    required this.text,
-  });
-}
-
-// Model for an option.
+// CompareOption model
 class CompareOption {
   final String title;
   final bool isCorrect;

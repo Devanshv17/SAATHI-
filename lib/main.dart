@@ -12,6 +12,9 @@ import 'login.dart';
 import 'verify_otp.dart';
 import 'homepage.dart';
 import 'admin_homepage.dart';
+import 'login_otp.dart';
+import 'profile.dart';
+import 'about_saathi.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,8 +62,11 @@ class MyApp extends StatelessWidget {
         '/register':        (context) => const RegisterPage(),
         '/login':           (context) => const LoginPage(),
         '/verify':          (context) => VerifyOtpPage(),
+        '/login-otp':       (context) => const LoginOtpPage(),
         '/homepage':        (context) => const HomePage(),
         '/admin_homepage':  (context) => const AdminHomePage(),
+        '/profile': (context) => const ProfilePage(),
+        '/about': (_) => const AboutSaathiPage(),
       },
     );
   }

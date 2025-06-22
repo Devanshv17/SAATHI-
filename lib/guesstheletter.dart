@@ -22,27 +22,30 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   String questionText = "";
   String currentDocId = "";
   List<Map<String, dynamic>> options = [];
+  String? imageUrl;
 
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
-  String? imageUrl;
+  int currentQuestionIndex = 0;
   Map<String, dynamic> userAnswers = {};
 
-  List<String> questionOrder = [];
+  int? _selectedOptionIndex;
+  bool _hasSubmitted = false;
+  DateTime? _questionStartTime;
+  DateTime? _gameStartTime;
+  
+
   List<QueryDocumentSnapshot> allQuestions = [];
-  int currentQuestionIndex = 0;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  int? _selectedOptionIndex;
-  bool _hasSubmitted = false;
-
   @override
   void initState() {
     super.initState();
-    _loadGameState().then((_) => _fetchQuestionsInOrder());
+    _gameStartTime = DateTime.now();
+    _loadGameState().then((_) => _fetchQuestions());
   }
 
   Future<void> _loadGameState() async {
@@ -56,8 +59,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         score = data['score'] ?? 0;
         correctCount = data['correctCount'] ?? 0;
         incorrectCount = data['incorrectCount'] ?? 0;
+        currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
         userAnswers = Map<String, dynamic>.from(data['answers'] ?? {});
-        questionOrder = List<String>.from(data['questionOrder'] ?? []);
       });
     }
   }
@@ -69,51 +72,48 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       "score": score,
       "correctCount": correctCount,
       "incorrectCount": incorrectCount,
+      "currentQuestionIndex": currentQuestionIndex,
       "answers": userAnswers,
-      "questionOrder": questionOrder,
     });
   }
 
-  Future<void> _fetchQuestionsInOrder() async {
-    final snapshot =
-        await FirebaseFirestore.instance.collection(widget.gameTitle).get();
+  Future<void> _recordGameVisit() async {
+    final user = _auth.currentUser;
+    final start = _gameStartTime;
+    if (user == null || start == null) return;
 
-    final qMap = {for (var d in snapshot.docs) d.id: d};
+    final now = DateTime.now();
+    final seconds = now.difference(start).inSeconds;
+    final dateKey = now.toIso8601String().substring(0, 10); // “YYYY-MM-DD”
 
-    if (questionOrder.isEmpty) {
-      final answered = snapshot.docs
-          .where((d) => userAnswers.containsKey(d.id))
-          .map((d) => d.id)
-          .toList();
-      final unanswered = snapshot.docs
-          .where((d) => !userAnswers.containsKey(d.id))
-          .map((d) => d.id)
-          .toList();
-      questionOrder = [...answered, ...unanswered];
-      await _saveGameState();
-    }
+    // Path in your Realtime DB:
+    final path =
+        "users/${user.uid}/games/${widget.gameTitle}/gameVisits/$dateKey";
 
-    final allDone = questionOrder.every((id) => userAnswers.containsKey(id));
-    if (allDone) {
-      _navigateToResult();
-      return;
-    }
+    // 1) Read previous total (or zero)
+    final snap = await _dbRef.child(path).get();
+    final prev = (snap.exists && snap.value is int) ? snap.value as int : 0;
+
+    // 2) Write updated total
+    await _dbRef.child(path).set(prev + seconds);
+  }
+
+
+  Future<void> _fetchQuestions() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection(widget.gameTitle)
+        .orderBy('timestamp')
+        .get();
 
     setState(() {
-      allQuestions = questionOrder
-          .map((id) => qMap[id])
-          .whereType<QueryDocumentSnapshot>()
-          .toList();
+      allQuestions = snapshot.docs;
     });
 
-    _loadQuestionFromIndex(_firstUnansweredIndex());
-  }
-
-  int _firstUnansweredIndex() {
-    for (var i = 0; i < questionOrder.length; i++) {
-      if (!userAnswers.containsKey(questionOrder[i])) return i;
+    if (currentQuestionIndex >= allQuestions.length) {
+      _navigateToResult();
+    } else {
+      _loadQuestionFromIndex(currentQuestionIndex);
     }
-    return 0;
   }
 
   void _loadQuestionFromIndex(int idx) {
@@ -123,38 +123,31 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     final saved = userAnswers[doc.id];
 
     setState(() {
-      currentQuestionIndex = idx;
       currentDocId = doc.id;
       questionText = data['text'] ?? "Question";
       imageUrl = data['imageUrl'] as String?;
       options = List<Map<String, dynamic>>.from(data['options'] as List? ?? []);
-      for (var o in options) o['selected'] = false;
-
-      if (saved != null) {
-        final i = saved['selectedOptionIndex'] as int? ?? 0;
-        _selectedOptionIndex = i;
-        _hasSubmitted = true;
-        if (i < options.length) options[i]['selected'] = true;
-      } else {
-        _selectedOptionIndex = null;
-        _hasSubmitted = false;
-      }
+      _selectedOptionIndex =
+          saved != null ? saved['selectedOptionIndex'] as int? : null;
+      _hasSubmitted = saved != null;
+      _questionStartTime = DateTime.now();
     });
   }
 
   void _selectOption(int i) {
     if (_hasSubmitted) return;
-    setState(() {
-      _selectedOptionIndex = i;
-      for (var j = 0; j < options.length; j++) options[j]['selected'] = false;
-      options[i]['selected'] = true;
-    });
+    setState(() => _selectedOptionIndex = i);
   }
 
   void _submitAnswer() {
     if (_hasSubmitted || _selectedOptionIndex == null) return;
+    final now = DateTime.now();
+    final duration = _questionStartTime != null
+        ? now.difference(_questionStartTime!)
+        : Duration.zero;
     final i = _selectedOptionIndex!;
     final correct = options[i]['isCorrect'] as bool? ?? false;
+
     setState(() {
       _hasSubmitted = true;
       if (correct) {
@@ -166,19 +159,30 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       userAnswers[currentDocId] = {
         'selectedOptionIndex': i,
         'isCorrect': correct,
+        'timeTakenSeconds': duration.inSeconds,
       };
     });
     _saveGameState();
   }
 
   void _goToPreviousQuestion() {
-    if (currentQuestionIndex > 0)
-      _loadQuestionFromIndex(currentQuestionIndex - 1);
+    if (currentQuestionIndex > 0) {
+      setState(() {
+        currentQuestionIndex--;
+        _hasSubmitted = false;
+      });
+      _loadQuestionFromIndex(currentQuestionIndex);
+    }
   }
 
   void _goToNextQuestion() {
+    if (!_hasSubmitted && !userAnswers.containsKey(currentDocId)) return;
     if (currentQuestionIndex < allQuestions.length - 1) {
-      _loadQuestionFromIndex(currentQuestionIndex + 1);
+      setState(() {
+        currentQuestionIndex++;
+        _hasSubmitted = false;
+      });
+      _loadQuestionFromIndex(currentQuestionIndex);
     } else {
       _navigateToResult();
     }
@@ -202,6 +206,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   @override
   void dispose() {
     _saveGameState();
+     _recordGameVisit();  
     super.dispose();
   }
 
@@ -255,18 +260,13 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Question
             Text(
               questionText,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-
-            // Image
             if (imageUrl != null) Image.network(imageUrl!, height: 100),
             const SizedBox(height: 15),
-
-            // Options grid (non-scrollable)
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -279,10 +279,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               ),
               itemBuilder: (ctx, i) => buildOptionCard(options[i], i),
             ),
-
             const SizedBox(height: 20),
-
-            // Score & buttons
             Text(
               widget.isHindi ? "अंक: $score" : "Score: $score",
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -295,7 +292,6 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 15),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -307,26 +303,25 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  child: Text(
-                    widget.isHindi ? "पिछला" : "Previous",
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
+                  child: Text(widget.isHindi ? "पिछला" : "Previous",
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
                 ElevatedButton(
                   onPressed: (_selectedOptionIndex != null && !_hasSubmitted)
                       ? _submitAnswer
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor:
+                        (_selectedOptionIndex != null && !_hasSubmitted)
+                            ? Colors.blue
+                            : Colors.grey,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  child: Text(
-                    widget.isHindi ? "जमा करें" : "Submit",
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
+                  child: Text(widget.isHindi ? "जमा करें" : "Submit",
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
                 ElevatedButton(
                   onPressed: _hasSubmitted ? _goToNextQuestion : null,
@@ -335,11 +330,9 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  child: Text(
-                    widget.isHindi ? "अगला" : "Next",
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
+                  child: Text(widget.isHindi ? "अगला" : "Next",
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -370,10 +363,9 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                       : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
+                    color: Colors.grey.withOpacity(0.2),
+                    blurRadius: 4,
+                    spreadRadius: 1),
               ],
             ),
             child: ClipRRect(

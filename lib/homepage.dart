@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
     'Box7': 'Let us Tell Time',
     'Box9': 'Alphabet Knowledge',
     'Box10': 'Left Middle Right',
-    'Box11': 'Fit the Shape',
+    'Box11': 'Shape Knowledge',
   };
 
   final Map<String, String> boxTextsHindi = {
@@ -53,7 +53,7 @@ class _HomePageState extends State<HomePage> {
     'Box7': 'चलो समय बताएँ',
     'Box9': 'वर्णमाला ज्ञान',
     'Box10': 'बाएँ दाएँ मध्य',
-    'Box11': 'आकार फिट करें',
+    'Box11': 'आकार ज्ञान',
   };
 
   // English/Hindi versions of button labels
@@ -292,7 +292,6 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: NavBar(
-        title: isHindi ? 'साथी' : 'Saathi',
         isHindi: isHindi,
         onToggleLanguage: (value) {
           Provider.of<LanguageNotifier>(context, listen: false)

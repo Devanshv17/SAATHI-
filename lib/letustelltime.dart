@@ -1,3 +1,4 @@
+// letustelltime.dart
 import 'dart:math';
 import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
@@ -25,19 +26,18 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
+  int currentQuestionIndex = 0;
+  DateTime? _questionStartTime;
+  DateTime? _gameStartTime;
 
   List<QueryDocumentSnapshot> allQuestions = [];
-  List<String> questionOrder = [];
-  int currentQuestionIndex = -1;
-  String currentDocId = '';
-  Map<String, dynamic> userAnswers =
-      {}; // {questionId: {selectedOptionIndex, isCorrect}}
+  Map<String, dynamic> userAnswers = {};
 
+  String currentDocId = '';
   String question = '';
   DateTime? clockTime;
   List<Map<String, dynamic>> options = [];
 
-  // Pending selection before submission
   int? _pendingSelectedIndex;
   bool _hasSubmitted = false;
   bool _currentIsCorrect = false;
@@ -45,11 +45,11 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
-  final Random _random = Random();
 
   @override
   void initState() {
     super.initState();
+    _gameStartTime = DateTime.now();
     _loadGameState().then((_) => _fetchQuestions());
   }
 
@@ -64,8 +64,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         score = data['score'] ?? 0;
         correctCount = data['correctCount'] ?? 0;
         incorrectCount = data['incorrectCount'] ?? 0;
+        currentQuestionIndex = data['currentQuestionIndex'] ?? 0;
         userAnswers = Map<String, dynamic>.from(data['answers'] ?? {});
-        questionOrder = List<String>.from(data['questionOrder'] ?? []);
       });
     }
   }
@@ -77,52 +77,53 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       'score': score,
       'correctCount': correctCount,
       'incorrectCount': incorrectCount,
+      'currentQuestionIndex': currentQuestionIndex,
       'answers': userAnswers,
-      'questionOrder': questionOrder,
     });
   }
+  Future<void> _recordGameVisit() async {
+    final user = _auth.currentUser;
+    final start = _gameStartTime;
+    if (user == null || start == null) return;
+
+    final now = DateTime.now();
+    final seconds = now.difference(start).inSeconds;
+    final dateKey = now.toIso8601String().substring(0, 10); // “YYYY-MM-DD”
+
+    // Path in your Realtime DB:
+    final path =
+        "users/${user.uid}/games/${widget.gameTitle}/gameVisits/$dateKey";
+
+    // 1) Read previous total (or zero)
+    final snap = await _dbRef.child(path).get();
+    final prev = (snap.exists && snap.value is int) ? snap.value as int : 0;
+
+    // 2) Write updated total
+    await _dbRef.child(path).set(prev + seconds);
+  }
+
 
   Future<void> _fetchQuestions() async {
     try {
       final snap = await _firestore
           .collection(widget.gameTitle)
-          .get(const GetOptions(source: Source.serverAndCache));
+          .orderBy('timestamp')
+          .get();
       allQuestions = snap.docs;
-      if (allQuestions.isEmpty) return;
 
-      if (questionOrder.isEmpty) {
-        final answered = allQuestions
-            .where((d) => userAnswers.containsKey(d.id))
-            .map((d) => d.id)
-            .toList();
-        final unanswered = allQuestions
-            .where((d) => !userAnswers.containsKey(d.id))
-            .map((d) => d.id)
-            .toList();
-        questionOrder = [...answered, ...unanswered];
-        await _saveGameState();
-      }
-
-      if (_allAnswered()) {
+      if (currentQuestionIndex >= allQuestions.length) {
         _navigateToResult();
-        return;
+      } else {
+        _loadQuestion(currentQuestionIndex);
       }
-
-      _loadQuestion(
-          questionOrder.indexWhere((id) => !userAnswers.containsKey(id)));
     } catch (e) {
       debugPrint('Error fetching questions: $e');
     }
   }
 
-  bool _allAnswered() =>
-      questionOrder.isNotEmpty &&
-      questionOrder.every((id) => userAnswers.containsKey(id));
-
-  void _loadQuestion(int orderIndex) {
-    if (orderIndex < 0 || orderIndex >= questionOrder.length) return;
-    final docId = questionOrder[orderIndex];
-    final doc = allQuestions.firstWhere((d) => d.id == docId);
+  void _loadQuestion(int index) {
+    if (index < 0 || index >= allQuestions.length) return;
+    final doc = allQuestions[index];
     final data = doc.data() as Map<String, dynamic>;
 
     final text = data['text'] ?? 'What time is shown?';
@@ -142,7 +143,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         .map((o) => {...o, 'selected': false})
         .toList();
 
-    final saved = userAnswers[docId];
+    final saved = userAnswers[doc.id];
     if (saved != null) {
       final idx = saved['selectedOptionIndex'] as int;
       final wasCorrect = saved['isCorrect'] as bool;
@@ -157,16 +158,17 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     }
 
     setState(() {
-      currentQuestionIndex = orderIndex;
-      currentDocId = docId;
+      currentDocId = doc.id;
+      currentQuestionIndex = index;
       question = text;
       clockTime = time;
       options = opts;
+      _questionStartTime = DateTime.now(); // Start timing here
     });
   }
 
   void _selectOption(int index) {
-    if (_hasSubmitted || userAnswers.containsKey(currentDocId)) return;
+    if (_hasSubmitted) return;
     setState(() {
       _pendingSelectedIndex = index;
       for (var i = 0; i < options.length; i++) {
@@ -178,9 +180,10 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
 
   void _submitAnswer() {
     if (_pendingSelectedIndex == null || _hasSubmitted) return;
-
-    // ←── here’s the fix: use your stored flag!
     final isCorrect = options[_pendingSelectedIndex!]['isCorrect'] as bool;
+    final duration = _questionStartTime != null
+        ? DateTime.now().difference(_questionStartTime!)
+        : Duration.zero;
 
     setState(() {
       _hasSubmitted = true;
@@ -189,6 +192,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       userAnswers[currentDocId] = {
         'selectedOptionIndex': _pendingSelectedIndex,
         'isCorrect': isCorrect,
+        'timeTakenSeconds': duration.inSeconds,
       };
       if (isCorrect) {
         score++;
@@ -198,6 +202,29 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
       }
     });
     _saveGameState();
+  }
+
+  void _goPrev() {
+    if (currentQuestionIndex > 0) {
+      setState(() {
+        currentQuestionIndex--;
+        _hasSubmitted = false;
+      });
+      _loadQuestion(currentQuestionIndex);
+    }
+  }
+
+  void _goNext() {
+    if (!_hasSubmitted && !userAnswers.containsKey(currentDocId)) return;
+    if (currentQuestionIndex < allQuestions.length - 1) {
+      setState(() {
+        currentQuestionIndex++;
+        _hasSubmitted = false;
+      });
+      _loadQuestion(currentQuestionIndex);
+    } else {
+      _navigateToResult();
+    }
   }
 
   void _navigateToResult() {
@@ -215,23 +242,10 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     );
   }
 
-  void _goPrev() {
-    if (currentQuestionIndex > 0) {
-      _loadQuestion(currentQuestionIndex - 1);
-    }
-  }
-
-  void _goNext() {
-    if (_allAnswered()) {
-      _navigateToResult();
-    } else if (currentQuestionIndex < questionOrder.length - 1) {
-      _loadQuestion(currentQuestionIndex + 1);
-    }
-  }
-
   @override
   void dispose() {
     _saveGameState();
+    _recordGameVisit();
     super.dispose();
   }
 
@@ -243,74 +257,68 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         backgroundColor: Colors.blue.shade300,
         title: Text(
           widget.gameTitle,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-                  content: Text(
-                    widget.isHindi
-                        ? "१. विकल्प चुनने के लिए टैप करें (नीले बॉर्डर).\n"
-                            "२. अपनी पसंद लॉक करने के लिए जमा करें पर टैप करें.\n"
-                            "३. सही उत्तर: हरा टिक; गलत उत्तर: लाल क्रॉस .\n"
-                            "४. आगे/पीछे जाने के लिए अगला/पिछला उपयोग करें.\n"
-                            "५. आपकी प्रगति सेव हो जाती है."
-                        : "1. Tap an option to select (blue border).\n"
-                            "2. Tap Submit to lock in your choice.\n"
-                            "3. Correct: green tick ; incorrect: red cross .\n"
-                            "4. Use Previous/Next to navigate.\n"
-                            "5. Progress is saved.",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
-                    ),
-                  ],
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
+                content: Text(
+                  widget.isHindi
+                      ? "१. विकल्प चुनें (नीला बॉर्डर)।\n"
+                          "२. जमा करें पर टैप करें।\n"
+                          "३. सही: हरा टिक; गलत: लाल क्रॉस।\n"
+                          "४. Prev/Next बटन से जाएं।\n"
+                          "५. प्रगति सेव हो जाती है।"
+                      : "1. Tap an option (blue border).\n"
+                          "2. Tap Submit.\n"
+                          "3. Correct: green tick; incorrect: red cross.\n"
+                          "4. Use Previous/Next.\n"
+                          "5. Progress is saved.",
                 ),
-              );
-            },
-          ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(widget.isHindi ? "ठीक है" : "Got it!"),
+                  )
+                ],
+              ),
+            ),
+          )
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             Text(
               widget.isHindi ? "सही समय चुनें" : "Select the correct time",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87),
             ),
             const SizedBox(height: 10),
             if (clockTime != null)
-              Center(
-                child: Container(
-                  width: 180,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    shape: BoxShape.circle,
-                    boxShadow: const [
-                      BoxShadow(
+              Container(
+                width: 180,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey.shade200,
+                  boxShadow: const [
+                    BoxShadow(
                         blurRadius: 4,
                         color: Colors.black12,
-                        offset: Offset(2, 2),
-                      )
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: AnalogClock(
-                        key: ValueKey(clockTime), dateTime: clockTime!),
-                  ),
+                        offset: Offset(2, 2)),
+                  ],
+                ),
+                child: ClipOval(
+                  child: AnalogClock(
+                      key: ValueKey(clockTime), dateTime: clockTime!),
                 ),
               ),
             const SizedBox(height: 20),
@@ -325,14 +333,13 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 ),
                 itemBuilder: (_, i) {
                   final opt = options[i];
-                  bool isPending =
+                  final isPending =
                       (_pendingSelectedIndex == i && !_hasSubmitted);
-                  bool showResult =
+                  final showResult =
                       (_pendingSelectedIndex == i && _hasSubmitted);
-                  bool isCorrect = false;
-                  if (_hasSubmitted && _pendingSelectedIndex == i) {
-                    isCorrect = _currentIsCorrect;
-                  }
+                  final isCorrect = _hasSubmitted && _pendingSelectedIndex == i
+                      ? _currentIsCorrect
+                      : false;
 
                   Color borderColor = Colors.white10;
                   if (isPending) {
@@ -342,10 +349,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   }
 
                   return GestureDetector(
-                    onTap:
-                        (_hasSubmitted || userAnswers.containsKey(currentDocId))
-                            ? null
-                            : () => _selectOption(i),
+                    onTap: _hasSubmitted ? null : () => _selectOption(i),
                     child: Stack(
                       children: [
                         Container(
@@ -355,10 +359,9 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                             border: Border.all(color: borderColor, width: 3),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.grey.withOpacity(0.2),
-                                blurRadius: 3,
-                                spreadRadius: 1,
-                              )
+                                  color: Colors.grey.withOpacity(0.2),
+                                  blurRadius: 3,
+                                  spreadRadius: 1)
                             ],
                           ),
                           child: ClipRRect(
@@ -370,9 +373,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                                     child: Text(
                                       opt['title'] as String,
                                       style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold),
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
@@ -381,9 +383,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                                   Positioned.fill(
                                     child: BackdropFilter(
                                       filter: ImageFilter.blur(
-                                        sigmaX: 1.0,
-                                        sigmaY: 1.0,
-                                      ),
+                                          sigmaX: 1, sigmaY: 1),
                                       child: Container(
                                         color: Colors.black.withOpacity(0.2),
                                       ),
@@ -409,23 +409,16 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 },
               ),
             ),
-            const SizedBox(height: 15),
-            Center(
-              child: Column(
-                children: [
-                  Text(
-                    widget.isHindi ? "अंक: $score" : "Score: $score",
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    widget.isHindi
-                        ? "सही: $correctCount | गलत: $incorrectCount"
-                        : "Correct: $correctCount | Incorrect: $incorrectCount",
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 10),
+            Text(
+              widget.isHindi ? "अंक: $score" : "Score: $score",
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              widget.isHindi
+                  ? "सही: $correctCount | गलत: $incorrectCount"
+                  : "Correct: $correctCount | Incorrect: $incorrectCount",
+              style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 10),
             Row(
@@ -436,12 +429,9 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         currentQuestionIndex > 0 ? Colors.orange : Colors.grey,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
                   ),
-                  child: Text(
-                    widget.isHindi ? "पिछला" : "Previous",
-                    style: TextStyle(
+                  child: Text(widget.isHindi ? "पिछला" : "Previous",
+                    style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
@@ -451,8 +441,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
                       ? _submitAnswer
                       : null,
-                  child: Text(
-                    widget.isHindi ? "जमा करें" : "Submit",
+                  child: Text(widget.isHindi ? "जमा करें" : "Submit",
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -460,24 +449,14 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
                   ),
                 ),
                 ElevatedButton(
-                  // ←── only enabled once you’ve submitted or all Q’s done
-                  onPressed: (_hasSubmitted || _allAnswered())
-                      ? (_allAnswered() ? _navigateToResult : _goNext)
-                      : null,
+                  onPressed: _hasSubmitted ? _goNext : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: (_hasSubmitted || _allAnswered())
-                        ? Colors.green
-                        : Colors.grey,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
+                    backgroundColor: _hasSubmitted ? Colors.green : Colors.grey,
                   ),
-                  child: Text(
-                    widget.isHindi ? "अगला" : "Next",
+                  child: Text(widget.isHindi ? "अगला" : "Next",
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -485,7 +464,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   ),
                 ),
               ],
-            ),
+            )
           ],
         ),
       ),
