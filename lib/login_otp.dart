@@ -101,7 +101,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                 Center(
                   child: Column(
                     children: [
-                      Image.asset('logo.png', height:150),
+                      Image.asset('assets/logo.png', height:150),
                       const SizedBox(height: 12),
                       Text(
                         isHindi ? 'ओटीपी की पुष्टि करें' : 'OTP Verification',

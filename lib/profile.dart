@@ -214,7 +214,7 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             child: Column(
               children: [
-                Image.asset('logo.png', height: 150),
+                Image.asset('assets/logo.png', height: 150),
                 const SizedBox(height: 15),
                 Text(
                   isHindi ? 'आपके खाते की जानकारी' : 'About Your Account',

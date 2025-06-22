@@ -34,7 +34,7 @@ class _AboutSaathiPageState extends State<AboutSaathiPage> {
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
         child: Column(
           children: [
-            Image.asset('logo.png', height: 150),
+            Image.asset('assets/logo.png', height: 150),
              const SizedBox(height: 15),
             // Welcome text
             Text(

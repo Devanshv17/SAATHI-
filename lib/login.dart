@@ -46,7 +46,7 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Logo
-              Image.asset('logo.png', height: 150),
+              Image.asset('assets/logo.png', height: 150),
              
                 const SizedBox(height: 15),
               // Welcome text

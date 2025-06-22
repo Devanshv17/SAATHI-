@@ -35,7 +35,7 @@ class _RegisterPageState extends State<RegisterPage> {
   
               // Logo above the card
               Image.asset(
-                'logo.png',
+                'assets/logo.png',
                 height: 150,
               ),
                const SizedBox(height: 15),

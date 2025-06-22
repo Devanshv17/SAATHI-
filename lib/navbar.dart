@@ -29,7 +29,7 @@ class NavBar extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           Image.asset(
-            'logo.png',
+            'assets/logo.png',
             height: 24,
           ),
           const SizedBox(width: 8),
