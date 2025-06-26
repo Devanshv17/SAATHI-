@@ -1,8 +1,7 @@
-// login.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
 
@@ -16,6 +15,44 @@ class _LoginPageState extends State<LoginPage> {
   final _countryCodeController = TextEditingController(text: '+91');
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _checking = false;
+
+  String get _fullPhone =>
+      '${_countryCodeController.text.trim()}${_phoneController.text.trim()}';
+
+  Future<void> _onSendOtp() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final phone = _fullPhone;
+    setState(() => _checking = true);
+
+    // Check if phone exists in phone_to_uid index
+    final key = Uri.encodeComponent(phone);
+    final snap = await FirebaseDatabase.instance.ref('phone_to_uid/$key').get();
+
+    setState(() => _checking = false);
+
+    if (!snap.exists) {
+      // Phone number not registered
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Provider.of<LanguageNotifier>(context, listen: false).isHindi
+                ? 'फोन नंबर उपलब्ध नहीं है'
+                : 'Phone number does not exist',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } else {
+      // Registered user — proceed to OTP page
+      Navigator.pushNamed(
+        context,
+        '/login-otp', // your existing OTP handling route
+        arguments: {'phone': phone},
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -23,9 +60,6 @@ class _LoginPageState extends State<LoginPage> {
     _phoneController.dispose();
     super.dispose();
   }
-
-  String get _fullPhone =>
-      '${_countryCodeController.text.trim()}${_phoneController.text.trim()}';
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +81,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               // Logo
               Image.asset('assets/logo.png', height: 150),
-             
-                const SizedBox(height: 15),
+              const SizedBox(height: 15),
               // Welcome text
               Text(
                 isHindi ? 'स्वागत है' : 'Welcome Back',
@@ -67,6 +100,7 @@ class _LoginPageState extends State<LoginPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 15),
+
               // Input Card
               Card(
                 elevation: 6,
@@ -127,50 +161,47 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ],
                         ),
-                        
                         const SizedBox(height: 32),
                         SizedBox(
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
+                            onPressed: _checking ? null : _onSendOtp,
                             style: ElevatedButton.styleFrom(
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               padding: EdgeInsets.zero,
                             ),
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                Navigator.pushNamed(
-                                  context,
-                                  '/login-otp',
-                                  arguments: {'phone': _fullPhone},
-                                );
-                              }
-                            },
-                            child: Ink(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF00C6FF),
-                                    Color(0xFF0072FF)
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  isHindi ? 'ओटीपी भेजें' : 'Send OTP',
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.white),
-                                ),
-                              ),
-                            ),
+                            child: _checking
+                                ? const CircularProgressIndicator(
+                                    valueColor:
+                                        AlwaysStoppedAnimation(Colors.white),
+                                  )
+                                : Ink(
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF00C6FF),
+                                          Color(0xFF0072FF)
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        isHindi ? 'ओटीपी भेजें' : 'Send OTP',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ),
-                         const SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         // Register link
                         TextButton(
                           onPressed: () => Navigator.pushReplacementNamed(

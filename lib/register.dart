@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
 
@@ -14,6 +15,42 @@ class _RegisterPageState extends State<RegisterPage> {
   final _countryCodeController = TextEditingController(text: "+91");
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _checking = false;
+
+  Future<void> _onSendOtp() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final fullPhone =
+        "${_countryCodeController.text.trim()}${_phoneController.text.trim()}";
+    setState(() => _checking = true);
+
+    // check `/phone_to_uid/<encodedPhone>`
+    final key = Uri.encodeComponent(fullPhone);
+    final snap = await FirebaseDatabase.instance.ref("phone_to_uid/$key").get();
+
+    setState(() => _checking = false);
+
+    if (snap.exists) {
+      // already registered
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Provider.of<LanguageNotifier>(context, listen: false).isHindi
+                ? 'फोन नंबर पहले से पंजीकृत है'
+                : 'Phone number already exists',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } else {
+      // not registered → go to OTP
+      Navigator.pushNamed(
+        context,
+        '/verify',
+        arguments: {'phone': fullPhone},
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +69,8 @@ class _RegisterPageState extends State<RegisterPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             children: [
-  
-              // Logo above the card
-              Image.asset(
-                'assets/logo.png',
-                height: 150,
-              ),
-               const SizedBox(height: 15),
-              // Welcome text
+              Image.asset('assets/logo.png', height: 150),
+              const SizedBox(height: 15),
               Text(
                 isHindi ? 'स्वागत है' : 'Create a new Account',
                 style: GoogleFonts.poppins(
@@ -127,35 +158,36 @@ class _RegisterPageState extends State<RegisterPage> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
+                          onPressed: _checking ? null : _onSendOtp,
                           style: ElevatedButton.styleFrom(
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                             padding: EdgeInsets.zero,
                           ),
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              final fullPhone =
-                                  "${_countryCodeController.text.trim()}${_phoneController.text.trim()}";
-                              Navigator.pushNamed(context, '/verify',
-                                  arguments: {'phone': fullPhone});
-                            }
-                          },
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                isHindi ? 'ओटीपी  भेजें' : 'Send OTP',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 16, fontWeight: FontWeight.w500,
-                                    color: Colors.white),
-                              ),
-                            ),
-                          ),
+                          child: _checking
+                              ? const CircularProgressIndicator(
+                                  valueColor:
+                                      AlwaysStoppedAnimation(Colors.white))
+                              : Ink(
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF00C6FF),
+                                        Color(0xFF0072FF)
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      isHindi ? 'ओटीपी भेजें' : 'Send OTP',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white),
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),

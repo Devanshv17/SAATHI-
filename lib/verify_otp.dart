@@ -12,7 +12,6 @@ import 'language_notifier.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 
-
 class VerifyOtpPage extends StatefulWidget {
   const VerifyOtpPage({Key? key}) : super(key: key);
   @override
@@ -33,22 +32,21 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
   Timer? _resendTimer;
   int _resendSeconds = 60;
- late TapGestureRecognizer _tapGestureRecognizer;
-
-
+  late TapGestureRecognizer _tapGestureRecognizer;
 
   @override
   void initState() {
     super.initState();
-     _tapGestureRecognizer = TapGestureRecognizer()
-      ..onTap = () => _openLink('https://docs.google.com/document/d/1NbMeLWRfKDAzxsAiboI1dccPBOxn-KZw39eLVfXKbhU/edit?usp=sharing');
+    _tapGestureRecognizer = TapGestureRecognizer()
+      ..onTap = () => _openLink(
+          'https://docs.google.com/document/d/1NbMeLWRfKDAzxsAiboI1dccPBOxn-KZw39eLVfXKbhU/edit?usp=sharing');
     _startResendCountdown();
   }
 
   @override
   void dispose() {
     _resendTimer?.cancel();
-     _tapGestureRecognizer.dispose();
+    _tapGestureRecognizer.dispose();
     super.dispose();
   }
 
@@ -71,17 +69,17 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     phone = args['phone'] as String;
   }
-  void _openLink(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Could not open link')),
-    );
-  }
-}
 
+  void _openLink(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open link')),
+      );
+    }
+  }
 
   String get _enteredOtp => _otpControllers.map((c) => c.text).join();
 
@@ -99,17 +97,26 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
   Future<void> _submitDetails() async {
     if (!_detailsFormKey.currentState!.validate()) return;
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final ref = FirebaseDatabase.instance.ref('users/$uid');
+    final user = FirebaseAuth.instance.currentUser!;
+    final uid = user.uid;
 
-    await ref.set({
+    // 1) Write user data under /users/<uid>
+    final userRef = FirebaseDatabase.instance.ref('users/$uid');
+    await userRef.set({
       'name': _nameController.text.trim(),
       'age': int.parse(_ageController.text),
       'gender': _gender ?? '',
       'school': _goToSchool,
       if (_goToSchool) 'class': _classController.text.trim(),
+      'phone': phone, // store phone number
     });
 
+    // 2) Optional: maintain reverse index for fast lookup
+    final phoneIndexRef = FirebaseDatabase.instance
+        .ref('phone_to_uid/${Uri.encodeComponent(phone)}');
+    await phoneIndexRef.set(uid);
+
+    // 3) Save login state and navigate
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('loggedIn', true);
     await prefs.setString('role', 'user');
@@ -129,7 +136,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       builder: (context, controller) {
         return Scaffold(
           backgroundColor: Colors.grey[50],
-           appBar: NavBar(
+          appBar: NavBar(
             isHindi: isHindi,
             onToggleLanguage: (val) =>
                 Provider.of<LanguageNotifier>(context, listen: false)
@@ -151,9 +158,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Top row: logo, title, language toggle
-       const SizedBox(height: 40),
-        // Logo + title
+        const SizedBox(height: 40),
         Center(
           child: Column(
             children: [
@@ -269,21 +274,17 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                 isNumber: true),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.white, 
-                // light fill
+                fillColor: Colors.white,
                 prefixIcon: const Icon(Icons.wc),
                 labelText: isHindi ? 'लिंग' : 'Gender',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  
                 ),
-                    
               ),
-               dropdownColor: Colors.white,   
-               icon: const Icon(Icons.arrow_drop_down,
+              dropdownColor: Colors.white,
+              icon: const Icon(Icons.arrow_drop_down,
                   size: 28, color: Colors.blueAccent),
               items: ['Male', 'Female', 'Other']
                   .map((g) => DropdownMenuItem(
@@ -305,10 +306,10 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                   _classController, isHindi ? 'कक्षा' : 'Class', Icons.school),
             ],
             const SizedBox(height: 15),
-          Wrap(
-  alignment: WrapAlignment.center,
-  children: [
-RichText(
+            Wrap(
+              alignment: WrapAlignment.center,
+              children: [
+                RichText(
                   textAlign: TextAlign.left,
                   text: TextSpan(
                     style: GoogleFonts.poppins(
@@ -335,13 +336,8 @@ RichText(
                     ],
                   ),
                 ),
-
-
-
-  ],
-),
-
-
+              ],
+            ),
             const SizedBox(height: 32),
             SizedBox(
               height: 52,
