@@ -19,21 +19,30 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _dbRef = FirebaseDatabase.instance.ref();
   late final String _uid;
+  late final String _phone;
   bool _deleting = false;
 
   @override
   void initState() {
     super.initState();
-    _uid = FirebaseAuth.instance.currentUser!.uid;
+    final user = FirebaseAuth.instance.currentUser!;
+    _uid = user.uid;
+    _phone = user.phoneNumber ?? ""; // Store phone for mapping removal
   }
 
-  /// Deletes RTDB data, Auth user, signs out, and navigates to login
+  /// Deletes phone-to-uid mapping, Auth user, signs out, and navigates to login
   Future<void> _performDeleteAccount() async {
     setState(() => _deleting = true);
-    // 1. Remove user data from Realtime Database
-    await _dbRef.child('users/$_uid').remove();
 
-    // 2. Delete Firebase Auth user
+    // 1. Remove phone-to-uid mapping from Realtime Database
+    if (_phone.isNotEmpty) {
+      final encodedPhone = Uri.encodeComponent(_phone);
+      await _dbRef.child('phone_to_uid/$encodedPhone').remove();
+    }
+
+    // 2. Do NOT delete user data in /users/$_uid
+
+    // 3. Delete Firebase Auth user
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) await user.delete();
@@ -41,14 +50,14 @@ class _ProfilePageState extends State<ProfilePage> {
       // ignore (requires recent login)
     }
 
-    // 3. Sign out
+    // 4. Sign out
     await FirebaseAuth.instance.signOut();
 
-    // 4. Clear login flag
+    // 5. Clear login flag
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('loggedIn', false);
 
-    // 5. Navigate to login
+    // 6. Navigate to login
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
   }
@@ -158,9 +167,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           onPressed: isMatch
                               ? () {
-                                  Navigator.of(ctx).pop();
-                                  _performDeleteAccount();
-                                }
+                            Navigator.of(ctx).pop();
+                            _performDeleteAccount();
+                          }
                               : null,
                           child: Text(
                             isHindi ? 'हटाएं' : 'Delete',
@@ -209,7 +218,6 @@ class _ProfilePageState extends State<ProfilePage> {
           final gender = data['gender'] ?? '';
           final school = data['school'] == true;
           final sclass = data['class'] ?? '';
-
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             child: Column(
@@ -265,10 +273,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     icon: _deleting
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.delete, color: Colors.white),
                     label: Text(
                       isHindi ? 'मेरा खाता हटाएं' : 'Delete My Account',
