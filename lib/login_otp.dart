@@ -7,21 +7,27 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_phone_auth_handler/firebase_phone_auth_handler.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pin_code_fields/pin_code_fields.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginOtpPage extends StatefulWidget {
   const LoginOtpPage({Key? key}) : super(key: key);
+
   @override
   _LoginOtpPageState createState() => _LoginOtpPageState();
 }
 
 class _LoginOtpPageState extends State<LoginOtpPage> {
   late String phone;
-  final _otpControllers = List.generate(6, (_) => TextEditingController());
   bool _otpInvalid = false;
   Timer? _resendTimer;
   int _resendSeconds = 60;
+
+  String _currentPin = '';
+  final StreamController<ErrorAnimationType> _errorController =
+      StreamController<ErrorAnimationType>.broadcast();
 
   @override
   void initState() {
@@ -32,6 +38,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
   @override
   void dispose() {
     _resendTimer?.cancel();
+    _errorController.close();
     super.dispose();
   }
 
@@ -39,10 +46,11 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
     _resendTimer?.cancel();
     setState(() => _resendSeconds = 60);
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_resendSeconds == 0)
+      if (_resendSeconds == 0) {
         t.cancel();
-      else
+      } else {
         setState(() => _resendSeconds--);
+      }
     });
   }
 
@@ -54,15 +62,22 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
     phone = args['phone'] as String;
   }
 
-  String get _enteredOtp => _otpControllers.map((c) => c.text).join();
-
   Future<void> _verifyOtp(FirebasePhoneAuthController ctrl) async {
-    if (_enteredOtp.length < 6) return;
-    final ok = await ctrl.verifyOtp(_enteredOtp);
-    if (!ok)
+    if (_currentPin.length < 6) {
+      // shake animation
+      _errorController.add(ErrorAnimationType.shake);
+      return;
+    }
+
+    final ok = await ctrl.verifyOtp(_currentPin);
+    if (!ok) {
       setState(() => _otpInvalid = true);
-    else {
+      _errorController.add(ErrorAnimationType.shake);
+    } else {
       final uid = FirebaseAuth.instance.currentUser!.uid;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('loggedIn', true);
+      await prefs.setString('role', 'user');
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/homepage',
@@ -85,23 +100,22 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
       builder: (context, controller) {
         return Scaffold(
           backgroundColor: Colors.grey[50],
-           appBar: NavBar(
+          appBar: NavBar(
             isHindi: isHindi,
             onToggleLanguage: (val) =>
                 Provider.of<LanguageNotifier>(context, listen: false)
                     .toggleLanguage(val),
           ),
-          body: Padding(
+          body: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-                // Logo + title
                 Center(
                   child: Column(
                     children: [
-                      Image.asset('assets/logo.png', height:150),
+                      Image.asset('assets/logo.png', height: 150),
                       const SizedBox(height: 12),
                       Text(
                         isHindi ? 'ओटीपी की पुष्टि करें' : 'OTP Verification',
@@ -126,36 +140,36 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                Row(
-                  children: List.generate(6, (i) {
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: TextField(
-                          controller: _otpControllers[i],
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          maxLength: 1,
-                          style: GoogleFonts.poppins(
-                              fontSize: 24, fontWeight: FontWeight.w500),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onChanged: (v) {
-                            if (v.isNotEmpty)
-                              FocusScope.of(context).nextFocus();
-                            else
-                              FocusScope.of(context).previousFocus();
-                          },
-                        ),
-                      ),
-                    );
-                  }),
+                PinCodeTextField(
+                  appContext: context,
+                  length: 6,
+                  autoFocus: true,
+                  animationType: AnimationType.fade,
+                  pinTheme: PinTheme(
+                    shape: PinCodeFieldShape.box,
+                    borderRadius: BorderRadius.circular(12),
+                    fieldHeight: 60,
+                    fieldWidth: 48,
+                    activeFillColor: Colors.white,
+                    selectedFillColor: Colors.white,
+                    inactiveFillColor: Colors.white,
+                    activeColor: Colors.blueAccent,
+                    selectedColor: Colors.blue,
+                    inactiveColor: Colors.grey,
+                  ),
+                  cursorColor: Colors.black,
+                  enableActiveFill: true,
+                  errorAnimationController: _errorController,
+                  keyboardType: TextInputType.number,
+                  textStyle: GoogleFonts.poppins(
+                      fontSize: 24, fontWeight: FontWeight.w500),
+                  onChanged: (val) {
+                    setState(() {
+                      _currentPin = val;
+                      _otpInvalid = false;
+                    });
+                  },
+                  onCompleted: (_) => _verifyOtp(controller),
                 ),
                 if (_otpInvalid) ...[
                   const SizedBox(height: 12),
@@ -171,12 +185,12 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                 SizedBox(
                   height: 52,
                   child: ElevatedButton(
+                    onPressed: () => _verifyOtp(controller),
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       padding: EdgeInsets.zero,
                     ),
-                    onPressed: () => _verifyOtp(controller),
                     child: Ink(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
@@ -206,7 +220,10 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                           style: GoogleFonts.poppins(),
                         )
                       : TextButton(
-                          onPressed: controller.sendOTP,
+                          onPressed: () {
+                            controller.sendOTP();
+                            _startResendCountdown();
+                          },
                           child: Text(
                             isHindi ? 'OTP पुनः भेजें' : 'Resend OTP',
                             style:

@@ -21,7 +21,8 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
+  
+  await FirebaseAuth.instance.authStateChanges().first;
   // Load saved login state and role
   final prefs = await SharedPreferences.getInstance();
   final bool loggedIn = prefs.getBool('loggedIn') ?? false;
@@ -32,7 +33,7 @@ Future<void> main() async {
   if (loggedIn) {
     initialRoute = (role == 'admin') ? '/admin_homepage' : '/homepage';
   } else {
-    initialRoute = '/register';
+    initialRoute = '/login';
   }
 
   runApp(

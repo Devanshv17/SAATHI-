@@ -30,6 +30,8 @@ class _ComparePageState extends State<ComparePage> {
   int score = 0;
   int correctCount = 0;
   int incorrectCount = 0;
+  late List<String> _leftAssets;
+  late List<String> _rightAssets;
 
   // Map<docId, answerData>
   // answerData: { selectedOptionIndex, isCorrect, timeTakenSeconds }
@@ -141,10 +143,143 @@ Future<void> _recordGameVisit() async {
     }
   }
 
+Future<void> _updateStreakAndStats(bool isCorrect) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final today = DateTime.now();
+    final todayStr = today.toIso8601String().substring(0, 10);
+    final yesterday = today.subtract(Duration(days: 1));
+    final yesterdayStr = yesterday.toIso8601String().substring(0, 10);
+
+    final streakRef = _dbRef.child('users/$uid/streak');
+    final scoreRef = _dbRef.child('users/$uid/score');
+    final attemptedRef = _dbRef.child('users/$uid/totalAttempted');
+
+    // 🔁 1. Handle Streak
+    final streakSnap = await streakRef.get();
+    String lastDate = '';
+    int streakCount = 0;
+    if (streakSnap.exists) {
+      final data = Map<String, dynamic>.from(streakSnap.value as Map);
+      lastDate = data['date'] ?? '';
+      streakCount = data['count'] ?? 0;
+    }
+
+    if (lastDate == todayStr) {
+      // Already played today, don't change streak
+    } else if (lastDate == yesterdayStr) {
+      streakCount += 1;
+    } else {
+      streakCount = 1; // broken streak or first time
+    }
+
+    // ✅ Save streak
+    await streakRef.set({
+      'date': todayStr,
+      'count': streakCount,
+    });
+
+    // 🧠 2. Handle Score
+    if (isCorrect) {
+      final scoreSnap = await scoreRef.get();
+      int prevScore = (scoreSnap.exists && scoreSnap.value is int)
+          ? scoreSnap.value as int
+          : 0;
+      await scoreRef.set(prevScore + 1);
+    }
+
+    // 📊 3. Handle Total Attempted
+    final attemptSnap = await attemptedRef.get();
+    int prevAttempt = (attemptSnap.exists && attemptSnap.value is int)
+        ? attemptSnap.value as int
+        : 0;
+    await attemptedRef.set(prevAttempt + 1);
+  }
+
+
+
+
+/// 1. Update `/users/{uid}/today_activity`
+  Future<void> _updateTodayActivity(bool isCorrect) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final now = DateTime.now();
+    final dateKey = now.toIso8601String().substring(0, 10); // "YYYY-MM-DD"
+    final ref = _dbRef.child('users/$uid/today_activity');
+
+    // read old
+    final snap = await ref.get();
+    Map old =
+        snap.exists && snap.value is Map ? Map.from(snap.value as Map) : {};
+    final oldDate = old['date'] as String? ?? '';
+    int oldCorrect = oldDate == dateKey ? (old['correct'] as int? ?? 0) : 0;
+    int oldIncorrect = oldDate == dateKey ? (old['incorrect'] as int? ?? 0) : 0;
+
+    // compute new
+    final newCorrect = oldCorrect + (isCorrect ? 1 : 0);
+    final newIncorrect = oldIncorrect + (isCorrect ? 0 : 1);
+
+    // write back
+    await ref.set({
+      'date': dateKey,
+      'correct': newCorrect,
+      'incorrect': newIncorrect,
+    });
+  }
+
+
+  /// 3. Update `/users/{uid}/monthlyStats`
+  Future<void> _updateMonthlyStats(bool isCorrect) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final now = DateTime.now();
+    final dateKey = now.toIso8601String().substring(0, 10);
+    final monthKey = dateKey.substring(0, 7); // "YYYY-MM"
+    final refMonth = _dbRef.child('users/$uid/monthlyStats');
+
+    // If month has rolled over, remove last month’s data
+    final snapMonth = await refMonth.get();
+    if (snapMonth.exists && snapMonth.value is Map) {
+      final anyKey = (snapMonth.value as Map).keys.first as String;
+      if (!anyKey.startsWith(monthKey)) {
+        // clear all last month
+        await refMonth.remove();
+      }
+    }
+
+    // increment today’s entry
+    final snapToday = await refMonth.child(dateKey).get();
+    int oldC = snapToday.exists && snapToday.value is Map
+        ? (snapToday.child('correct').value as int? ?? 0)
+        : 0;
+    int oldI = snapToday.exists && snapToday.value is Map
+        ? (snapToday.child('incorrect').value as int? ?? 0)
+        : 0;
+
+    await refMonth.child(dateKey).set({
+      'correct': oldC + (isCorrect ? 1 : 0),
+      'incorrect': oldI + (isCorrect ? 0 : 1),
+    });
+  }
+
   void _loadQuestionFromIndex(int idx) {
     final doc = allQuestions[idx];
     final data = doc.data() as Map<String, dynamic>;
     final saved = userAnswers[doc.id];
+
+     final num1 = int.tryParse(data['compareNumber1']?.toString() ?? '') ?? 0;
+    final num2 = int.tryParse(data['compareNumber2']?.toString() ?? '') ?? 0;
+    _leftAssets = List<String>.generate(
+      num1,
+      (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
+    );
+    _rightAssets = List<String>.generate(
+      num2,
+      (_) => shapeAssets[_random.nextInt(shapeAssets.length)],
+    );
 
     setState(() {
       currentDocId = doc.id;
@@ -186,7 +321,10 @@ Future<void> _recordGameVisit() async {
         'timeTakenSeconds': duration.inSeconds,
       };
     });
+      _updateTodayActivity(isCorrect);
+    _updateMonthlyStats(isCorrect);
     _saveGameState();
+    _updateStreakAndStats(isCorrect);
   }
 
   void _goToNextQuestion() {
@@ -249,15 +387,9 @@ Future<void> _recordGameVisit() async {
       );
     }
 
-    final data = allQuestions[currentIndex].data() as Map<String, dynamic>;
-    final num1 = int.tryParse(data['compareNumber1']?.toString() ?? '') ?? 0;
-    final num2 = int.tryParse(data['compareNumber2']?.toString() ?? '') ?? 0;
 
-    // Generate shape grids
-    final leftAssets = List<String>.generate(
-        num1, (_) => shapeAssets[_random.nextInt(shapeAssets.length)]);
-    final rightAssets = List<String>.generate(
-        num2, (_) => shapeAssets[_random.nextInt(shapeAssets.length)]);
+
+
 
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
@@ -286,11 +418,11 @@ Future<void> _recordGameVisit() async {
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
-              Row(
+  Row(
                 children: [
-                  Expanded(child: _buildShapeGrid(leftAssets)),
+                  Expanded(child: _buildShapeGrid(_leftAssets)),
                   const SizedBox(width: 10),
-                  Expanded(child: _buildShapeGrid(rightAssets)),
+                  Expanded(child: _buildShapeGrid(_rightAssets)),
                 ],
               ),
               const SizedBox(height: 10),
