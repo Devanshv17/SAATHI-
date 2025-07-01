@@ -13,7 +13,6 @@ import 'matching.dart';
 import 'letustelltime.dart';
 import 'letuscount.dart';
 
-
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 
@@ -54,6 +53,34 @@ class _HomePageState extends State<HomePage> {
     'Box9': 'वर्णमाला ज्ञान',
     'Box10': 'बाएँ दाएँ मध्य',
     'Box11': 'आकार ज्ञान',
+  };
+
+  // English image paths
+  final Map<String, String> boxImagesEnglish = {
+    'Box1': 'assets/npp.png',
+    'Box2': 'assets/gtl.png',
+    'Box3': 'assets/cmp.png',
+    'Box4': 'assets/cnt.png',
+    'Box5': 'assets/namenm.png',
+    'Box6': 'assets/numnp.png',
+    'Box7': 'assets/ltt.png',
+    'Box9': 'assets/ak.png',
+    'Box10': 'assets/lr.png',
+    'Box11': 'assets/fs.png',
+  };
+
+  // Hindi image paths
+  final Map<String, String> boxImagesHindi = {
+    'Box1': 'assets/npp_hindi.png',
+    'Box2': 'assets/gtl_hindi.jpg',
+    'Box3': 'assets/cmp.png',
+    'Box4': 'assets/cnt_hindi.png',
+    'Box5': 'assets/numnp_hindi.jpg',
+    'Box6': 'assets/namenm_hindi.jpg',
+    'Box7': 'assets/ltt_hindi.jpg',
+    'Box9': 'assets/ak_hindi.png',
+    'Box10': 'assets/lr_hindi.jpeg',
+    'Box11': 'assets/fs_hindi.png',
   };
 
   // English/Hindi versions of button labels
@@ -145,7 +172,8 @@ class _HomePageState extends State<HomePage> {
         isHindi: isHindi,
       );
     } else if (title == boxTextsEnglish['Box2'] ||
-        title == boxTextsHindi['Box2'] || title == boxTextsEnglish['Box11'] ||
+        title == boxTextsHindi['Box2'] ||
+        title == boxTextsEnglish['Box11'] ||
         title == boxTextsHindi['Box11']) {
       destination = GuessTheLetterPage(
         gameTitle: title,
@@ -170,15 +198,13 @@ class _HomePageState extends State<HomePage> {
         title == boxTextsEnglish['Box9'] ||
         title == boxTextsHindi['Box9'] ||
         title == boxTextsEnglish['Box10'] ||
-        title == boxTextsHindi['Box10']  ) {
+        title == boxTextsHindi['Box10']) {
       destination = MatchingPage(
         gameTitle: title,
         isHindi: isHindi,
       );
-    }  else if (
-        title == boxTextsEnglish['Box1'] ||
-        title == boxTextsHindi['Box1']
-    ){
+    } else if (title == boxTextsEnglish['Box1'] ||
+        title == boxTextsHindi['Box1']) {
       // Fallback: generic GamePage with the displayed title
       destination = GamePage(
         gameTitle: title,
@@ -195,8 +221,9 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Widget buildBox(String key, bool isHindi, Color bgColor,String imgpath) {
+  Widget buildBox(String key, bool isHindi, Color bgColor) {
     final title = isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
+    final imagePath = isHindi ? boxImagesHindi[key]! : boxImagesEnglish[key]!;
     final correct = correctScores[title] ?? 0;
     final incorrect = incorrectScores[title] ?? 0;
     final hasPlayed = (correct + incorrect) > 0;
@@ -217,9 +244,36 @@ class _HomePageState extends State<HomePage> {
             height: 70,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(50),
-              image:  DecorationImage(
-                image: AssetImage(imgpath),
+              color: Colors.grey.shade300, // fallback background color
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(50),
+              child: Image.asset(
+                imagePath,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to English image if Hindi image fails
+                  if (isHindi) {
+                    return Image.asset(
+                      boxImagesEnglish[key]!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // If both fail, show a default icon
+                        return Icon(
+                          Icons.image_not_supported,
+                          size: 40,
+                          color: Colors.grey,
+                        );
+                      },
+                    );
+                  }
+                  // If English image fails, show default icon
+                  return Icon(
+                    Icons.image_not_supported,
+                    size: 40,
+                    color: Colors.grey,
+                  );
+                },
               ),
             ),
           ),
@@ -300,22 +354,22 @@ class _HomePageState extends State<HomePage> {
         },
         showMenuButton: true,
       ),
-      drawer:  CustomMenuBar(isHindi:isHindi),
+      drawer: CustomMenuBar(isHindi: isHindi),
       body: Center(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              buildBox('Box1', isHindi, Colors.blue.shade100,'assets/npp.png'),
-              buildBox('Box2', isHindi, Colors.blue.shade100,'assets/gtl.png'),
-              buildBox('Box3', isHindi, Colors.blue.shade100,'assets/cmp.png'),
-              buildBox('Box4', isHindi, Colors.blue.shade100, 'assets/cnt.png'),
-              buildBox('Box5', isHindi, Colors.blue.shade100,'assets/namenm.png'),
-              buildBox('Box6', isHindi, Colors.blue.shade100, 'assets/numnp.png'),
-              buildBox('Box7', isHindi, Colors.blue.shade100, 'assets/ltt.png'),
+              buildBox('Box1', isHindi, Colors.blue.shade100),
+              buildBox('Box2', isHindi, Colors.blue.shade100),
+              buildBox('Box3', isHindi, Colors.blue.shade100),
+              buildBox('Box4', isHindi, Colors.blue.shade100),
+              buildBox('Box5', isHindi, Colors.blue.shade100),
+              buildBox('Box6', isHindi, Colors.blue.shade100),
+              buildBox('Box7', isHindi, Colors.blue.shade100),
               // buildBox('Box8', isHindi, Colors.blue.shade100),
-              buildBox('Box9', isHindi, Colors.blue.shade100, 'assets/ak.png'),
-              buildBox('Box10', isHindi, Colors.blue.shade100, 'assets/lr.png'),
-              buildBox('Box11', isHindi, Colors.blue.shade100, 'assets/fs.png'),
+              buildBox('Box9', isHindi, Colors.blue.shade100),
+              buildBox('Box10', isHindi, Colors.blue.shade100),
+              buildBox('Box11', isHindi, Colors.blue.shade100),
             ],
           ),
         ),

@@ -97,6 +97,15 @@ flutter:
      - assets/ak.png
      - assets/lr.png
      - assets/fs.png
+     - assets/ak_hindi.png
+     - assets/lr_hindi.jpeg  
+     - assets/fs_hindi.png
+     - assets/ltt_hindi.jpg
+     - assets/numnp_hindi.jpg
+     - assets/namenm_hindi.jpg
+     - assets/cnt_hindi.png
+     - assets/gtl_hindi.jpg
+     - assets/npp_hindi.png
      - assets/logo.png
      - assets/archery.png
 
