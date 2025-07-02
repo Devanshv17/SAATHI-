@@ -51,6 +51,9 @@ dependencies:
   fl_chart: ^0.63.0
   flutter_heatmap_calendar: ^1.0.5
   pin_code_fields: ^8.0.1
+  firebase_ai: ^2.2.0
+  audioplayers: ^6.5.0
+  animated_text_kit: ^4.2.3
 
 
 dev_dependencies:

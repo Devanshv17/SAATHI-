@@ -1,25 +1,37 @@
+// lib/matching_page.dart
+
 import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
+import 'ai.dart';
+import 'video_lesson.dart';
 
 class MatchingPage extends StatefulWidget {
   final String gameTitle;
   final bool isHindi;
-  const MatchingPage({Key? key, required this.gameTitle, required this.isHindi})
-      : super(key: key);
+  const MatchingPage({
+    Key? key,
+    required this.gameTitle,
+    required this.isHindi,
+  }) : super(key: key);
 
   @override
   _MatchingPageState createState() => _MatchingPageState();
 }
 
 class _MatchingPageState extends State<MatchingPage> {
+  // Firebase instances
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
+  // AI service
+  late final AiService _aiService;
+
+  // Game state
   List<Map<String, dynamic>> questions = [];
   int currentQuestionIndex = 0;
   Map<String, dynamic> userAnswers = {};
@@ -33,33 +45,34 @@ class _MatchingPageState extends State<MatchingPage> {
   bool _currentIsCorrect = false;
   bool isLoading = true;
 
-
   DateTime? _questionStartTime;
-  DateTime? _gameStartTime; // 🕒 New: track when question is shown
+  DateTime? _gameStartTime;
 
   @override
   void initState() {
     super.initState();
+    // Initialize AI service (no API key here; it's fetched by your ai.dart logic)
+    _aiService = AiService();
     _gameStartTime = DateTime.now();
     _loadGameState().then((_) => _loadQuestions());
   }
+
   @override
   void dispose() {
-    _saveGameState(); // your existing save
-    _recordGameVisit(); // ← write duration to RTDB
+    _saveGameState();
+    _recordGameVisit();
     super.dispose();
   }
-
 
   Future<void> _loadGameState() async {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      final snapshot = await _dbRef
+      final snap = await _dbRef
           .child("users/${user.uid}/games/${widget.gameTitle}")
           .get();
-      if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
+      if (snap.exists) {
+        final data = snap.value as Map<dynamic, dynamic>;
         setState(() {
           score = data['score'] ?? 0;
           correctCount = data['correctCount'] ?? 0;
@@ -79,7 +92,9 @@ class _MatchingPageState extends State<MatchingPage> {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
-      await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").update({
+      await _dbRef
+          .child("users/${user.uid}/games/${widget.gameTitle}")
+          .update({
         "score": score,
         "correctCount": correctCount,
         "incorrectCount": incorrectCount,
@@ -90,8 +105,7 @@ class _MatchingPageState extends State<MatchingPage> {
       print("Error saving game state: $e");
     }
   }
-  /// Compute seconds between open/close and add to:
-  /// users/{uid}/games/{gameTitle}/gameVisits/{YYYY-MM-DD}
+
   Future<void> _recordGameVisit() async {
     final user = _auth.currentUser;
     final start = _gameStartTime;
@@ -99,64 +113,54 @@ class _MatchingPageState extends State<MatchingPage> {
 
     final now = DateTime.now();
     final seconds = now.difference(start).inSeconds;
-    final dateKey = now.toIso8601String().substring(0, 10); // "YYYY-MM-DD"
+    final dateKey = now.toIso8601String().substring(0, 10);
 
     final path =
         "users/${user.uid}/games/${widget.gameTitle}/gameVisits/$dateKey";
 
-    // 1) Read existing total or default to 0
     final snap = await _dbRef.child(path).get();
     final prev = (snap.exists && snap.value is int) ? snap.value as int : 0;
-
-    // 2) Write updated total
     await _dbRef.child(path).set(prev + seconds);
   }
 
-
   Future<void> _loadQuestions() async {
     try {
-      QuerySnapshot snapshot = await _firestore
+      final snapshot = await _firestore
           .collection(widget.gameTitle)
           .orderBy('timestamp')
           .get();
 
       questions = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
-        final questionText = data['text'] as String? ?? "";
-        final rawOptions = data['options'] as List<dynamic>? ?? [];
-        final parsedOptions = rawOptions.map((opt) {
-          final mapOpt = opt as Map<String, dynamic>;
+        final rawOpts = (data['options'] as List<dynamic>?) ?? [];
+        final opts = rawOpts.map((opt) {
+          final m = opt as Map<String, dynamic>;
           return {
-            'title': mapOpt['title'] as String? ?? "",
-            'isCorrect': mapOpt['isCorrect'] as bool? ?? false,
+            'title': m['title'] as String? ?? '',
+            'isCorrect': m['isCorrect'] as bool? ?? false,
           };
         }).toList();
         return {
           'id': doc.id,
-          'text': questionText,
-          'options': parsedOptions,
+          'text': data['text'] as String? ?? '',
+          'options': opts,
         };
       }).toList();
 
-      setState(() {
-        isLoading = false;
-      });
-
+      setState(() => isLoading = false);
       _initQuestionState();
     } catch (e) {
       print("Error loading questions: $e");
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
   }
 
   void _initQuestionState() {
     if (questions.isEmpty) return;
-    final qId = questions[currentQuestionIndex]['id'];
+    final qId = questions[currentQuestionIndex]['id'] as String;
     if (userAnswers.containsKey(qId)) {
-      final saved = userAnswers[qId];
-      _pendingSelectedIndex = saved['selectedOptionIndex'] as int;
+      final saved = userAnswers[qId] as Map<String, dynamic>;
+      _pendingSelectedIndex = saved['selectedOptionIndex'] as int?;
       _hasSubmitted = true;
       _currentIsCorrect = saved['isCorrect'] as bool;
     } else {
@@ -164,146 +168,25 @@ class _MatchingPageState extends State<MatchingPage> {
       _hasSubmitted = false;
       _currentIsCorrect = false;
     }
-
-    _questionStartTime = DateTime.now(); // 🕒 Reset start time for new question
+    _questionStartTime = DateTime.now();
     setState(() {});
   }
 
-  void _selectOption(int index) {
+  void _selectOption(int idx) {
     if (_hasSubmitted) return;
-    setState(() {
-      _pendingSelectedIndex = index;
-    });
-  }
-Future<void> _updateStreakAndStats(bool isCorrect) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-
-    final today = DateTime.now();
-    final todayStr = today.toIso8601String().substring(0, 10);
-    final yesterday = today.subtract(Duration(days: 1));
-    final yesterdayStr = yesterday.toIso8601String().substring(0, 10);
-
-    final streakRef = _dbRef.child('users/$uid/streak');
-    final scoreRef = _dbRef.child('users/$uid/score');
-    final attemptedRef = _dbRef.child('users/$uid/totalAttempted');
-
-    // 🔁 1. Handle Streak
-    final streakSnap = await streakRef.get();
-    String lastDate = '';
-    int streakCount = 0;
-    if (streakSnap.exists) {
-      final data = Map<String, dynamic>.from(streakSnap.value as Map);
-      lastDate = data['date'] ?? '';
-      streakCount = data['count'] ?? 0;
-    }
-
-    if (lastDate == todayStr) {
-      // Already played today, don't change streak
-    } else if (lastDate == yesterdayStr) {
-      streakCount += 1;
-    } else {
-      streakCount = 1; // broken streak or first time
-    }
-
-    // ✅ Save streak
-    await streakRef.set({
-      'date': todayStr,
-      'count': streakCount,
-    });
-
-    // 🧠 2. Handle Score
-    if (isCorrect) {
-      final scoreSnap = await scoreRef.get();
-      int prevScore = (scoreSnap.exists && scoreSnap.value is int)
-          ? scoreSnap.value as int
-          : 0;
-      await scoreRef.set(prevScore + 1);
-    }
-
-    // 📊 3. Handle Total Attempted
-    final attemptSnap = await attemptedRef.get();
-    int prevAttempt = (attemptSnap.exists && attemptSnap.value is int)
-        ? attemptSnap.value as int
-        : 0;
-    await attemptedRef.set(prevAttempt + 1);
+    setState(() => _pendingSelectedIndex = idx);
   }
 
-/// 1. Update `/users/{uid}/today_activity`
-  Future<void> _updateTodayActivity(bool isCorrect) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-
-    final now = DateTime.now();
-    final dateKey = now.toIso8601String().substring(0, 10); // "YYYY-MM-DD"
-    final ref = _dbRef.child('users/$uid/today_activity');
-
-    // read old
-    final snap = await ref.get();
-    Map old =
-        snap.exists && snap.value is Map ? Map.from(snap.value as Map) : {};
-    final oldDate = old['date'] as String? ?? '';
-    int oldCorrect = oldDate == dateKey ? (old['correct'] as int? ?? 0) : 0;
-    int oldIncorrect = oldDate == dateKey ? (old['incorrect'] as int? ?? 0) : 0;
-
-    // compute new
-    final newCorrect = oldCorrect + (isCorrect ? 1 : 0);
-    final newIncorrect = oldIncorrect + (isCorrect ? 0 : 1);
-
-    // write back
-    await ref.set({
-      'date': dateKey,
-      'correct': newCorrect,
-      'incorrect': newIncorrect,
-    });
-  }
-
-
-  /// 3. Update `/users/{uid}/monthlyStats`
-  Future<void> _updateMonthlyStats(bool isCorrect) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-
-    final now = DateTime.now();
-    final dateKey = now.toIso8601String().substring(0, 10);
-    final monthKey = dateKey.substring(0, 7); // "YYYY-MM"
-    final refMonth = _dbRef.child('users/$uid/monthlyStats');
-
-    // If month has rolled over, remove last month’s data
-    final snapMonth = await refMonth.get();
-    if (snapMonth.exists && snapMonth.value is Map) {
-      final anyKey = (snapMonth.value as Map).keys.first as String;
-      if (!anyKey.startsWith(monthKey)) {
-        // clear all last month
-        await refMonth.remove();
-      }
-    }
-
-    // increment today’s entry
-    final snapToday = await refMonth.child(dateKey).get();
-    int oldC = snapToday.exists && snapToday.value is Map
-        ? (snapToday.child('correct').value as int? ?? 0)
-        : 0;
-    int oldI = snapToday.exists && snapToday.value is Map
-        ? (snapToday.child('incorrect').value as int? ?? 0)
-        : 0;
-
-    await refMonth.child(dateKey).set({
-      'correct': oldC + (isCorrect ? 1 : 0),
-      'incorrect': oldI + (isCorrect ? 0 : 1),
-    });
-  }
-
-  void _submitAnswer() {
+  Future<void> _submitAnswer() async {
     if (_pendingSelectedIndex == null || _hasSubmitted) return;
     final currentQ = questions[currentQuestionIndex];
     final opts = currentQ['options'] as List<dynamic>;
-    bool isCorrect = opts[_pendingSelectedIndex!]['isCorrect'] as bool;
+    final isCorrect = opts[_pendingSelectedIndex!]['isCorrect'] as bool;
 
     final now = DateTime.now();
-    final timeTakenSeconds = _questionStartTime != null
+    final timeTaken = _questionStartTime != null
         ? now.difference(_questionStartTime!).inSeconds
-        : 0; // ⏱️ Calculate duration
+        : 0;
 
     setState(() {
       _hasSubmitted = true;
@@ -311,7 +194,7 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
       userAnswers[currentQ['id']] = {
         'selectedOptionIndex': _pendingSelectedIndex,
         'isCorrect': isCorrect,
-        'timeTakenSeconds': timeTakenSeconds, // ⏱️ Save it
+        'timeTakenSeconds': timeTaken,
       };
       if (isCorrect) {
         score++;
@@ -319,63 +202,106 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
       } else {
         incorrectCount++;
       }
-      
     });
-    _updateTodayActivity(isCorrect);
-   _updateStreakAndStats(isCorrect);
-    _updateMonthlyStats(isCorrect);
-    _saveGameState();
+
+    await _saveGameState();
+
+    if (!isCorrect) {
+      final questionText = currentQ['text'] as String;
+      final optionTitles = opts.map((o) => o['title'] as String).toList();
+      final correctTitle = optionTitles[
+      opts.indexWhere((o) => (o['isCorrect'] as bool))];
+      final userTitle = optionTitles[_pendingSelectedIndex!];
+
+      try {
+        final fb = await _aiService.getFeedback(
+          question: questionText,
+          options: optionTitles,
+          correctAnswer: correctTitle,
+          userAnswer: userTitle,
+        );
+
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text(widget.isHindi ? 'AI प्रतिक्रिया' : 'AI Feedback'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Mistake: ${fb['mistake']}'),
+                  const SizedBox(height: 12),
+                  Text('Explanation: ${fb['explanation']}'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => VideoLesson(script: fb['explanation']),
+                    ),
+                  );
+                },
+                child: Text(widget.isHindi ? 'वीडियो सीखें' : 'Watch Lesson'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(widget.isHindi ? 'ठीक है' : 'Got it'),
+              ),
+            ],
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI feedback failed: $e')),
+        );
+      }
+    }
   }
+
 
   void _previousQuestion() {
     if (currentQuestionIndex > 0) {
-      setState(() {
-        currentQuestionIndex--;
-      });
+      setState(() => currentQuestionIndex--);
       _initQuestionState();
       _saveGameState();
     }
   }
 
   void _nextQuestion() {
-    final qId = questions[currentQuestionIndex]['id'];
+    final qId = questions[currentQuestionIndex]['id'] as String;
     if (!_hasSubmitted && !userAnswers.containsKey(qId)) return;
     if (currentQuestionIndex < questions.length - 1) {
-      setState(() {
-        currentQuestionIndex++;
-      });
+      setState(() => currentQuestionIndex++);
       _initQuestionState();
       _saveGameState();
     } else {
-      _navigateToResult();
-    }
-  }
-
-  void _navigateToResult() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ResultPage(
-          gameTitle: widget.gameTitle,
-          score: score,
-          correctCount: correctCount,
-          incorrectCount: incorrectCount,
-          isHindi: widget.isHindi,
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ResultPage(
+            gameTitle: widget.gameTitle,
+            score: score,
+            correctCount: correctCount,
+            incorrectCount: incorrectCount,
+            isHindi: widget.isHindi,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   void _showInstructionsDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: Text(widget.isHindi ? "निर्देश" : "Instructions"),
-        content: Text(
-          widget.isHindi
-              ? "१. विकल्प चुनें (नीला बॉर्डर).\n२. जमा करें पर टैप करें.\n३. सही: हरा टिक; गलत: लाल क्रॉस.\n४. Prev/Next.\n५. प्रगति सेव."
-              : "1. Tap an option (blue border).\n2. Tap Submit.\n3. Correct: green tick; incorrect: red cross.\n4. Use Prev/Next.\n5. Progress is saved.",
-        ),
+        content: Text(widget.isHindi
+            ? "१. विकल्प चुनें (नीला बॉर्डर).\n२. जमा करें पर टैप करें.\n३. सही: हरा टिक; गलत: लाल क्रॉस.\n४. Prev/Next.\n५. प्रगति सेव."
+            : "1. Tap an option (blue border).\n2. Tap Submit.\n3. Correct: green tick; incorrect: red cross.\n4. Use Prev/Next.\n5. Progress is saved."),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -389,11 +315,14 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
     if (questions.isEmpty) {
       return const Scaffold(
-          body: Center(child: Text("No questions available.")));
+        body: Center(child: Text("No questions available.")),
+      );
     }
 
     final currentQ = questions[currentQuestionIndex];
@@ -403,92 +332,115 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       appBar: AppBar(
-        title: Text(widget.gameTitle,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        title: Text(
+          widget.gameTitle,
+          style:
+          const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.blue.shade300,
         actions: [
           IconButton(
-              icon: const Icon(Icons.info_outline),
-              onPressed: _showInstructionsDialog)
+            icon: const Icon(Icons.info_outline),
+            onPressed: _showInstructionsDialog,
+          )
         ],
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             children: [
-              Text(qText,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w600)),
+              Text(
+                qText,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 30),
               Expanded(
                 child: GridView.builder(
                   itemCount: opts.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: 14,
                     crossAxisSpacing: 14,
                     childAspectRatio: 1.1,
                   ),
-                  itemBuilder: (context, index) {
-                    final option = opts[index];
-                    bool isPending =
-                        _pendingSelectedIndex == index && !_hasSubmitted;
-                    bool showResult =
-                        _pendingSelectedIndex == index && _hasSubmitted;
-                    bool isCorrect = option['isCorrect'] as bool;
+                  itemBuilder: (ctx, idx) {
+                    final option = opts[idx];
+                    final isPending =
+                        _pendingSelectedIndex == idx && !_hasSubmitted;
+                    final showResult =
+                        _pendingSelectedIndex == idx && _hasSubmitted;
+                    final isCorrectOpt =
+                    option['isCorrect'] as bool;
 
                     Color borderColor = Colors.white10;
                     Widget? overlayIcon;
-
                     if (isPending) {
                       borderColor = Colors.blue;
                     } else if (showResult) {
-                      borderColor = isCorrect ? Colors.green : Colors.red;
+                      borderColor =
+                      isCorrectOpt ? Colors.green : Colors.red;
                       overlayIcon = Icon(
-                          isCorrect ? Icons.check_circle : Icons.cancel,
-                          color: borderColor,
-                          size: 50);
+                        isCorrectOpt
+                            ? Icons.check_circle
+                            : Icons.cancel,
+                        color: borderColor,
+                        size: 50,
+                      );
                     }
 
                     return GestureDetector(
-                      onTap: _hasSubmitted ? null : () => _selectOption(index),
+                      onTap: _hasSubmitted
+                          ? null
+                          : () => _selectOption(idx),
                       child: Stack(
                         children: [
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: borderColor, width: 3),
+                              border: Border.all(
+                                  color: borderColor, width: 3),
                               boxShadow: [
                                 BoxShadow(
-                                    color: Colors.grey.withOpacity(0.2),
-                                    blurRadius: 4,
-                                    spreadRadius: 1)
+                                  color:
+                                  Colors.grey.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  spreadRadius: 1,
+                                )
                               ],
                             ),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
+                              borderRadius:
+                              BorderRadius.circular(15),
                               child: Stack(
                                 children: [
                                   Positioned.fill(
                                     child: Center(
-                                      child: Text(option['title'] as String,
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold)),
+                                      child: Text(
+                                        option['title'] as String,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight:
+                                            FontWeight.bold),
+                                      ),
                                     ),
                                   ),
                                   if (showResult)
                                     Positioned.fill(
                                       child: BackdropFilter(
                                         filter: ImageFilter.blur(
-                                            sigmaX: 1.0, sigmaY: 1.0),
+                                            sigmaX: 1.0,
+                                            sigmaY: 1.0),
                                         child: Container(
-                                            color:
-                                                Colors.black.withOpacity(0.2)),
+                                          color: Colors.black
+                                              .withOpacity(0.2),
+                                        ),
                                       ),
                                     ),
                                 ],
@@ -496,7 +448,8 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
                             ),
                           ),
                           if (overlayIcon != null)
-                            Positioned(top: 5, right: 5, child: overlayIcon),
+                            Positioned(
+                                top: 5, right: 5, child: overlayIcon),
                         ],
                       ),
                     );
@@ -506,65 +459,82 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
               const SizedBox(height: 15),
               Column(
                 children: [
-                  Text(widget.isHindi ? "अंक: $score" : "Score: $score",
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold)),
                   Text(
-                      widget.isHindi
-                          ? "सही: $correctCount | गलत: $incorrectCount"
-                          : "Correct: $correctCount | Incorrect: $incorrectCount",
-                      style: const TextStyle(fontSize: 16)),
+                    widget.isHindi
+                        ? "अंक: $score"
+                        : "Score: $score",
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    widget.isHindi
+                        ? "सही: $correctCount | गलत: $incorrectCount"
+                        : "Correct: $correctCount | Incorrect: $incorrectCount",
+                    style: const TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
               const SizedBox(height: 15),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment:
+                MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
-                    onPressed:
-                        currentQuestionIndex > 0 ? _previousQuestion : null,
+                    onPressed: currentQuestionIndex > 0
+                        ? _previousQuestion
+                        : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: currentQuestionIndex > 0
+                      backgroundColor:
+                      currentQuestionIndex > 0
                           ? Colors.orange
                           : Colors.grey,
-                      padding: const EdgeInsets.symmetric(
+                      padding:
+                      const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 15),
                     ),
-                    child: Text(widget.isHindi ? "पिछला" : "Previous",
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
+                    child: Text(
+                      widget.isHindi ? "पिछला" : "Previous",
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                   ElevatedButton(
-                    onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
+                    onPressed: (_pendingSelectedIndex != null &&
+                        !_hasSubmitted)
                         ? _submitAnswer
                         : null,
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 20, vertical: 15)),
-                    child: Text(widget.isHindi ? "जमा करें" : "Submit",
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
+                    child: Text(
+                      widget.isHindi ? "जमा करें" : "Submit",
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                   ElevatedButton(
                     onPressed: (_hasSubmitted ||
-                            userAnswers.containsKey(
-                                questions[currentQuestionIndex]['id']))
+                        userAnswers.containsKey(
+                            questions[currentQuestionIndex]
+                            ['id']))
                         ? _nextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 20, vertical: 15)),
-                    child: Text(widget.isHindi ? "अगला" : "Next",
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
+                    child: Text(
+                      widget.isHindi ? "अगला" : "Next",
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                 ],
               ),
