@@ -195,7 +195,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Widget buildBox(String key, bool isHindi, Color bgColor,String imgpath) {
+  Widget buildBox(String key, bool isHindi, Color bgColor,String imgpath,String imgpathHindi) {
     final title = isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
     final correct = correctScores[title] ?? 0;
     final incorrect = incorrectScores[title] ?? 0;
@@ -218,7 +218,7 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(50),
               image:  DecorationImage(
-                image: AssetImage(imgpath),
+                image: AssetImage(isHindi?imgpathHindi:imgpath),
                 fit: BoxFit.cover,
               ),
             ),
@@ -305,17 +305,17 @@ class _HomePageState extends State<HomePage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              buildBox('Box1', isHindi, Colors.blue.shade100,'assets/npp.png'),
-              buildBox('Box2', isHindi, Colors.blue.shade100,'assets/gtl.png'),
-              buildBox('Box3', isHindi, Colors.blue.shade100,'assets/cmp.png'),
-              buildBox('Box4', isHindi, Colors.blue.shade100, 'assets/cnt.png'),
-              buildBox('Box5', isHindi, Colors.blue.shade100,'assets/namenm.png'),
-              buildBox('Box6', isHindi, Colors.blue.shade100, 'assets/numnp.png'),
-              buildBox('Box7', isHindi, Colors.blue.shade100, 'assets/ltt.png'),
+              buildBox('Box1', isHindi, Colors.blue.shade100,'assets/npp.png','assets/npph.jpg'),
+              buildBox('Box2', isHindi, Colors.blue.shade100,'assets/gtl.png','assets/gtlh.jpg'),
+              buildBox('Box3', isHindi, Colors.blue.shade100,'assets/cmp.png','assets/cmp.png'),
+              buildBox('Box4', isHindi, Colors.blue.shade100, 'assets/cnt.png','assets/cnth.jpg'),
+              buildBox('Box5', isHindi, Colors.blue.shade100,'assets/namenm.png','assets/namenmh.jpg'),
+              buildBox('Box6', isHindi, Colors.blue.shade100, 'assets/numnp.png','assets/numnph.jpg'),
+              buildBox('Box7', isHindi, Colors.blue.shade100, 'assets/ltt.png','assets/ltth.jpg'),
               // buildBox('Box8', isHindi, Colors.blue.shade100),
-              buildBox('Box9', isHindi, Colors.blue.shade100, 'assets/ak.png'),
-              buildBox('Box10', isHindi, Colors.blue.shade100, 'assets/lr.png'),
-              buildBox('Box11', isHindi, Colors.blue.shade100, 'assets/fs.png'),
+              buildBox('Box9', isHindi, Colors.blue.shade100, 'assets/ak.png','assets/akh.jpg'),
+              buildBox('Box10', isHindi, Colors.blue.shade100, 'assets/lr.png','assets/lrh.jpg'),
+              buildBox('Box11', isHindi, Colors.blue.shade100, 'assets/fs.png','assets/fsh.jpg'),
             ],
           ),
         ),

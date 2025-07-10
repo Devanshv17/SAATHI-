@@ -93,18 +93,25 @@ flutter:
      - assets/npp.png
      - assets/gtl.png
      - assets/cmp.png
+     - assets/cnth.jpg
      - assets/cnt.png
      - assets/namenm.png
      - assets/numnp.png
      - assets/ltt.png
      - assets/ak.png
      - assets/lr.png
+     - assets/lrh.jpg
      - assets/fs.png
-     - assets/logo.png
+     - assets/fsh.jpg
+     - assets/npph.jpg
+     - assets/gtlh.jpg
+     - assets/logo.png 
+     - assets/cnth.jpg
+     - assets/namenmh.jpg
+     - assets/numnph.jpg
+     - assets/ltth.jpg
+     - assets/akh.jpg
      - assets/archery.png
-
-  #   - images/a_dot_ham.jpeg
-
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

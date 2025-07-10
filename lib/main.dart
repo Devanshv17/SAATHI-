@@ -5,7 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_phone_auth_handler/firebase_phone_auth_handler.dart';
-import 'firebase_options.dart';            // your generated Firebase options
+import 'firebase_options.dart';      
 import 'language_notifier.dart';
 import 'register.dart';
 import 'login.dart';
