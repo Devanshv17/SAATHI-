@@ -638,15 +638,15 @@ Widget buildProgressBadgeCard(
     double percent = totalQuestions > 0 ? totalAttempted / totalQuestions : 0;
     String badge;
     if (percent >= 0.90) {
-      badge  = isHindi?'🏆 किंवदंती':'🏆 Legend';
+      badge  = isHindi?'🏆 स्तर ५':'🏆 Level 5';
     } else if (percent >= 0.75) {
-      badge = isHindi?'🥇 विशेषज्ञ': '🥇 Expert';
+      badge = isHindi?'🥇 स्तर ४': '🥇 Level 4';
     } else if (percent >= 0.50) {
-      badge = isHindi?'🥈 मध्यवर्ती':'🥈 Intermediate';
+      badge = isHindi?'🥈 स्तर ३':'🥈 Level 3';
     } else if (percent >= 0.25) {
-      badge = isHindi?'🥉 प्रारंभिक':'🥉 Beginner';
+      badge = isHindi?'🥉 स्तर २':'🥉 Level 2';
     } else {
-      badge = isHindi?'🎯 नवशिक्शु':'🎯 Novice';
+      badge = isHindi?'🎯 स्तर १':'🎯 Level 1';
     }
 
     return Container(
@@ -1016,19 +1016,28 @@ Widget _getBadge(double ratio, {required bool isHindi}) {
     Color color;
     IconData icon;
 
-    if (ratio < 0.5) {
-      label =  isHindi ? 'शुरुआती' : 'Beginner';
+   if (ratio < 0.25) {
+      label = isHindi ? 'स्तर 1' : 'Level 1';
       color = Colors.redAccent;
-      icon = Icons.flag_rounded; // 🏳️ Clear start flag
-    } else if (ratio < 0.8) {
-      label = isHindi ? 'मध्यम' : 'Intermediate';
+      icon = Icons.flag_rounded; // 🏳️ Start flag
+    } else if (ratio < 0.5) {
+      label = isHindi ? 'स्तर 2' : 'Level 2';
+      color = Colors.deepOrangeAccent;
+      icon = Icons.school_rounded; // 🎓 School cap
+    } else if (ratio < 0.75) {
+      label = isHindi ? 'स्तर 3' : 'Level 3';
       color = Colors.orangeAccent;
-      icon = Icons.emoji_events_rounded; // 🥉 Trophy
+      icon = Icons.emoji_events_rounded; // 🥉 Bronze trophy
+    } else if (ratio < 0.9) {
+      label = isHindi ? 'स्तर 4' : 'Level 4';
+      color = Colors.lightGreen;
+      icon = Icons.military_tech_rounded; // 🥈 Silver medal
     } else {
-      label = isHindi ? 'विशेषज्ञ' :'Expert';
+      label = isHindi ? 'स्तर 5' : 'Level 5';
       color = Colors.green;
-      icon = Icons.military_tech_rounded; // 🥇 Medal
+      icon = Icons.workspace_premium_rounded; // 🥇 Gold medal
     }
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,

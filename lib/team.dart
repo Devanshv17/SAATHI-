@@ -106,9 +106,8 @@ class TeamPage extends StatelessWidget {
               name: isHindi ? 'डॉ. अन्वेषणा श्रीवास्तव' : 'Dr. Anveshna Srivastava',
               role:
                   isHindi ? 'प्रोफेसर, आईआईटी कानपुर' : 'Professor, IIT Kanpur',
-              bio: isHindi
-                  ? 'प्रो. श्रीवास्तव का ध्यान शिक्षा में समावेशिता और नवाचार पर केंद्रित है। उन्होंने साथी की संकल्पना और मार्गदर्शन प्रदान किया।'
-                  : 'Prof. Srivastava is dedicated to inclusive and innovative education. She envisioned and supervised the SAATHI project.',
+              bio:
+                  'Assistant Professor. Anveshna heads the Cognition, Learning and Innovation in Pedagogy (CLIP) lab in the Deptt. of Cognitive Science at IIT Kanpur. She envisioned and supervised the Saathi project.',
             ),
 
             const SizedBox(height: 32),
