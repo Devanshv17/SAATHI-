@@ -51,7 +51,6 @@ class _MatchingPageState extends State<MatchingPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize AI service (no API key here; it's fetched by your ai.dart logic)
     _aiService = AiService();
     _gameStartTime = DateTime.now();
     _loadGameState().then((_) => _loadQuestions());
@@ -205,63 +204,57 @@ class _MatchingPageState extends State<MatchingPage> {
     });
 
     await _saveGameState();
-
-    if (!isCorrect) {
-      final questionText = currentQ['text'] as String;
-      final optionTitles = opts.map((o) => o['title'] as String).toList();
-      final correctTitle = optionTitles[
-      opts.indexWhere((o) => (o['isCorrect'] as bool))];
-      final userTitle = optionTitles[_pendingSelectedIndex!];
-
-      try {
-        final fb = await _aiService.getFeedback(
-          question: questionText,
-          options: optionTitles,
-          correctAnswer: correctTitle,
-          userAnswer: userTitle,
-        );
-
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: Text(widget.isHindi ? 'AI प्रतिक्रिया' : 'AI Feedback'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Mistake: ${fb['mistake']}'),
-                  const SizedBox(height: 12),
-                  Text('Explanation: ${fb['explanation']}'),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => VideoLesson(script: fb['explanation']),
-                    ),
-                  );
-                },
-                child: Text(widget.isHindi ? 'वीडियो सीखें' : 'Watch Lesson'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(widget.isHindi ? 'ठीक है' : 'Got it'),
-              ),
-            ],
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AI feedback failed: $e')),
-        );
-      }
-    }
+    // AI hint button now appears below options
   }
 
+  Future<void> _analyzeWithAI() async {
+    final currentQ = questions[currentQuestionIndex];
+    final opts = currentQ['options'] as List<dynamic>;
+    final questionText = currentQ['text'] as String;
+    final optionTitles = opts.map((o) => o['title'] as String).toList();
+    final correctTitle =
+    optionTitles[opts.indexWhere((o) => o['isCorrect'] as bool)];
+    final userTitle = optionTitles[_pendingSelectedIndex!];
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: Text(widget.isHindi ? 'कृपया प्रतीक्षा करें' : 'Please wait'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(widget.isHindi
+                ? 'AI उत्तर का विश्लेषण कर रहा है...'
+                : 'AI is analyzing your answer...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final fb = await _aiService.getFeedback(
+        question: questionText,
+        options: optionTitles,
+        correctAnswer: correctTitle,
+        userAnswer: userTitle,
+      );
+      Navigator.of(context).pop(); // close loading
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => VideoLesson(script: fb['explanation']),
+        ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('AI feedback failed: $e')),
+      );
+    }
+  }
 
   void _previousQuestion() {
     if (currentQuestionIndex > 0) {
@@ -326,7 +319,6 @@ class _MatchingPageState extends State<MatchingPage> {
     }
 
     final currentQ = questions[currentQuestionIndex];
-    final qText = currentQ['text'] as String;
     final opts = currentQ['options'] as List<dynamic>;
 
     return Scaffold(
@@ -334,8 +326,7 @@ class _MatchingPageState extends State<MatchingPage> {
       appBar: AppBar(
         title: Text(
           widget.gameTitle,
-          style:
-          const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.blue.shade300,
         actions: [
@@ -347,22 +338,20 @@ class _MatchingPageState extends State<MatchingPage> {
       ),
       body: SafeArea(
         child: Padding(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             children: [
               Text(
-                qText,
+                currentQ['text'] as String,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w600),
+                style:
+                const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 30),
               Expanded(
                 child: GridView.builder(
                   itemCount: opts.length,
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: 14,
                     crossAxisSpacing: 14,
@@ -374,8 +363,7 @@ class _MatchingPageState extends State<MatchingPage> {
                         _pendingSelectedIndex == idx && !_hasSubmitted;
                     final showResult =
                         _pendingSelectedIndex == idx && _hasSubmitted;
-                    final isCorrectOpt =
-                    option['isCorrect'] as bool;
+                    final isCorrectOpt = option['isCorrect'] as bool;
 
                     Color borderColor = Colors.white10;
                     Widget? overlayIcon;
@@ -385,38 +373,31 @@ class _MatchingPageState extends State<MatchingPage> {
                       borderColor =
                       isCorrectOpt ? Colors.green : Colors.red;
                       overlayIcon = Icon(
-                        isCorrectOpt
-                            ? Icons.check_circle
-                            : Icons.cancel,
+                        isCorrectOpt ? Icons.check_circle : Icons.cancel,
                         color: borderColor,
                         size: 50,
                       );
                     }
 
                     return GestureDetector(
-                      onTap: _hasSubmitted
-                          ? null
-                          : () => _selectOption(idx),
+                      onTap: _hasSubmitted ? null : () => _selectOption(idx),
                       child: Stack(
                         children: [
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(15),
-                              border: Border.all(
-                                  color: borderColor, width: 3),
+                              border: Border.all(color: borderColor, width: 3),
                               boxShadow: [
                                 BoxShadow(
-                                  color:
-                                  Colors.grey.withOpacity(0.2),
+                                  color: Colors.grey.withOpacity(0.2),
                                   blurRadius: 4,
                                   spreadRadius: 1,
                                 )
                               ],
                             ),
                             child: ClipRRect(
-                              borderRadius:
-                              BorderRadius.circular(15),
+                              borderRadius: BorderRadius.circular(15),
                               child: Stack(
                                 children: [
                                   Positioned.fill(
@@ -426,8 +407,7 @@ class _MatchingPageState extends State<MatchingPage> {
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
                                             fontSize: 18,
-                                            fontWeight:
-                                            FontWeight.bold),
+                                            fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                   ),
@@ -435,11 +415,10 @@ class _MatchingPageState extends State<MatchingPage> {
                                     Positioned.fill(
                                       child: BackdropFilter(
                                         filter: ImageFilter.blur(
-                                            sigmaX: 1.0,
-                                            sigmaY: 1.0),
+                                            sigmaX: 1.0, sigmaY: 1.0),
                                         child: Container(
-                                          color: Colors.black
-                                              .withOpacity(0.2),
+                                          color:
+                                          Colors.black.withOpacity(0.2),
                                         ),
                                       ),
                                     ),
@@ -448,21 +427,40 @@ class _MatchingPageState extends State<MatchingPage> {
                             ),
                           ),
                           if (overlayIcon != null)
-                            Positioned(
-                                top: 5, right: 5, child: overlayIcon),
+                            Positioned(top: 5, right: 5, child: overlayIcon),
                         ],
                       ),
                     );
                   },
                 ),
               ),
+
+              // AI Hint button (only shows after submission)
+              if (_hasSubmitted && !_currentIsCorrect)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12.0),
+                  child: ElevatedButton.icon(
+                    onPressed: _analyzeWithAI,
+                    icon: const Icon(Icons.lightbulb_outline),
+                    label: Text(widget.isHindi
+                        ? 'AI से सही उत्तर जानें'
+                        : 'Know the correct answer using AI'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF9F3ACDFF),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 15),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+
+              // Score display
               const SizedBox(height: 15),
               Column(
                 children: [
                   Text(
-                    widget.isHindi
-                        ? "अंक: $score"
-                        : "Score: $score",
+                    widget.isHindi ? "अंक: $score" : "Score: $score",
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold),
                   ),
@@ -475,21 +473,20 @@ class _MatchingPageState extends State<MatchingPage> {
                 ],
               ),
               const SizedBox(height: 15),
+
+              // Action buttons
               Row(
-                mainAxisAlignment:
-                MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
                     onPressed: currentQuestionIndex > 0
                         ? _previousQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                      currentQuestionIndex > 0
+                      backgroundColor: currentQuestionIndex > 0
                           ? Colors.orange
                           : Colors.grey,
-                      padding:
-                      const EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 15),
                     ),
                     child: Text(
@@ -520,8 +517,7 @@ class _MatchingPageState extends State<MatchingPage> {
                   ElevatedButton(
                     onPressed: (_hasSubmitted ||
                         userAnswers.containsKey(
-                            questions[currentQuestionIndex]
-                            ['id']))
+                            questions[currentQuestionIndex]['id']))
                         ? _nextQuestion
                         : null,
                     style: ElevatedButton.styleFrom(
