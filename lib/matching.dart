@@ -425,7 +425,7 @@ class _MatchingPageState extends State<MatchingPage> {
                                         option['title'] as String,
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
-                                            fontSize: 18,
+                                            fontSize: 40,
                                             fontWeight:
                                             FontWeight.bold),
                                       ),

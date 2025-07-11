@@ -485,7 +485,7 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
                                         child: Text(
                                           o['title'] ?? '',
                                           style: TextStyle(
-                                            fontSize: 24,
+                                            fontSize: 40,
                                             fontWeight: FontWeight.bold,
                                             color: showRes
                                                 ? (corr

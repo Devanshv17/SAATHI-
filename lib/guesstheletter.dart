@@ -500,7 +500,7 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
                 child: Text(
                   option['title'] as String,
                   style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold),
+                      fontSize: 40, fontWeight: FontWeight.bold),
                 ),
               ),
             ),

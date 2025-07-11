@@ -512,7 +512,7 @@ Future<void> _performDeleteAccount() async {
               ),
             ),
         
-            const SizedBox(height: 30),
+            const SizedBox(height: 50),
       
           ],
         ),
