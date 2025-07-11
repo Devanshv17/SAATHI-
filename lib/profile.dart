@@ -1017,7 +1017,7 @@ Widget _getBadge(double ratio, {required bool isHindi}) {
     IconData icon;
 
    if (ratio < 0.25) {
-      label = isHindi ? 'स्तर 1' : 'Level 1';
+      label = isHindi ? 'स्तर १' : 'Level 1';
       color = Colors.redAccent;
       icon = Icons.flag_rounded; // 🏳️ Start flag
     } else if (ratio < 0.5) {

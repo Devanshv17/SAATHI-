@@ -14,44 +14,34 @@ class TeamPage extends StatelessWidget {
 
      final List<TeamMember> teamMembers = [
       TeamMember(
-        name: isHindi ? 'देवांश वर्मा' : 'Devansh Verma',
-        role: isHindi ? 'डेवलपर' : 'Developer',
-        bio: isHindi
-            ? 'MTH UG ’22 • ऐप विकास और एआई/एमएल उत्साही, विचारों को कोड में बदलने वाले।'
-            : 'MTH UG ’22 • App dev & AI/ML enthusiast, turning ideas into code.',
+        name:  'Devansh Verma',
+        role: 'Developer',
+        bio:  'MTH UG ’22 • App dev & AI/ML enthusiast, turning ideas into code.',
         image: 'assets/Devansh.jpeg',
       ),
       TeamMember(
-        name: isHindi ? 'रिया संकेत काशीवे' : 'Riya Sanket Kashive',
-        role: isHindi ? 'डेवलपर' : 'Developer',
-        bio: isHindi
-            ? 'CEUG Y22, आईआईटी कानपुर में SIGCHI की उपाध्यक्ष और UX/UI डिजाइनर'
-            : 'CEUG Y22, Chair at SIGCHI IITK and obsessive designer',
+        name: 'Riya Sanket Kashive',
+        role: 'Developer',
+        bio:  'CEUG Y22, Chair at SIGCHI IITK and obsessive designer',
         image: 'assets/Riya.jpg',
       ),
          TeamMember(
-        name: isHindi ? 'सुमित विश्वकर्मा' : 'Sumit Vishwakarma',
-        role: isHindi ? 'डेवलपर' : 'Developer',
-        bio: isHindi
-            ? "EE IITK'27 | तकनीक की खोज, प्रभाव की रचना।"
-            : "EE IITK'27 | Exploring tech, creating impact.",
+        name:'Sumit Vishwakarma',
+        role: 'Developer',
+        bio: "EE IITK'27 | Exploring tech, creating impact.",
         image: 'assets/Sumit.jpeg',
       ),
       TeamMember(
-        name: isHindi ? 'प्रित्वीराज घोष' : 'Prithviraj Ghosh',
-        role: isHindi ? 'डेवलपर' : 'Developer',
-        bio: isHindi
-            ? 'गणित और सांख्यिकी विभाग सचिव, एसीएम SIGCHI आईआईटी कानपुर छात्र शाखा'
-            : 'Department of Mathematics and Statistics Secretary at ACM SIGCHI IIT Kanpur Student Chapter',
+        name:  'Prithviraj Ghosh',
+        role: 'Developer',
+        bio:'Department of Mathematics and Statistics Secretary at ACM SIGCHI IIT Kanpur Student Chapter',
         image: 'assets/Prithviraj.jpg',
       ),
    
          TeamMember(
-        name: isHindi ? 'सोनाली कुमारी' : 'Sonali Kumari',
-        role: isHindi ? 'डेवलपर' : 'Developer',
-        bio: isHindi
-            ? "अर्थशास्त्र, आईआईटी कानपुर '27"
-            : "Economics IITK'27",
+        name:  'Sonali Kumari',
+        role:  'Developer',
+        bio:  "Economics IITK'27",
         image: 'assets/Sonali.jpg',
       ),
    
@@ -103,9 +93,9 @@ class TeamPage extends StatelessWidget {
             const SizedBox(height: 16),
             _buildMemberCard(
               image: 'assets/Anveshna.jpg',
-              name: isHindi ? 'डॉ. अन्वेषणा श्रीवास्तव' : 'Dr. Anveshna Srivastava',
+              name: 'Dr. Anveshna Srivastava',
               role:
-                  isHindi ? 'प्रोफेसर, आईआईटी कानपुर' : 'Professor, IIT Kanpur',
+                  'Assistant Professor, IIT Kanpur',
               bio:
                   'Assistant Professor. Anveshna heads the Cognition, Learning and Innovation in Pedagogy (CLIP) lab in the Deptt. of Cognitive Science at IIT Kanpur. She envisioned and supervised the Saathi project.',
             ),

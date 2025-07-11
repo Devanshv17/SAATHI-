@@ -408,214 +408,215 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
           ],
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Text(
-                    question,
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 17),
-                  Wrap(
-                    spacing: 10,
-                    children: imageAssets
-                        .map((asset) =>
-                            Image.asset(asset, width: 45, height: 45))
-                        .toList(),
-                  ),
-                  const SizedBox(height: 20),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: options.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 15,
-                      crossAxisSpacing: 15,
-                      childAspectRatio: 1.5,
-                    ),
-                    itemBuilder: (context, i) {
-                      final o = options[i];
-                      final isSel = _selectedOptionIndex == i;
-                      final showRes =
-                          _hasSubmitted && _selectedOptionIndex == i;
-                      final corr = o['isCorrect'] == true;
-                      return GestureDetector(
-                        onTap: () {
-                          if (!_hasSubmitted &&
-                              !userAnswers.containsKey(currentDocId)) {
-                            setState(() => _selectedOptionIndex = i);
-                          }
-                        },
-                        child: Stack(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(15),
-                                border: isSel && !_hasSubmitted
-                                    ? Border.all(color: Colors.blue, width: 4)
-                                    : showRes
-                                        ? Border.all(
-                                            color: corr
-                                                ? Colors.green
-                                                : Colors.red,
-                                            width: 4)
-                                        : null,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.3),
-                                    spreadRadius: 2,
-                                    blurRadius: 5,
-                                  )
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(15),
-                                child: Stack(
-                                  children: [
-                                    Positioned.fill(
-                                      child: Center(
-                                        child: Text(
-                                          o['title'] ?? '',
-                                          style: TextStyle(
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.bold,
-                                            color: showRes
-                                                ? (corr
-                                                    ? Colors.green
-                                                    : Colors.red)
-                                                : Colors.black,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    if (showRes)
-                                      Positioned.fill(
-                                        child: BackdropFilter(
-                                          filter: ImageFilter.blur(
-                                              sigmaX: 1.0, sigmaY: 1.0),
-                                          child: Container(
-                                            color:
-                                                Colors.black.withOpacity(0.2),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (showRes)
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Icon(
-                                  corr ? Icons.check_circle : Icons.cancel,
-                                  size: 50,
-                                  color: corr ? Colors.green : Colors.red,
-                                ),
-                              ),
+     body: Column(
+  children: [
+    Expanded(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(
+              question,
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 17),
+            Wrap(
+              spacing: 10,
+              children: imageAssets
+                  .map((asset) =>
+                      Image.asset(asset, width: 45, height: 45))
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: options.length,
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 15,
+                crossAxisSpacing: 15,
+                childAspectRatio: 1.5,
+              ),
+              itemBuilder: (context, i) {
+                final o = options[i];
+                final isSel = _selectedOptionIndex == i;
+                final showRes =
+                    _hasSubmitted && _selectedOptionIndex == i;
+                final corr = o['isCorrect'] == true;
+                return GestureDetector(
+                  onTap: () {
+                    if (!_hasSubmitted &&
+                        !userAnswers.containsKey(currentDocId)) {
+                      setState(() => _selectedOptionIndex = i);
+                    }
+                  },
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          border: isSel && !_hasSubmitted
+                              ? Border.all(color: Colors.blue, width: 4)
+                              : showRes
+                                  ? Border.all(
+                                      color: corr
+                                          ? Colors.green
+                                          : Colors.red,
+                                      width: 4)
+                                  : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.3),
+                              spreadRadius: 2,
+                              blurRadius: 5,
+                            )
                           ],
                         ),
-                      );
-                    },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: Center(
+                                  child: Text(
+                                    o['title'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: showRes
+                                          ? (corr
+                                              ? Colors.green
+                                              : Colors.red)
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (showRes)
+                                Positioned.fill(
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                        sigmaX: 1.0, sigmaY: 1.0),
+                                    child: Container(
+                                      color:
+                                          Colors.black.withOpacity(0.2),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (showRes)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Icon(
+                            corr ? Icons.check_circle : Icons.cancel,
+                            size: 50,
+                            color: corr ? Colors.green : Colors.red,
+                          ),
+                        ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
-          ),
+          ],
+        ),
+      ),
+    ),
 
-          
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
-              children: [
-                Text(
-                  widget.isHindi ? "अंक: $score" : "Score: $score",
+    // ⬇️ ADD this section (score + buttons)
+    Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        children: [
+          Text(
+            widget.isHindi ? "अंक: $score" : "Score: $score",
+            style:
+                const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            widget.isHindi
+                ? "सही: $correctCount | गलत: $incorrectCount"
+                : "Correct: $correctCount | Incorrect: $incorrectCount",
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton(
+                onPressed: _goToPreviousQuestion,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: currentQuestionIndex > 0
+                      ? Colors.orange
+                      : Colors.grey,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 15),
+                ),
+                child: Text(
+                  widget.isHindi ? "पिछला" : "Previous",
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
-                Text(
-                  widget.isHindi
-                      ? "सही: $correctCount | गलत: $incorrectCount"
-                      : "Correct: $correctCount | Incorrect: $incorrectCount",
-                  style: const TextStyle(fontSize: 16),
+              ),
+              ElevatedButton(
+                onPressed: (_selectedOptionIndex != null &&
+                        !_hasSubmitted &&
+                        !userAnswers.containsKey(currentDocId))
+                    ? _submitAnswer
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 15),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: _goToPreviousQuestion,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: currentQuestionIndex > 0
-                            ? Colors.orange
-                            : Colors.grey,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 15),
-                      ),
-                      child: Text(
-                        widget.isHindi ? "पिछला" : "Previous",
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: (_selectedOptionIndex != null &&
-                              !_hasSubmitted &&
-                              !userAnswers.containsKey(currentDocId))
-                          ? _submitAnswer
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 15),
-                      ),
-                      child: Text(
-                        widget.isHindi ? "जमा करें" : "Submit",
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: (_hasSubmitted ||
-                              userAnswers.containsKey(currentDocId))
-                          ? _goToNextQuestion
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: (_hasSubmitted ||
-                                userAnswers.containsKey(currentDocId))
-                            ? Colors.green
-                            : Colors.grey,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 15),
-                      ),
-                      child: Text(
-                        widget.isHindi ? "अगला" : "Next",
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  widget.isHindi ? "जमा करें" : "Submit",
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
-              ],
-            ),
+              ),
+              ElevatedButton(
+                onPressed: (_hasSubmitted ||
+                        userAnswers.containsKey(currentDocId))
+                    ? _goToNextQuestion
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: (_hasSubmitted ||
+                          userAnswers.containsKey(currentDocId))
+                      ? Colors.green
+                      : Colors.grey,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 15),
+                ),
+                child: Text(
+                  widget.isHindi ? "अगला" : "Next",
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    ),
+  ],
+),
     );
+
   }
 }
 
