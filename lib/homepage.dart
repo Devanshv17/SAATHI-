@@ -316,10 +316,14 @@ class _HomePageState extends State<HomePage> {
               buildBox('Box9', isHindi, Colors.blue.shade100, 'assets/ak.png','assets/akh.jpg'),
               buildBox('Box10', isHindi, Colors.blue.shade100, 'assets/lr.png','assets/lrh.jpg'),
               buildBox('Box11', isHindi, Colors.blue.shade100, 'assets/fs.png','assets/fsh.jpg'),
+              const SizedBox(height: 40),
             ],
+            
           ),
         ),
+        
       ),
+      
     );
   }
 }

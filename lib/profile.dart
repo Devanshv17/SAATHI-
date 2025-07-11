@@ -421,9 +421,9 @@ Padding(
   child: _buildGameProgressBars(isHindi: isHindi),
 ),
 
-      const SizedBox(height: 30),
+      const SizedBox(height: 40),
          Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 50),
                   child: Text(
                     isHindi ? 'खेल प्रगति' : ' Game Progress',
                     style: GoogleFonts.poppins(
@@ -451,7 +451,7 @@ Padding(
                 
            _buildMonthlyHeatmap(isHindi: isHindi),
 
-
+const SizedBox(height: 30),
 
 
               ],
@@ -763,17 +763,7 @@ Padding(
 
     return Column(
       children: [
-          Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Text(
-            isHindi ? 'खेल प्रगति' : ' Game Progress',
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.indigo.shade800,
-            ),
-          ),
-        ),
+        const SizedBox(height: 25),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

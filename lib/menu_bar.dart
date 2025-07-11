@@ -98,6 +98,15 @@ class CustomMenuBar extends StatelessWidget {
                         Navigator.pushNamed(context, '/about');
                       },
                     ),
+                    _buildMenuItem(
+                      iconData: Icons.group,
+                      title: isHindi ? "टीम" : "Team",
+                      onTap: () {
+                        // Handle About SAATHI tap.
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/team');
+                      },
+                    ),
                   ],
                 ),
               ),

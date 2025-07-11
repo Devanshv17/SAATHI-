@@ -530,6 +530,8 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
               ),
             ),
           ),
+
+          
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(

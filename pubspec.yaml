@@ -112,6 +112,13 @@ flutter:
      - assets/ltth.jpg
      - assets/akh.jpg
      - assets/archery.png
+     - assets/Devansh.jpeg
+     - assets/Riya.jpg
+     - assets/Sumit.jpeg
+     - assets/Prithviraj.jpg
+     - assets/Anveshna.jpg
+     - assets/Sonali.jpg
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

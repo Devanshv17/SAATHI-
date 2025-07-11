@@ -248,8 +248,8 @@ Future<void> _performDeleteAccount() async {
                   TextSpan(
                     
                     text: isHindi
-                        ? 'साथी एक मोबाइल ऐप है जो वंचित बच्चों के लिए शिक्षा को सुलभ, आकर्षक और समावेशी बनाने हेतु डिज़ाइन किया गया है। यह ऐप मज़ेदार खेलों और इंटरएक्टिव गतिविधियों के माध्यम से बुनियादी साक्षरता, गणित और सामान्य ज्ञान सिखाने में मदद करता है। साथी का उद्देश्य तकनीक और रचनात्मक शिक्षण विधियों के माध्यम से शिक्षा की खाई को पाटना है।\n\n'
-                        : 'SAATHI is a gamified mobile learning platform designed to make foundational education accessible, engaging, and inclusive for children from financially disadvantaged backgrounds. Developed with a deep understanding of the challenges faced by underprivileged kids, SAATHI aims to bridge the educational divide using technology and creative pedagogy.\n\n',
+                        ? 'साथी एक मोबाइल ऐप है जो पूर्व-प्राथमिक बच्चों के लिए शिक्षा को सुलभ, आकर्षक और समावेशी बनाने हेतु डिज़ाइन किया गया है। यह ऐप मज़ेदार खेलों और इंटरएक्टिव गतिविधियों के माध्यम से बुनियादी साक्षरता, गणित और सामान्य ज्ञान सिखाने में मदद करता है। साथी का उद्देश्य तकनीक और रचनात्मक शिक्षण विधियों के माध्यम से शिक्षा की खाई को पाटना है।\n\n'
+                        : 'SAATHI is a gamified mobile learning platform designed to make foundational education accessible, engaging, and inclusive for pre-primary childrens. Developed with a deep understanding of the challenges faced by pre-primary kids, SAATHI aims to bridge the educational divide using technology and creative pedagogy.\n\n',
                   ),
                   TextSpan(
                     text:
@@ -484,6 +484,7 @@ Future<void> _performDeleteAccount() async {
                   ),
                 ],
               ),
+              
             ),
 
             // Subtle red TextButton version of Delete
@@ -511,7 +512,7 @@ Future<void> _performDeleteAccount() async {
               ),
             ),
         
-            
+            const SizedBox(height: 30),
       
           ],
         ),

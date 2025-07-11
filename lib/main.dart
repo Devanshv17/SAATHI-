@@ -14,6 +14,7 @@ import 'homepage.dart';
 import 'admin_homepage.dart';
 import 'login_otp.dart';
 import 'profile.dart';
+import 'team.dart';
 import 'about_saathi.dart';
 
 Future<void> main() async {
@@ -68,6 +69,7 @@ class MyApp extends StatelessWidget {
         '/admin_homepage':  (context) => const AdminHomePage(),
         '/profile': (context) => const ProfilePage(),
         '/about': (_) => const AboutSaathiPage(),
+        '/team': (_) =>  const TeamPage(),
       },
     );
   }

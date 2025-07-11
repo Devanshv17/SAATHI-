@@ -417,9 +417,10 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
           )
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
+      body: SafeArea(
+        child: Padding(
+          padding:const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
           children: [
             Text(
               widget.isHindi ? "सही समय चुनें" : "Select the correct time",
@@ -594,6 +595,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
             )
           ],
         ),
+      ),
       ),
     );
   }

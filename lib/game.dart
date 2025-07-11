@@ -406,8 +406,10 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
           ],
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Padding(
+          padding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           children: [
             Text(
@@ -489,6 +491,8 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
                 },
               ),
             ),
+
+            
             const SizedBox(height: 15),
             Column(
               children: [
@@ -541,6 +545,7 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
             ),
           ],
         ),
+      ),
       ),
     );
   }
