@@ -65,7 +65,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '525802668882',
     projectId: 'saathi-8a139',
     storageBucket: 'saathi-8a139.firebasestorage.app',
-    iosBundleId: 'com.example.saathi',
+    iosBundleId: 'com.acm.saathi',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -74,7 +74,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '525802668882',
     projectId: 'saathi-8a139',
     storageBucket: 'saathi-8a139.firebasestorage.app',
-    iosBundleId: 'com.example.saathi',
+    iosBundleId: 'com.acm.saathi',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
