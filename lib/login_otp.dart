@@ -20,6 +20,7 @@ class LoginOtpPage extends StatefulWidget {
 }
 
 class _LoginOtpPageState extends State<LoginOtpPage> {
+  bool _isVerifying = false;
   late String phone;
   bool _otpInvalid = false;
   Timer? _resendTimer;
@@ -63,13 +64,16 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
   }
 
   Future<void> _verifyOtp(FirebasePhoneAuthController ctrl) async {
-    if (_currentPin.length < 6) {
-      // shake animation
-      _errorController.add(ErrorAnimationType.shake);
-      return;
-    }
+    if (_currentPin.length < 6 || _isVerifying) return;
+
+    setState(() {
+      _isVerifying = true;
+      _otpInvalid = false; // Immediately hide previous error
+    });
 
     final ok = await ctrl.verifyOtp(_currentPin);
+    if (!mounted) return;
+
     if (!ok) {
       setState(() => _otpInvalid = true);
       _errorController.add(ErrorAnimationType.shake);
@@ -78,12 +82,19 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('loggedIn', true);
       await prefs.setString('role', 'user');
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/homepage',
-        (_) => false,
-        arguments: {'uid': uid},
-      );
+
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/homepage',
+              (_) => false,
+          arguments: {'uid': uid},
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() => _isVerifying = false);
     }
   }
 

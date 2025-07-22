@@ -42,48 +42,53 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyCACZUT_dA_DtB-Tw1vJtYlDnNUG0aBL-U',
-    appId: '1:525802668882:web:b4ba11fc126a3bf1de308b',
+    appId: '1:525802668882:web:3c4a891eccd2fda2de308b',
     messagingSenderId: '525802668882',
     projectId: 'saathi-8a139',
     authDomain: 'saathi-8a139.firebaseapp.com',
+    databaseURL: 'https://saathi-8a139-default-rtdb.firebaseio.com',
     storageBucket: 'saathi-8a139.firebasestorage.app',
-    measurementId: 'G-NJM5KXJV9H',
-    databaseURL: 'https://saathi-8a139-default-rtdb.firebaseio.com/',
+    measurementId: 'G-GNENDRE8GK',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBm7wjKnNCdg38BIyHvS_CysirzAq9UWIw',
-    appId: '1:525802668882:android:298d93afaa7eb6a6de308b',
+    apiKey: 'AIzaSyBHsHvQ5MdlqMt2CPqnbVp0iwjc8nnrba8',
+    appId: '1:525802668882:android:3b8db9fc52dd6e16de308b',
     messagingSenderId: '525802668882',
     projectId: 'saathi-8a139',
+    databaseURL: 'https://saathi-8a139-default-rtdb.firebaseio.com',
     storageBucket: 'saathi-8a139.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCy2GMudPu3kqGrnPo_6GLKgKOz3fc9xC0',
-    appId: '1:525802668882:ios:dd75b826781304d1de308b',
+    appId: '1:525802668882:ios:0aed902abceee8a1de308b',
     messagingSenderId: '525802668882',
     projectId: 'saathi-8a139',
+    databaseURL: 'https://saathi-8a139-default-rtdb.firebaseio.com',
     storageBucket: 'saathi-8a139.firebasestorage.app',
     iosBundleId: 'com.acm.saathi',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCy2GMudPu3kqGrnPo_6GLKgKOz3fc9xC0',
-    appId: '1:525802668882:ios:dd75b826781304d1de308b',
+    appId: '1:525802668882:ios:0aed902abceee8a1de308b',
     messagingSenderId: '525802668882',
     projectId: 'saathi-8a139',
+    databaseURL: 'https://saathi-8a139-default-rtdb.firebaseio.com',
     storageBucket: 'saathi-8a139.firebasestorage.app',
     iosBundleId: 'com.acm.saathi',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyCACZUT_dA_DtB-Tw1vJtYlDnNUG0aBL-U',
-    appId: '1:525802668882:web:21de2c4789e7bc4dde308b',
+    appId: '1:525802668882:web:13eec0f4d7fa8911de308b',
     messagingSenderId: '525802668882',
     projectId: 'saathi-8a139',
     authDomain: 'saathi-8a139.firebaseapp.com',
+    databaseURL: 'https://saathi-8a139-default-rtdb.firebaseio.com',
     storageBucket: 'saathi-8a139.firebasestorage.app',
-    measurementId: 'G-7Q7CTZH52N',
+    measurementId: 'G-KQEZ19WS9S',
   );
+
 }

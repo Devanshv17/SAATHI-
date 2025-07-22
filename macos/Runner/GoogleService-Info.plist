@@ -25,6 +25,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:525802668882:ios:dd75b826781304d1de308b</string>
+	<string>1:525802668882:ios:0aed902abceee8a1de308b</string>
+	<key>DATABASE_URL</key>
+	<string>https://saathi-8a139-default-rtdb.firebaseio.com</string>
 </dict>
 </plist>

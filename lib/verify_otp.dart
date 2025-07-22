@@ -19,6 +19,7 @@ class VerifyOtpPage extends StatefulWidget {
 }
 
 class _VerifyOtpPageState extends State<VerifyOtpPage> {
+  bool _isVerifying = false;
   late String phone;
   StreamController<ErrorAnimationType> _errorController = StreamController();
   bool _otpInvalid = false, _showDetailsForm = false;
@@ -86,14 +87,29 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   String get _enteredOtp => _currentPin;
 
   Future<void> _verifyOtp(FirebasePhoneAuthController ctrl) async {
-    if (_enteredOtp.length < 6) return;
+    // Prevent multiple submissions while verifying
+    if (_enteredOtp.length < 6 || _isVerifying) return;
+
+    setState(() {
+      _isVerifying = true;
+      _otpInvalid = false; // Immediately hide previous error
+    });
+
     final ok = await ctrl.verifyOtp(_enteredOtp);
+
+    // Check if the widget is still mounted before calling setState
+    if (!mounted) return;
+
     if (!ok) {
       _errorController.add(ErrorAnimationType.shake);
-      setState(() => _otpInvalid = true);
+      setState(() {
+        _otpInvalid = true;
+        _isVerifying = false;
+      });
     } else {
       setState(() {
-        _otpInvalid = false;
+        // No need to set _otpInvalid false again, but we do need to stop verifying
+        _isVerifying = false;
         _showDetailsForm = true;
       });
     }

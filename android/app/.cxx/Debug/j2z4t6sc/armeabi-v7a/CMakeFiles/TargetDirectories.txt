@@ -1,0 +1,2 @@
+/Users/devansh/SAATHI-/android/app/.cxx/Debug/j2z4t6sc/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/devansh/SAATHI-/android/app/.cxx/Debug/j2z4t6sc/armeabi-v7a/CMakeFiles/rebuild_cache.dir
