@@ -19,11 +19,14 @@ class VerifyOtpPage extends StatefulWidget {
 }
 
 class _VerifyOtpPageState extends State<VerifyOtpPage> {
-  bool _isVerifying = false;
   late String phone;
-  StreamController<ErrorAnimationType> _errorController = StreamController();
+  final StreamController<ErrorAnimationType> _errorController = StreamController();
   bool _otpInvalid = false, _showDetailsForm = false;
   String _currentPin = "";
+
+  bool _isVerifying = false;
+  // ADD THIS: Flag to ensure OTP is sent only once
+  bool _hasOtpBeenSent = false;
 
   // details form
   final _detailsFormKey = GlobalKey<FormState>();
@@ -49,6 +52,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   @override
   void dispose() {
     _resendTimer?.cancel();
+    _nameController.dispose();
+    _ageController.dispose();
+    _classController.dispose();
     _errorController.close();
     _tapGestureRecognizer.dispose();
     super.dispose();
@@ -58,10 +64,15 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     _resendTimer?.cancel();
     setState(() => _resendSeconds = 60);
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_resendSeconds == 0)
+      if (!mounted) {
         t.cancel();
-      else
+        return;
+      }
+      if (_resendSeconds == 0) {
+        t.cancel();
+      } else {
         setState(() => _resendSeconds--);
+      }
     });
   }
 
@@ -69,7 +80,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     phone = args['phone'] as String;
   }
 
@@ -78,26 +89,25 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open link')),
+        );
+      }
     }
   }
 
   String get _enteredOtp => _currentPin;
 
   Future<void> _verifyOtp(FirebasePhoneAuthController ctrl) async {
-    // Prevent multiple submissions while verifying
     if (_enteredOtp.length < 6 || _isVerifying) return;
 
     setState(() {
       _isVerifying = true;
-      _otpInvalid = false; // Immediately hide previous error
+      _otpInvalid = false;
     });
 
     final ok = await ctrl.verifyOtp(_enteredOtp);
-
-    // Check if the widget is still mounted before calling setState
     if (!mounted) return;
 
     if (!ok) {
@@ -108,7 +118,6 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       });
     } else {
       setState(() {
-        // No need to set _otpInvalid false again, but we do need to stop verifying
         _isVerifying = false;
         _showDetailsForm = true;
       });
@@ -138,7 +147,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     await prefs.setBool('loggedIn', true);
     await prefs.setString('role', 'user');
 
-    Navigator.pushNamedAndRemoveUntil(context, '/homepage', (_) => false);
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/homepage', (_) => false);
+    }
   }
 
   @override
@@ -147,10 +158,23 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     return FirebasePhoneAuthHandler(
       phoneNumber: phone,
       signOutOnSuccessfulVerification: false,
-      sendOtpOnInitialize: true,
-      otpExpirationDuration: const Duration(seconds: 60),
-      autoRetrievalTimeOutDuration: const Duration(seconds: 60),
+      // CHANGE THIS: to false to control sending manually
+      sendOtpOnInitialize: false,
+      otpExpirationDuration: const Duration(minutes: 10),
+      autoRetrievalTimeOutDuration: Duration.zero,
       builder: (ctx, controller) {
+        // ADD THIS: Logic to send OTP only once
+        if (!_hasOtpBeenSent) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              controller.sendOTP();
+              setState(() {
+                _hasOtpBeenSent = true;
+              });
+            }
+          });
+        }
+
         return Scaffold(
           resizeToAvoidBottomInset: true,
           backgroundColor: Colors.grey[50],
@@ -227,11 +251,13 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           errorAnimationController: _errorController,
           keyboardType: TextInputType.number,
           textStyle:
-              GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w500),
+          GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w500),
           onChanged: (val) {
             setState(() {
               _currentPin = val;
-              _otpInvalid = false;
+              if (_otpInvalid) {
+                _otpInvalid = false; // Reset error when user types
+              }
             });
           },
           onCompleted: (_) => _verifyOtp(ctrl),
@@ -249,14 +275,19 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         const SizedBox(height: 24),
         SizedBox(
           height: 52,
+          // CHANGE THIS: To show loading indicator on the button
           child: ElevatedButton(
-            onPressed: () => _verifyOtp(ctrl),
+            onPressed: _isVerifying ? null : () => _verifyOtp(ctrl),
             style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               padding: EdgeInsets.zero,
             ),
-            child: Ink(
+            child: _isVerifying
+                ? const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation(Colors.white),
+            )
+                : Ink(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
@@ -279,21 +310,23 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         Center(
           child: _resendSeconds > 0
               ? Text(
-                  isHindi
-                      ? 'OTP फिर से भेजें में $_resendSeconds सेकंड'
-                      : 'Resend OTP in $_resendSeconds s',
-                  style: GoogleFonts.poppins(),
-                )
+            isHindi
+                ? 'OTP फिर से भेजें में $_resendSeconds सेकंड'
+                : 'Resend OTP in $_resendSeconds s',
+            style: GoogleFonts.poppins(),
+          )
               : TextButton(
-                  onPressed: () {
-                    ctrl.sendOTP();
-                    _startResendCountdown();
-                  },
-                  child: Text(
-                    isHindi ? 'OTP पुनः भेजें' : 'Resend OTP',
-                    style: GoogleFonts.poppins(color: Colors.blueAccent),
-                  ),
-                ),
+            // CHANGE THIS: Add safety check
+            onPressed: () {
+              if (_isVerifying) return;
+              ctrl.sendOTP();
+              _startResendCountdown();
+            },
+            child: Text(
+              isHindi ? 'OTP पुनः भेजें' : 'Resend OTP',
+              style: GoogleFonts.poppins(color: Colors.blueAccent),
+            ),
+          ),
         ),
       ],
     );
@@ -315,6 +348,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               _ageController, isHindi ? 'आयु' : 'Age', Icons.calendar_today,
               isNumber: true),
           const SizedBox(height: 16),
+          // CHANGE THIS: Added validator
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
               filled: true,
@@ -322,16 +356,19 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               prefixIcon: const Icon(Icons.wc),
               labelText: isHindi ? 'लिंग' : 'Gender',
               border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             dropdownColor: Colors.white,
             icon: const Icon(Icons.arrow_drop_down,
                 size: 28, color: Colors.blueAccent),
             items: ['Male', 'Female', 'Other']
                 .map((g) => DropdownMenuItem(
-                    value: g, child: Text(isHindi ? _translateGender(g) : g)))
+                value: g, child: Text(isHindi ? _translateGender(g) : g)))
                 .toList(),
             onChanged: (v) => setState(() => _gender = v),
+            validator: (v) => (v == null || v.isEmpty)
+                ? (isHindi ? 'यह आवश्यक है' : 'Required')
+                : null,
           ),
           const SizedBox(height: 16),
           CheckboxListTile(
@@ -340,6 +377,8 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                 style: GoogleFonts.poppins()),
             value: _goToSchool,
             onChanged: (v) => setState(() => _goToSchool = v!),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
           ),
           if (_goToSchool) ...[
             const SizedBox(height: 8),
@@ -422,6 +461,8 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
   Widget _buildField(TextEditingController ctrl, String label, IconData icon,
       {bool isNumber = false}) {
+    // CHANGE THIS: Added language-aware validation
+    final isHindi = Provider.of<LanguageNotifier>(context, listen: false).isHindi;
     return TextFormField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
@@ -430,7 +471,15 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         labelText: label,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+      validator: (v) {
+        if (v == null || v.isEmpty) {
+          return isHindi ? 'यह आवश्यक है' : 'Required';
+        }
+        if (isNumber && int.tryParse(v) == null) {
+          return isHindi ? 'अमान्य संख्या' : 'Invalid number';
+        }
+        return null;
+      },
     );
   }
 }

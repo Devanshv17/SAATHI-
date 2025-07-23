@@ -20,15 +20,17 @@ class LoginOtpPage extends StatefulWidget {
 }
 
 class _LoginOtpPageState extends State<LoginOtpPage> {
-  bool _isVerifying = false;
   late String phone;
   bool _otpInvalid = false;
   Timer? _resendTimer;
   int _resendSeconds = 60;
 
+  bool _isVerifying = false;
   String _currentPin = '';
   final StreamController<ErrorAnimationType> _errorController =
-      StreamController<ErrorAnimationType>.broadcast();
+  StreamController<ErrorAnimationType>.broadcast();
+
+  bool _hasOtpBeenSent = false;
 
   @override
   void initState() {
@@ -47,6 +49,10 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
     _resendTimer?.cancel();
     setState(() => _resendSeconds = 60);
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
       if (_resendSeconds == 0) {
         t.cancel();
       } else {
@@ -59,7 +65,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     phone = args['phone'] as String;
   }
 
@@ -68,7 +74,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
 
     setState(() {
       _isVerifying = true;
-      _otpInvalid = false; // Immediately hide previous error
+      _otpInvalid = false;
     });
 
     final ok = await ctrl.verifyOtp(_currentPin);
@@ -105,10 +111,22 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
     return FirebasePhoneAuthHandler(
       phoneNumber: phone,
       signOutOnSuccessfulVerification: false,
-      sendOtpOnInitialize: true,
-      otpExpirationDuration: const Duration(seconds: 60),
-      autoRetrievalTimeOutDuration: const Duration(seconds: 60),
+      sendOtpOnInitialize: false,
+      otpExpirationDuration: const Duration(minutes: 10),
+      autoRetrievalTimeOutDuration: Duration.zero,
       builder: (context, controller) {
+        // CORRECTED: Removed invalid 'isSendingOtp' check
+        if (!_hasOtpBeenSent) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              controller.sendOTP();
+              setState(() {
+                _hasOtpBeenSent = true;
+              });
+            }
+          });
+        }
+
         return Scaffold(
           backgroundColor: Colors.grey[50],
           appBar: NavBar(
@@ -196,13 +214,17 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                 SizedBox(
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: () => _verifyOtp(controller),
+                    onPressed: _isVerifying ? null : () => _verifyOtp(controller),
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       padding: EdgeInsets.zero,
                     ),
-                    child: Ink(
+                    child: _isVerifying
+                        ? const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    )
+                        : Ink(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
@@ -225,22 +247,24 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                 Center(
                   child: _resendSeconds > 0
                       ? Text(
-                          isHindi
-                              ? 'OTP फिर से भेजें में $_resendSeconds सेकंड'
-                              : 'Resend OTP in $_resendSeconds s',
-                          style: GoogleFonts.poppins(),
-                        )
+                    isHindi
+                        ? 'OTP फिर से भेजें में $_resendSeconds सेकंड'
+                        : 'Resend OTP in $_resendSeconds s',
+                    style: GoogleFonts.poppins(),
+                  )
                       : TextButton(
-                          onPressed: () {
-                            controller.sendOTP();
-                            _startResendCountdown();
-                          },
-                          child: Text(
-                            isHindi ? 'OTP पुनः भेजें' : 'Resend OTP',
-                            style:
-                                GoogleFonts.poppins(color: Colors.blueAccent),
-                          ),
-                        ),
+                    // CORRECTED: Removed invalid 'isSendingOtp' check
+                    onPressed: () {
+                      if (_isVerifying) return;
+                      controller.sendOTP();
+                      _startResendCountdown();
+                    },
+                    child: Text(
+                      isHindi ? 'OTP पुनः भेजें' : 'Resend OTP',
+                      style:
+                      GoogleFonts.poppins(color: Colors.blueAccent),
+                    ),
+                  ),
                 ),
               ],
             ),
