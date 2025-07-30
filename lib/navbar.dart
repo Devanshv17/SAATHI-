@@ -19,26 +19,31 @@ class NavBar extends StatelessWidget implements PreferredSizeWidget {
       // If the drawer menu is enabled, show it; otherwise no leading icon.
       leading: showMenuButton
           ? IconButton(
+              padding: EdgeInsets.only(left: 11.0),
+              iconSize: 50.0,
+              color: Color.fromARGB(255, 239, 255, 245),
               icon: const Icon(Icons.menu),
               onPressed: () => Scaffold.of(context).openDrawer(),
             )
           : null,
-      backgroundColor: const Color.fromARGB(255, 112, 60, 254),
+      backgroundColor: const Color.fromARGB(255, 101, 65, 239
+      ),
       elevation: 1,
       // Title row: logo + text
       title: Row(
         children: [
           Image.asset(
             'assets/logo.png',
-            height: 24,
+            height: 40,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Text(
-            isHindi ? 'साथी' : 'SAATHI',
+            isHindi ? 'साथी' : 'Saathi',
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              color: Color.fromARGB(255, 239, 255, 245),
+              fontSize: 28,
+              fontWeight: FontWeight.normal,
+              fontFamily: 'MyCustomFont',
             ),
           ),
         ],
@@ -47,26 +52,27 @@ class NavBar extends StatelessWidget implements PreferredSizeWidget {
       // Language toggle stays on the right
       actions: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 11.0),
           child: Row(
             children: [
               Text(
                 'EN',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Color.fromARGB(255, 191, 235, 239),
                   fontWeight: isHindi ? FontWeight.normal : FontWeight.bold,
+                  fontSize: 20,
                 ),
               ),
               Switch(
                 value: isHindi,
                 onChanged: onToggleLanguage,
-                activeColor: const Color.fromARGB(255, 6, 23, 0),
+                activeColor: const Color.fromARGB(255, 239, 255, 245),
               ),
               Text(
                 'हिंदी',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: isHindi ? FontWeight.bold : FontWeight.normal,
+                  color: Color.fromARGB(255, 191, 235, 239),
+                  fontWeight: isHindi ? FontWeight.bold : FontWeight.normal, fontSize: 20,
                 ),
               ),
             ],

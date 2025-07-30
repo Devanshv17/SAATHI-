@@ -322,16 +322,16 @@ class _MatchingPageState extends State<MatchingPage> {
     final opts = currentQ['options'] as List<dynamic>;
 
     return Scaffold(
-      backgroundColor: Colors.lightBlue[50],
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: AppBar(
         title: Text(
           widget.gameTitle,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold,color: Color.fromARGB(255, 245, 255, 255),fontFamily: 'MyCustomFont'),
         ),
-        backgroundColor: Colors.blue.shade300,
+        backgroundColor: Color.fromARGB(255, 101, 65, 239),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(Icons.info_outline,color: Color.fromARGB(255, 245, 255, 255)),
             onPressed: _showInstructionsDialog,
           )
         ],

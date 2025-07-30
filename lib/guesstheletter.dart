@@ -339,20 +339,20 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.lightBlue[50],
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade300,
+        backgroundColor: Color.fromARGB(255, 101, 65, 239),
         title: Row(
           children: [
             Expanded(
               child: Text(
                 widget.gameTitle,
                 style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'MyCustomFont', color: Color.fromARGB(255, 245, 255, 255)),
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.info_outline, size: 28),
+              icon: const Icon(Icons.info_outline, size: 28, color: Color.fromARGB(255, 245, 255, 255),),
               onPressed: () => showDialog(
                 context: context,
                 builder: (_) => AlertDialog(

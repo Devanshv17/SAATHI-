@@ -121,10 +121,10 @@ Future<void> _performDeleteAccount() async {
                 isHindi
                     ? 'क्या आप खाता हटाना चाहते हैं?'
                     : 'Are you sure you want to delete your account?',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.trocchi(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87),
+                    color: Color.fromARGB(255, 101, 65, 239)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -132,8 +132,8 @@ Future<void> _performDeleteAccount() async {
                 isHindi
                     ? 'यह क्रिया स्थायी है। जारी रखने के लिए नीचे "delete" लिखें।'
                     : 'This action is permanent. Type "delete" below to confirm.',
-                style: GoogleFonts.poppins(
-                    fontSize: 16, color: Colors.black54, height: 1.4),
+                style: GoogleFonts.trocchi(
+                    fontSize: 16, color: Color.fromARGB(255, 101, 65, 239), height: 1.4),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -141,12 +141,12 @@ Future<void> _performDeleteAccount() async {
                 controller: controller,
                 decoration: InputDecoration(
                   hintText: 'delete',
-                  hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                  hintStyle: GoogleFonts.trocchi(color: Colors.grey),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade300)),
                 ),
-                style: GoogleFonts.poppins(fontSize: 16),
+                style: GoogleFonts.trocchi(fontSize: 16),
               ),
               const SizedBox(height: 24),
               Row(
@@ -162,10 +162,10 @@ Future<void> _performDeleteAccount() async {
                       onPressed: () => Navigator.of(ctx).pop(),
                       child: Text(
                         isHindi ? 'रद्द करें' : 'Cancel',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.trocchi(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black87),
+                            color: Color.fromARGB(255, 101, 65, 239)),
                       ),
                     ),
                   ),
@@ -194,7 +194,7 @@ Future<void> _performDeleteAccount() async {
                               : null,
                           child: Text(
                             isHindi ? 'हटाएं' : 'Delete',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.trocchi(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white),
@@ -214,9 +214,11 @@ Future<void> _performDeleteAccount() async {
 
   @override
   Widget build(BuildContext context) {
+
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
 
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: NavBar(
         isHindi: isHindi,
         onToggleLanguage: (_) {
@@ -237,24 +239,25 @@ Future<void> _performDeleteAccount() async {
            RichText(
               textAlign: TextAlign.justify,
               text: TextSpan(
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.trocchi(
                     fontSize: 16, color: Colors.black, height: 1.5),
                 children: [
                   TextSpan(
                     text:
                         isHindi ? 'साथी के बारे में\n' : 'About Saathi\n',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
-                    
+
                     text: isHindi
                         ? 'साथी एक मोबाइल ऐप है जो पूर्व-प्राथमिक बच्चों के लिए शिक्षा को सुलभ, आकर्षक और समावेशी बनाने हेतु डिज़ाइन किया गया है। यह ऐप मज़ेदार खेलों और इंटरएक्टिव गतिविधियों के माध्यम से बुनियादी साक्षरता, गणित और सामान्य ज्ञान सिखाने में मदद करता है। साथी का उद्देश्य तकनीक और रचनात्मक शिक्षण विधियों के माध्यम से शिक्षा की खाई को पाटना है।\n\n'
                         : 'SAATHI is a gamified mobile learning platform designed to make foundational education accessible, engaging, and inclusive for pre-primary childrens. Developed with a deep understanding of the challenges faced by pre-primary kids, SAATHI aims to bridge the educational divide using technology and creative pedagogy.\n\n',
+
                   ),
                   TextSpan(
                     text:
                         isHindi ? '🎯 हमारा उद्देश्य\n' : '🎯 Our Objective\n',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -265,14 +268,14 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '📱 साथी को खास क्या बनाता है?\n\n'
                         : '📱 What Makes SAATHI Unique?\n\n',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   
                   ),
                   TextSpan(
                     text: isHindi
                         ? '🎮 गेम-आधारित लर्निंग:\n'
                         : '🎮 Game-Based Learning:\n',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -283,7 +286,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '📚 बुनियादी पाठ्यक्रम:\n'
                         : '📚 Foundational Curriculum:\n',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -294,7 +297,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🧒 बच्चों के अनुकूल इंटरफ़ेस:\n'
                         : '🧒 Kid-Friendly Interface:\n',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -305,7 +308,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🌐 द्विभाषी सामग्री (हिंदी और अंग्रेज़ी):\n'
                         : '🌐 Bilingual Content (Hindi & English):\n',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -321,7 +324,7 @@ Future<void> _performDeleteAccount() async {
                         ? '🎮 साथी में खेल\n\n'
                         : '🎮 Games in SAATHI\n\n',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18),
+                        fontWeight: FontWeight.bold, fontSize: 18, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
 
                   // 1. Name Picture Matching
@@ -329,7 +332,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🖼️ नाम चित्र मिलान: '
                         : '🖼️ Name Picture Matching: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -341,7 +344,7 @@ Future<void> _performDeleteAccount() async {
                   TextSpan(
                     text:
                         isHindi ? '🔠 अक्षर ज्ञान: ' : '🔠 Guess the Letter: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -352,7 +355,7 @@ Future<void> _performDeleteAccount() async {
                   // 3. Compare
                   TextSpan(
                     text: isHindi ? '📏 तुलना: ' : '📏 Compare: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -363,7 +366,7 @@ Future<void> _performDeleteAccount() async {
                   // 4. Let Us Count
                   TextSpan(
                     text: isHindi ? '🔢 चलो गिनें: ' : '🔢 Let Us Count: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -376,7 +379,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🔤 संख्या नाम मिलान: '
                         : '🔤 Number Name Matching: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -389,7 +392,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🧮 नाम संख्या मिलान: '
                         : '🧮 Name Number Matching: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -401,7 +404,7 @@ Future<void> _performDeleteAccount() async {
                   TextSpan(
                     text:
                         isHindi ? '⏰ चलो समय बताएँ: ' : '⏰ Let Us Tell Time: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -414,7 +417,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🔡 वर्णमाला ज्ञान: '
                         : '🔡 Alphabet Knowledge: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -427,7 +430,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🧭 बाएँ दाएँ मध्य: '
                         : '🧭 Left Middle Right: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -438,7 +441,7 @@ Future<void> _performDeleteAccount() async {
                   // 10. Shape Knowledge
                   TextSpan(
                     text: isHindi ? '🔷 आकार ज्ञान: ' : '🔷 Shape Knowledge: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -453,7 +456,7 @@ Future<void> _performDeleteAccount() async {
                     text:
                        isHindi ? '🙍‍♂️ आपके खाते के बारे में\n\n' : '🙍‍♂️ About Your Account\n\n',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18),
+                        fontWeight: FontWeight.bold, fontSize: 18,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
 
                   // 1. Name Picture Matching
@@ -461,7 +464,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🧾 व्यक्तिगत विवरण: '
                         : '🧾 Personal Details: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold,color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                      text: isHindi
@@ -475,7 +478,7 @@ Future<void> _performDeleteAccount() async {
                     text: isHindi
                         ? '🗑️ खाता हटाना: '
                         : '🗑️ Deleting Your Account: ',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 101, 65, 239)),
                   ),
                   TextSpan(
                     text: isHindi
@@ -502,7 +505,7 @@ Future<void> _performDeleteAccount() async {
                     : const Icon(Icons.delete, color: Colors.red),
                 label: Text(
                   isHindi ? 'मेरा खाता हटाएं' : 'Delete My Account',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.trocchi(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Colors.red,

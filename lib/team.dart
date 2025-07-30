@@ -58,7 +58,7 @@ class TeamPage extends StatelessWidget {
         showMenuButton: true,
       ),
       drawer: CustomMenuBar(isHindi: isHindi),
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Column(
@@ -67,17 +67,17 @@ class TeamPage extends StatelessWidget {
             // Title
             Text(
               isHindi ? 'हमारी टीम' : 'Our Team',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.trocchi(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87),
+                  color: Color.fromARGB(255, 101, 65, 239)),
             ),
             const SizedBox(height: 8),
             Text(
               isHindi
                   ? 'यह परियोजना कई समर्पित लोगों के सहयोग से संभव हुई है।'
                   : 'This project has been made possible by a group of passionate contributors.',
-              style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
+              style: GoogleFonts.trocchi(fontSize: 16, color: Colors.grey[700]),
             ),
 
             const SizedBox(height: 32),
@@ -85,10 +85,10 @@ class TeamPage extends StatelessWidget {
             // Project Supervisor Section
             Text(
               isHindi ? ' परियोजना पर्यवेक्षक' : ' Project Supervisor',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.trocchi(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black),
+                  color: Color.fromARGB(255, 101, 65, 239)),
             ),
             const SizedBox(height: 16),
             _buildMemberCard(
@@ -105,10 +105,10 @@ class TeamPage extends StatelessWidget {
             // Core Team Section
             Text(
               isHindi ? ' मुख्य टीम' : ' Core Team',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.trocchi(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black),
+                  color: Color.fromARGB(255, 101, 65, 239)),
             ),
             const SizedBox(height: 16),
            Wrap(
@@ -133,6 +133,7 @@ class TeamPage extends StatelessWidget {
     required String bio,
   }) {
     return Card(
+      color: Color.fromARGB(255, 191, 235, 239),
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -146,14 +147,14 @@ class TeamPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(name,
-                      style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
+                      style: GoogleFonts.trocchi(
+                          fontWeight: FontWeight.bold, fontSize: 18, color: Color.fromARGB(255, 101, 65, 239))),
                   Text(role,
-                      style: GoogleFonts.poppins(
-                          fontSize: 14, color: Colors.teal[700])),
+                      style: GoogleFonts.trocchi(
+                          fontSize: 14, color: Colors.cyan[800])),
                   const SizedBox(height: 8),
                   Text(bio,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.trocchi(
                           fontSize: 13, color: Colors.grey[800])),
                 ],
               ),
@@ -168,6 +169,7 @@ class TeamPage extends StatelessWidget {
     return SizedBox(
       width: MediaQuery.of(context).size.width / 2 - 24,
       child: Card(
+        color:  Color.fromARGB(255, 191, 235, 239),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 3,
         child: Padding(
@@ -181,15 +183,15 @@ class TeamPage extends StatelessWidget {
               const SizedBox(height: 8),
               Text(member.name,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.trocchi(
                       fontWeight: FontWeight.w600, fontSize: 15)),
               Text(member.role,
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, color: Colors.teal[600])),
+                  style: GoogleFonts.trocchi(
+                      fontSize: 13, color: Colors.cyan[800])),
               const SizedBox(height: 4),
               Text(member.bio,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.trocchi(
                       fontSize: 12, color: Colors.grey[700])),
             ],
           ),

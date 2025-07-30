@@ -391,16 +391,16 @@ Future<void> _updateStreakAndStats(bool isCorrect) async {
     final canGoNext = _hasSubmitted || userAnswers.containsKey(currentDocId);
 
     return Scaffold(
-      backgroundColor: Colors.lightBlue[50],
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade300,
+        backgroundColor: Color.fromARGB(255, 101, 65, 239),
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(widget.gameTitle,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,color: Color.fromARGB(255, 245, 255, 255), fontFamily: 'MyCustomFont'), ),
             IconButton(
-              icon: Icon(Icons.info_outline, color: Colors.white),
+              icon: Icon(Icons.info_outline, color: Color.fromARGB(255, 245, 255, 255)),
               onPressed: () => showInstructions(context),
             ),
           ],

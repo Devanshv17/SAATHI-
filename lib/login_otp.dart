@@ -128,7 +128,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.grey[50],
+          backgroundColor: Color.fromARGB(255, 245, 255, 255),
           appBar: NavBar(
             isHindi: isHindi,
             onToggleLanguage: (val) =>

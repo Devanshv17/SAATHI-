@@ -255,6 +255,7 @@ Future<void> _loadWeeklyData() async {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
 
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: NavBar(
         isHindi: isHindi,
         onToggleLanguage: (val) {
@@ -290,19 +291,18 @@ Future<void> _loadWeeklyData() async {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
                     isHindi ? 'व्यक्तिगत जानकारी' : ' Personal Information',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade800,
-                    ),
+                      style: TextStyle(fontFamily:'MyCustomFont',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 101, 65, 239))
                   ),
                 ),
                 Card(
                   elevation: 5,
-                  color: Colors.white,
+                  color: Color.fromARGB(255, 191, 235, 239),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
-                  shadowColor: Colors.blue.shade100,
+                  shadowColor: Colors.teal.shade300,
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -326,15 +326,15 @@ Future<void> _loadWeeklyData() async {
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.edit, color: Colors.white),
+                  icon: const Icon(Icons.edit, color: Color.fromARGB(255, 245, 255, 255)),
                   label: Text(
                     isHindi ? 'प्रोफ़ाइल संपादित करें' : 'Edit Profile',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
+                    style: GoogleFonts.trocchi(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 245, 255, 255)),
                   ),
                   onPressed: () => _showEditDialog(
                       context, name, age, gender, school, sclass),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
+                    backgroundColor: Color.fromARGB(255, 101, 65, 239),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 30, vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -350,11 +350,10 @@ Future<void> _loadWeeklyData() async {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
                     isHindi ? 'मेरे अंक' : 'My Scores',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade800,
-                    ),
+                      style: TextStyle(fontFamily:'MyCustomFont',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 101, 65, 239))
                   ),
                 ),
 
@@ -379,11 +378,10 @@ const SizedBox(height: 10),
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
                     isHindi ? 'साप्ताहिक प्रगति' : ' Weekly Progress',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade800,
-                    ),
+                    style: TextStyle(fontFamily:'MyCustomFont',
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Color.fromARGB(255, 101, 65, 239))
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -395,11 +393,10 @@ const SizedBox(height: 10),
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
                     isHindi ? 'कुल सटीकता' : 'Total Accuracy',
-                    style: GoogleFonts.poppins(
+                    style: TextStyle(fontFamily:'MyCustomFont',
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade800,
-                    ),
+                      color: Color.fromARGB(255, 101, 65, 239))
                   ),
                 ),
                 _buildAccuracyDonut(isHindi: isHindi),
@@ -408,11 +405,10 @@ const SizedBox(height: 10),
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
                     isHindi ? 'खेल सटीकता' : 'Game Accuracy',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade800,
-                    ),
+                      style: TextStyle(fontFamily:'MyCustomFont',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 101, 65, 239))
                   ),
                 ),
 
@@ -426,11 +422,10 @@ Padding(
                   padding: const EdgeInsets.only(bottom: 50),
                   child: Text(
                     isHindi ? 'खेल प्रगति' : ' Game Progress',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade800,
-                    ),
+                      style: TextStyle(fontFamily:'MyCustomFont',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 101, 65, 239))
                   ),
                 ),
                  const SizedBox(height: 30),
@@ -441,11 +436,10 @@ Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
                     isHindi ? 'मासिक प्रगति' : 'Monthly Progress',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade800,
-                    ),
+                      style: TextStyle(fontFamily:'MyCustomFont',
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 101, 65, 239))
                   ),
                 ),
                 
@@ -481,7 +475,7 @@ Widget buildWeeklyLineChart({required bool isHindi}) {
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Color.fromARGB(255, 191, 235, 239),
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
@@ -581,7 +575,7 @@ Widget buildWeeklyLineChart({required bool isHindi}) {
                           (i) => FlSpot(i.toDouble(), _goal.toDouble()),
                         ),
                         isCurved: false,
-                        color: Colors.orange,
+                        color: Colors.teal.shade600,
                         barWidth: 2,
                         isStrokeCapRound: true,
                         dashArray: [6, 4],
@@ -601,19 +595,19 @@ Widget buildWeeklyLineChart({required bool isHindi}) {
             isHindi
                 ? '🎯 अपना दैनिक लक्ष्य निर्धारित करें'
                 : '🎯 Set Your Daily Goal',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.trocchi(
               fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+              color: Color.fromARGB(255, 101, 65, 239)
             ),
           ),
         ),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: Colors.orange,
-            inactiveTrackColor: Colors.orange.withOpacity(0.3),
-            thumbColor: Colors.deepOrange,
-            overlayColor: Colors.orange.withOpacity(0.2),
+            activeTrackColor: Colors.teal,
+            inactiveTrackColor: Colors.teal.withOpacity(0.3),
+            thumbColor: Colors.teal.shade800,
+            overlayColor: Colors.teal.withOpacity(0.2),
           ),
           child: Slider(
             min: 0,
@@ -653,7 +647,7 @@ Widget buildProgressBadgeCard(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Color.fromARGB(255, 191, 235, 239),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -699,14 +693,14 @@ Padding(
                           child: CircularProgressIndicator(
                             value: percent.clamp(0.0, 1.0),
                             strokeWidth: 6,
-                            backgroundColor: Colors.grey[300],
+                            backgroundColor: Color.fromARGB(255, 245, 255, 255),
                             valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.green),
+                                Colors.teal),
                           ),
                         ),
                         Icon(
                           Icons.shield,
-                          color: Colors.blue[700],
+                          color: Color.fromARGB(255, 58, 124, 129),
                           size: 36,
                         ),
                       ],
@@ -720,23 +714,26 @@ Padding(
                       Text(
                         badge,
                         style: const TextStyle(
+                          fontFamily: 'MyCustom2',
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: Color.fromARGB(255, 58, 124, 129),
                         ),
                       ),
                       Text(
                         isHindi?"$totalAttempted / $totalQuestions प्रयास किए गए": "$totalAttempted / $totalQuestions attempted",
                         style: TextStyle(
+                          fontFamily: 'MyCustom2',
                           fontSize: 15,
-                          color: Colors.grey[700],
+                          color: Colors.teal,
                         ),
                       ),
                       Text(
                         isHindi?"${(percent * 100).toStringAsFixed(1)}% पूरा हुआ":"${(percent * 100).toStringAsFixed(1)}% completed",
                         style: TextStyle(
+                          fontFamily: 'MyCustom2',
                           fontSize: 14,
-                          color: Colors.green[700],
+                          color: Colors.teal[700],
                         ),
                       ),
                     ],
@@ -908,7 +905,7 @@ Widget _buildMonthlyHeatmap({required bool isHindi}) {
         ? 0.1
         : (attempted / 12).clamp(0.2, 1.0);
     final color = attempted == 0
-        ? Colors.grey.shade300
+        ? Colors.grey.shade900
         : Colors.green.withOpacity(opacity);
 
     dayColumns[wd]!.add(
@@ -1018,23 +1015,23 @@ Widget _getBadge(double ratio, {required bool isHindi}) {
 
    if (ratio < 0.25) {
       label = isHindi ? 'स्तर १' : 'Level 1';
-      color = Colors.redAccent;
+      color = Colors.teal;
       icon = Icons.flag_rounded; // 🏳️ Start flag
     } else if (ratio < 0.5) {
       label = isHindi ? 'स्तर 2' : 'Level 2';
-      color = Colors.deepOrangeAccent;
+      color = Colors.teal.shade300;
       icon = Icons.school_rounded; // 🎓 School cap
     } else if (ratio < 0.75) {
       label = isHindi ? 'स्तर 3' : 'Level 3';
-      color = Colors.orangeAccent;
+      color = Colors.teal.shade100;
       icon = Icons.emoji_events_rounded; // 🥉 Bronze trophy
     } else if (ratio < 0.9) {
       label = isHindi ? 'स्तर 4' : 'Level 4';
-      color = Colors.lightGreen;
+      color = Colors.teal.shade200;
       icon = Icons.military_tech_rounded; // 🥈 Silver medal
     } else {
       label = isHindi ? 'स्तर 5' : 'Level 5';
-      color = Colors.green;
+      color = Colors.teal.shade200;
       icon = Icons.workspace_premium_rounded; // 🥇 Gold medal
     }
 

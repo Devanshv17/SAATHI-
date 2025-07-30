@@ -56,7 +56,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: NavBar(
         isHindi: isHindi,
         onToggleLanguage: (val) {

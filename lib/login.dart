@@ -66,7 +66,7 @@ class _LoginPageState extends State<LoginPage> {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: NavBar(
         isHindi: isHindi,
         onToggleLanguage: (val) =>

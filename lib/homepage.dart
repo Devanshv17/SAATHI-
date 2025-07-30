@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -200,14 +202,13 @@ class _HomePageState extends State<HomePage> {
     final correct = correctScores[title] ?? 0;
     final incorrect = incorrectScores[title] ?? 0;
     final hasPlayed = (correct + incorrect) > 0;
-
     return Container(
       width: MediaQuery.of(context).size.width * 0.85,
       padding: const EdgeInsets.all(10),
       margin: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         color: bgColor,
-        border: Border.all(color: Colors.black, width: 2),
+        border: Border.all(color: Color.fromARGB(255, 101, 65, 239), width: 2),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
@@ -216,10 +217,11 @@ class _HomePageState extends State<HomePage> {
             width: 70,
             height: 70,
             decoration: BoxDecoration(
+              border: Border.all(color: Color.fromARGB(255, 101, 65, 239),width: 1),
               borderRadius: BorderRadius.circular(50),
               image:  DecorationImage(
                 image: AssetImage(isHindi?imgpathHindi:imgpath),
-                fit: BoxFit.cover,
+                fit: BoxFit.cover
               ),
             ),
           ),
@@ -231,7 +233,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   title,
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+                      fontSize: 16, color: Color.fromARGB(255, 101, 65, 239), fontWeight: FontWeight.bold,fontFamily: 'MyCustom2'),
                 ),
                 if (hasPlayed)
                   Padding(
@@ -242,17 +244,19 @@ class _HomePageState extends State<HomePage> {
                           TextSpan(
                             text: '$correct',
                             style: const TextStyle(
-                                color: Colors.green,
+                                color: Color.fromARGB(255, 63, 108, 64),
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold),
+                                fontWeight: FontWeight.bold,fontFamily: 'MyCustomFont'),
                           ),
-                          const TextSpan(text: '  |  '),
+                          const TextSpan( text: '  |  ', style: const TextStyle(color: Color.fromARGB(255, 101, 65, 239),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
                           TextSpan(
                             text: '$incorrect',
                             style: const TextStyle(
-                                color: Colors.red,
+                                color: Color.fromARGB(255, 200, 82, 87),
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold),
+                                fontWeight: FontWeight.bold, fontFamily: 'MyCustomFont'),
                           ),
                         ],
                       ),
@@ -262,8 +266,10 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   children: [
                     ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 191, 235, 239)),
                       onPressed: () => _navigateBasedOnText(title, isHindi),
-                      child: Text(
+                      child: Text( style: const TextStyle(color: Color.fromARGB(255, 101, 65, 239), fontSize: 14,fontFamily: 'MyCustomFont',fontWeight: FontWeight.normal),
                         hasPlayed ? continueText(isHindi) : playText(isHindi),
                       ),
                     ),
@@ -273,8 +279,8 @@ class _HomePageState extends State<HomePage> {
                         onPressed: () =>
                             _navigateBasedOnText(title, isHindi, reset: true),
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange),
-                        child: Text(replayText(isHindi)),
+                            backgroundColor: Color.fromARGB(255, 158, 224, 229)),
+                        child: Text(style: const TextStyle(color: Color.fromARGB(255, 101, 65, 239), fontSize: 14,fontFamily: 'MyCustomFont'), replayText(isHindi)),
                       ),
                   ],
                 ),
@@ -289,8 +295,8 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
-
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 245, 255, 255),
       appBar: NavBar(
         isHindi: isHindi,
         onToggleLanguage: (value) {
@@ -305,17 +311,17 @@ class _HomePageState extends State<HomePage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              buildBox('Box1', isHindi, Colors.blue.shade100,'assets/npp.png','assets/npph.jpg'),
-              buildBox('Box2', isHindi, Colors.blue.shade100,'assets/gtl.png','assets/gtlh.jpg'),
-              buildBox('Box3', isHindi, Colors.blue.shade100,'assets/cmp.png','assets/cmp.png'),
-              buildBox('Box4', isHindi, Colors.blue.shade100, 'assets/cnt.png','assets/cnth.jpg'),
-              buildBox('Box5', isHindi, Colors.blue.shade100,'assets/namenm.png','assets/namenmh.jpg'),
-              buildBox('Box6', isHindi, Colors.blue.shade100, 'assets/numnp.png','assets/numnph.jpg'),
-              buildBox('Box7', isHindi, Colors.blue.shade100, 'assets/ltt.png','assets/ltth.jpg'),
+              buildBox('Box1', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/npp.png','assets/npph.jpg'),
+              buildBox('Box2', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/gtl.png','assets/gtlh.jpg'),
+              buildBox('Box3', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/cmp.png','assets/cmp.png'),
+              buildBox('Box4', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/cnt.png','assets/cnth.jpg'),
+              buildBox('Box5', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/namenm.png','assets/namenmh.jpg'),
+              buildBox('Box6', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/numnp.png','assets/numnph.jpg'),
+              buildBox('Box7', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/ltt.png','assets/ltth.jpg'),
               // buildBox('Box8', isHindi, Colors.blue.shade100),
-              buildBox('Box9', isHindi, Colors.blue.shade100, 'assets/ak.png','assets/akh.jpg'),
-              buildBox('Box10', isHindi, Colors.blue.shade100, 'assets/lr.png','assets/lrh.jpg'),
-              buildBox('Box11', isHindi, Colors.blue.shade100, 'assets/fs.png','assets/fsh.jpg'),
+              buildBox('Box9', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/ak.png','assets/akh.jpg'),
+              buildBox('Box10', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/lr.png','assets/lrh.jpg'),
+              buildBox('Box11', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/fs.png','assets/fsh.jpg'),
               const SizedBox(height: 60),
             ],
             
