@@ -73,9 +73,9 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 15),
               Text(
                 isHindi ? 'स्वागत है' : 'Create a new Account',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.trocchi(
                   fontSize: 26,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w600, color: Color.fromARGB(255, 101, 65, 239)
                 ),
               ),
               const SizedBox(height: 6),
@@ -84,11 +84,12 @@ class _RegisterPageState extends State<RegisterPage> {
                     ? 'कृपया अपने फ़ोन नंबर से पंजीकरण करें'
                     : 'Please register with your phone number',
                 style:
-                    GoogleFonts.poppins(fontSize: 16, color: Colors.grey[700]),
+                    GoogleFonts.trocchi(fontSize: 16, color: Colors.teal.shade800),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 15),
               Card(
+                color: Color.fromARGB(255, 201, 245, 245),
                 elevation: 6,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
@@ -102,9 +103,9 @@ class _RegisterPageState extends State<RegisterPage> {
                         isHindi
                             ? 'अपना फ़ोन नंबर दर्ज करें'
                             : 'Enter Your Phone Number',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.trocchi(
                           fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w600, color: Color.fromARGB(255, 101, 65, 239)
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -118,7 +119,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 controller: _countryCodeController,
                                 keyboardType: TextInputType.phone,
                                 decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.flag),
+                                  prefixIcon: const Icon(Icons.flag, color: Color.fromARGB(255, 101, 65, 239)),
                                   labelText: isHindi ? 'कोड' : 'Code',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -136,7 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 controller: _phoneController,
                                 keyboardType: TextInputType.phone,
                                 decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.phone),
+                                  prefixIcon: const Icon(Icons.phone, color: Color.fromARGB(255, 101, 65, 239)),
                                   labelText:
                                       isHindi ? 'मोबाइल नंबर' : 'Mobile Number',
                                   border: OutlineInputBorder(
@@ -172,8 +173,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [
-                                        Color(0xFF00C6FF),
-                                        Color(0xFF0072FF)
+                                        Color.fromARGB(255, 101, 221, 209),
+                                        Color.fromARGB(255, 101, 65, 239)
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(12),
@@ -181,7 +182,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   child: Center(
                                     child: Text(
                                       isHindi ? 'ओटीपी भेजें' : 'Send OTP',
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.trocchi(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w500,
                                           color: Colors.white),
@@ -198,7 +199,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           isHindi
                               ? 'खाता है? लॉगिन'
                               : 'Already have an account? Login',
-                          style: GoogleFonts.poppins(color: Colors.blueAccent),
+                          style: GoogleFonts.trocchi(color: Colors.teal.shade800),
                         ),
                       ),
                     ],

@@ -97,7 +97,7 @@ class TeamPage extends StatelessWidget {
               role:
                   'Assistant Professor, IIT Kanpur',
               bio:
-                  'Assistant Professor. Anveshna heads the Cognition, Learning and Innovation in Pedagogy (CLIP) lab in the Deptt. of Cognitive Science at IIT Kanpur. She envisioned and supervised the Saathi project.',
+                  'Assistant Professor. Anveshna heads the Cognition, Learning and Innovation in Pedagogy (CLIP) lab in the Dept. of Cognitive Science at IIT Kanpur. She envisioned and supervised the Saathi project.',
             ),
 
             const SizedBox(height: 32),

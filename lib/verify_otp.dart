@@ -209,7 +209,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               const SizedBox(height: 12),
               Text(
                 isHindi ? 'ओटीपी की पुष्टि करें' : 'OTP Verification',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.trocchi(
                     fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ],
@@ -220,12 +220,12 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           isHindi
               ? 'भेजा गया 6-अंकी कोड दर्ज करें'
               : 'Enter the 6-digit code sent to',
-          style: GoogleFonts.poppins(fontSize: 16),
+          style: GoogleFonts.trocchi(fontSize: 16),
           textAlign: TextAlign.center,
         ),
         Text(
           phone,
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+          style: GoogleFonts.trocchi(fontSize: 18, fontWeight: FontWeight.w600),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
@@ -242,8 +242,8 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             activeFillColor: Colors.white,
             selectedFillColor: Colors.white,
             inactiveFillColor: Colors.white,
-            activeColor: Colors.blueAccent,
-            selectedColor: Colors.blue,
+            activeColor: Colors.cyan,
+            selectedColor: Colors.teal,
             inactiveColor: Colors.grey,
           ),
           cursorColor: Colors.black,
@@ -251,7 +251,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           errorAnimationController: _errorController,
           keyboardType: TextInputType.number,
           textStyle:
-          GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w500),
+          GoogleFonts.trocchi(fontSize: 24, fontWeight: FontWeight.w500),
           onChanged: (val) {
             setState(() {
               _currentPin = val;
@@ -268,7 +268,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             isHindi
                 ? 'गलत ओटीपी पुनः प्रयास करें।'
                 : 'Wrong OTP. Please try again.',
-            style: GoogleFonts.poppins(color: Colors.redAccent),
+            style: GoogleFonts.trocchi(color: Colors.redAccent),
             textAlign: TextAlign.center,
           ),
         ],
@@ -290,14 +290,15 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                 : Ink(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
+                  colors: [Color.fromARGB(255, 101, 221, 209),
+                    Color.fromARGB(255, 101, 65, 239)],
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
                   isHindi ? 'OTP सत्यापित करें' : 'Verify OTP',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.trocchi(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                       color: Colors.white),
@@ -313,7 +314,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             isHindi
                 ? 'OTP फिर से भेजें में $_resendSeconds सेकंड'
                 : 'Resend OTP in $_resendSeconds s',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.trocchi(),
           )
               : TextButton(
             // CHANGE THIS: Add safety check
@@ -324,7 +325,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             },
             child: Text(
               isHindi ? 'OTP पुनः भेजें' : 'Resend OTP',
-              style: GoogleFonts.poppins(color: Colors.blueAccent),
+              style: GoogleFonts.trocchi(color: Color.fromARGB(255, 101, 65, 239)),
             ),
           ),
         ),
@@ -339,7 +340,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(isHindi ? 'मूल विवरण' : 'Basic Details',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.trocchi(
                   fontSize: 22, fontWeight: FontWeight.w600)),
           const SizedBox(height: 24),
           _buildField(_nameController, isHindi ? 'नाम' : 'Name', Icons.person),
@@ -360,7 +361,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             ),
             dropdownColor: Colors.white,
             icon: const Icon(Icons.arrow_drop_down,
-                size: 28, color: Colors.blueAccent),
+                size: 28, color: Colors.teal),
             items: ['Male', 'Female', 'Other']
                 .map((g) => DropdownMenuItem(
                 value: g, child: Text(isHindi ? _translateGender(g) : g)))
@@ -374,7 +375,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           CheckboxListTile(
             title: Text(
                 isHindi ? 'क्या आप स्कूल जाते हैं?' : 'Do you go to school?',
-                style: GoogleFonts.poppins()),
+                style: GoogleFonts.trocchi()),
             value: _goToSchool,
             onChanged: (v) => setState(() => _goToSchool = v!),
             controlAffinity: ListTileControlAffinity.leading,
@@ -392,7 +393,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.trocchi(
                       fontSize: 16, color: Colors.grey[700]),
                   children: [
                     TextSpan(
@@ -405,7 +406,8 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                           ? 'शर्तें और गोपनीयता नीति'
                           : 'Terms and Privacy Policy',
                       style: const TextStyle(
-                          color: Colors.blue,
+                          color:
+                          Color.fromARGB(255, 101, 65, 239),
                           decoration: TextDecoration.underline),
                       recognizer: _tapGestureRecognizer,
                     ),
@@ -428,13 +430,14 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               child: Ink(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFF00C6FF), Color(0xFF0072FF)]),
+                      colors: [Color.fromARGB(255, 101, 221, 209),
+                        Color.fromARGB(255, 101, 65, 239)]),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Text(
                     isHindi ? 'खाता बनाएँ' : 'Create Account',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.trocchi(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.white),

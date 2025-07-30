@@ -148,7 +148,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                       const SizedBox(height: 12),
                       Text(
                         isHindi ? 'ओटीपी की पुष्टि करें' : 'OTP Verification',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.trocchi(
                             fontSize: 24, fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -159,12 +159,12 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                   isHindi
                       ? 'भेजा गया 6‑अंकी कोड दर्ज करें'
                       : 'Enter the 6‑digit code sent to',
-                  style: GoogleFonts.poppins(fontSize: 16),
+                  style: GoogleFonts.trocchi(fontSize: 16),
                   textAlign: TextAlign.center,
                 ),
                 Text(
                   phone,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.trocchi(
                       fontSize: 18, fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center,
                 ),
@@ -190,7 +190,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                   enableActiveFill: true,
                   errorAnimationController: _errorController,
                   keyboardType: TextInputType.number,
-                  textStyle: GoogleFonts.poppins(
+                  textStyle: GoogleFonts.trocchi(
                       fontSize: 24, fontWeight: FontWeight.w500),
                   onChanged: (val) {
                     setState(() {
@@ -206,7 +206,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                     isHindi
                         ? 'गलत OTP। पुनः प्रयास करें।'
                         : 'Wrong OTP. Please try again.',
-                    style: GoogleFonts.poppins(color: Colors.redAccent),
+                    style: GoogleFonts.trocchi(color: Colors.redAccent),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -234,7 +234,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                       child: Center(
                         child: Text(
                           isHindi ? 'ओटीपी की पुष्टि करें' : 'Verify OTP',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.trocchi(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                               color: Colors.white),
@@ -250,7 +250,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                     isHindi
                         ? 'OTP फिर से भेजें में $_resendSeconds सेकंड'
                         : 'Resend OTP in $_resendSeconds s',
-                    style: GoogleFonts.poppins(),
+                    style: GoogleFonts.trocchi(),
                   )
                       : TextButton(
                     // CORRECTED: Removed invalid 'isSendingOtp' check
@@ -262,7 +262,7 @@ class _LoginOtpPageState extends State<LoginOtpPage> {
                     child: Text(
                       isHindi ? 'OTP पुनः भेजें' : 'Resend OTP',
                       style:
-                      GoogleFonts.poppins(color: Colors.blueAccent),
+                      GoogleFonts.trocchi(color: Colors.tealAccent),
                     ),
                   ),
                 ),
