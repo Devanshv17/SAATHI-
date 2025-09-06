@@ -78,12 +78,40 @@ class _HomePageState extends State<HomePage> {
     // Whenever dependencies change (for example, language toggled), reload scores
     _loadGameScores();
   }
+// Note: This function must be inside a State class that has access to
+// _dbRef, _auth, setState, boxTextsEnglish, boxTextsHindi, correctScores, and incorrectScores.
+
+// --- Safe casting helper function (Required by _loadGameScores) ---
+  Map<String, dynamic>? _deepCastMap(Map? data) {
+    if (data == null) return null;
+    return Map<String, dynamic>.from(data.map((key, value) {
+      var newKey = key.toString();
+      var newValue = value;
+      if (value is Map) {
+        newValue = _deepCastMap(value);
+      } else if (value is List) {
+        newValue = _deepCastList(value);
+      }
+      return MapEntry(newKey, newValue);
+    }));
+  }
+
+  List<dynamic>? _deepCastList(List? data) {
+    if (data == null) return null;
+    return data.map((item) {
+      if (item is Map) {
+        return _deepCastMap(item);
+      } else if (item is List) {
+        return _deepCastList(item);
+      }
+      return item;
+    }).toList();
+  }
 
   Future<void> _loadGameScores() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    // Determine current language flag
     final isHindi =
         Provider.of<LanguageNotifier>(context, listen: false).isHindi;
 
@@ -93,26 +121,30 @@ class _HomePageState extends State<HomePage> {
       final Map<String, int> incorrect = {};
 
       if (snapshot.exists) {
-        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        final allGamesData = _deepCastMap(snapshot.value as Map) ?? {};
 
-        // For each BoxX key, pick either English or Hindi title as lookup
         for (var key in boxTextsEnglish.keys) {
-          final engTitle = boxTextsEnglish[key]!; // e.g. "Let us Count"
-          final hinTitle = boxTextsHindi[key]!; // e.g. "चलो गिनें"
+          final engTitle = boxTextsEnglish[key]!;
+          final hinTitle = boxTextsHindi[key]!;
           final displayTitle = isHindi ? hinTitle : engTitle;
 
-          final gameData = data[displayTitle];
-          if (gameData != null) {
-            final g = Map<String, dynamic>.from(gameData as Map);
-            correct[displayTitle] = (g['correctCount'] ?? 0) as int;
-            incorrect[displayTitle] = (g['incorrectCount'] ?? 0) as int;
+          // Access the specific game's data
+          final gameData = _deepCastMap(allGamesData[displayTitle]);
+
+          // **FIX:** Now, access the nested 'main_game' object
+          final mainGameData = _deepCastMap(gameData?['main_game']);
+
+          if (mainGameData != null) {
+            // Read scores from within 'main_game'
+            correct[displayTitle] = (mainGameData['correctCount'] ?? 0);
+            incorrect[displayTitle] = (mainGameData['incorrectCount'] ?? 0);
           } else {
             correct[displayTitle] = 0;
             incorrect[displayTitle] = 0;
           }
         }
       } else {
-        // No games node exists yet — initialize all to zero
+        // No 'games' node exists, initialize all to zero
         for (var key in boxTextsEnglish.keys) {
           final displayTitle =
               isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
@@ -121,14 +153,17 @@ class _HomePageState extends State<HomePage> {
         }
       }
 
-      setState(() {
-        correctScores = correct;
-        incorrectScores = incorrect;
-      });
+      if (mounted) {
+        setState(() {
+          correctScores = correct;
+          incorrectScores = incorrect;
+        });
+      }
     } catch (e) {
       print("Error fetching game scores: $e");
     }
   }
+
 
   void _navigateBasedOnText(String title, bool isHindi,
       {bool reset = false}) async {
@@ -273,15 +308,8 @@ class _HomePageState extends State<HomePage> {
                         hasPlayed ? continueText(isHindi) : playText(isHindi),
                       ),
                     ),
-                    if (hasPlayed) const SizedBox(width: 10),
-                    if (hasPlayed)
-                      ElevatedButton(
-                        onPressed: () =>
-                            _navigateBasedOnText(title, isHindi, reset: true),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Color.fromARGB(255, 158, 224, 229)),
-                        child: Text(style: const TextStyle(color: Color.fromARGB(255, 101, 65, 239), fontSize: 14,fontFamily: 'MyCustomFont'), replayText(isHindi)),
-                      ),
+                   
+                    
                   ],
                 ),
               ],

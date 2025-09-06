@@ -46,6 +46,71 @@ Map<String, dynamic> monthlyStats = {};
 
   Map<String, int> _weeklyScores = {}; // e.g. {Sun: 10, Mon: 20, ...}
   final List<String> _gameNames = [
+     'Name Picture Matching L1',
+     'Name Picture Matching L2',
+     'Name Picture Matching L3',
+    'Guess the Letter L1',
+    'Guess the Letter L2',
+    'Guess the Letter L3',
+    'Compare L1',
+    'Compare L2',
+    'Compare L3',
+    'Let us Count L1',
+    'Let us Count L2',
+    'Let us Count L3',
+    'Number Name Matching L1',
+    'Number Name Matching L2',
+    'Number Name Matching L3',
+    'Name Number Matching L1',
+    'Name Number Matching L2',
+    'Name Number Matching L3',
+    'Let us Tell Time L1',
+    'Let us Tell Time L2',
+    'Let us Tell Time L3',
+    'Alphabet Knowledge L1',
+    'Alphabet Knowledge L2',
+    'Alphabet Knowledge L3',
+    'Left Middle Right L1',
+    'Left Middle Right L2',
+    'Left Middle Right L3',
+    'Shape Knowledge L1',
+    'Shape Knowledge L2',
+    'Shape Knowledge L3',
+    'नाम चित्र मिलान L1',
+    'नाम चित्र मिलान L2',
+    'नाम चित्र मिलान L3',
+    'अक्षर ज्ञान L1',
+    'अक्षर ज्ञान L2',
+    'अक्षर ज्ञान L3',
+    'तुलना L1',
+    'तुलना L2',
+    'तुलना L3',
+    'चलो गिनें L1',
+    'चलो गिनें L2',
+    'चलो गिनें L3',
+    'संख्या नाम मिलान L1',
+    'संख्या नाम मिलान L2',
+    'संख्या नाम मिलान L3',
+    'नाम संख्या मिलान L1',
+    'नाम संख्या मिलान L2',
+    'नाम संख्या मिलान L3',
+    'चलो समय बताएँ L1',
+    'चलो समय बताएँ L2',
+    'चलो समय बताएँ L3',
+    'वर्णमाला ज्ञान L1',
+    'वर्णमाला ज्ञान L2',
+    'वर्णमाला ज्ञान L3',
+    'बाएँ दाएँ मध्य L1',
+    'बाएँ दाएँ मध्य L2',
+    'बाएँ दाएँ मध्य L3',
+    'आकार ज्ञान L1',
+    'आकार ज्ञान L2',
+    'आकार ज्ञान L3',
+  ];
+
+
+
+ final List<String> _baseGameNames = [
      'Name Picture Matching',
     'Guess the Letter',
     'Compare',
@@ -60,14 +125,13 @@ Map<String, dynamic> monthlyStats = {};
     'अक्षर ज्ञान',
     'तुलना',
     'चलो गिनें',
-    'संख्या नाम मिलान',
+    'संख्या नाम मिलान', 
     'नाम संख्या मिलान',
     'चलो समय बताएँ',
     'वर्णमाला ज्ञान',
     'बाएँ दाएँ मध्य',
     'आकार ज्ञान',
   ];
-
 
 
   @override
@@ -83,79 +147,87 @@ Map<String, dynamic> monthlyStats = {};
   }
 
 
-
+final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
 
 Future<void> _loadBubbleData() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final userGamesSnap = await _dbRef.child('users/$_uid/games').get();
+    final userProgressData = _deepCastMap(userGamesSnap.value as Map?) ?? {};
 
-    final userGamesSnap =
-        await FirebaseDatabase.instance.ref('users/$uid/games').get();
-    final Map<String, dynamic> userStats =
-        userGamesSnap.exists && userGamesSnap.value is Map
-            ? Map<String, dynamic>.from(userGamesSnap.value as Map)
-            : {};
-
-    // 👉 1. Fetch totalAttempted from RTDB
     final totalAttemptedSnap =
-        await FirebaseDatabase.instance.ref('users/$uid/totalAttempted').get();
+        await _dbRef.child('users/$_uid/totalAttempted').get();
     final totalAttemptedValue =
         totalAttemptedSnap.exists ? (totalAttemptedSnap.value as int? ?? 0) : 0;
 
-    // 2. Firestore counts
-    final countFutures = _gameNames.map((game) {
-      return FirebaseFirestore.instance.collection(game).count().get();
-    }).toList();
+    int totalQuestionsValue = 0;
+    List<_GameBubbleData> bubblesList = [];
 
-    final snapshots = await Future.wait(countFutures);
-
-    List<_GameBubbleData> list = [];
-    for (var i = 0; i < _gameNames.length; i++) {
-      final game = _gameNames[i];
-      final total = snapshots[i].count ?? 0;
-
-      final stats = userStats[game] as Map? ?? {};
-      final correct = (stats['correctCount'] as int?) ?? 0;
-      final incorrect = (stats['incorrectCount'] as int?) ?? 0;
+    // Loop through BASE game names, not L1, L2, L3 versions
+    for (String baseGameName in _baseGameNames) {
+      // 1. Get user progress for this base game from RTDB
+      final gameProgress =
+          _deepCastMap(userProgressData[baseGameName]?['main_game']);
+      final correct = gameProgress?['correctCount'] ?? 0;
+      final incorrect = gameProgress?['incorrectCount'] ?? 0;
       final attempted = correct + incorrect;
 
-      list.add(_GameBubbleData(game, attempted, total, correct, incorrect));
+      // 2. Get total question count by summing all levels from Firestore
+      // Using .get().size instead of .count() for better reliability
+      final l1DocsFuture = _firestore.collection('$baseGameName L1').get();
+      final l2DocsFuture = _firestore.collection('$baseGameName L2').get();
+      final l3DocsFuture = _firestore.collection('$baseGameName L3').get();
+
+      final snapshots =
+          await Future.wait([l1DocsFuture, l2DocsFuture, l3DocsFuture]);
+      final total = snapshots[0].size + snapshots[1].size + snapshots[2].size;
+
+      totalQuestionsValue += total;
+
+      // Only add bubble if questions exist for this game and it has been attempted
+      if (total > 0 && attempted > 0) {
+        bubblesList.add(_GameBubbleData(
+            baseGameName, attempted, total, correct, incorrect));
+      }
     }
 
-    // 👉 3. Sum total questions
-    final totalQuestionsValue = snapshots.fold<int>(
-      0,
-      (sum, snap) => sum + (snap.count ?? 0),
-    );
-
-    // 👉 4. Save everything
-    setState(() {
-      _bubbles = list;
-      _loadingBubbles = false;
-      totalQuestions = totalQuestionsValue;
-      totalAttempted = totalAttemptedValue;
-    });
+    if (mounted) {
+      setState(() {
+        _bubbles = bubblesList;
+        _loadingBubbles = false;
+        totalQuestions = totalQuestionsValue;
+        totalAttempted = totalAttemptedValue;
+      });
+    }
   }
+
+
 
 
 
 Future<void> _loadGameAccuracies() async {
-    final snap = await _dbRef.child('users/$_uid/games').get();
-    final List<_GameAccuracy> list = [];
-    if (snap.exists && snap.value is Map) {
-      final games = Map<String, dynamic>.from(snap.value as Map);
-      games.forEach((gameName, raw) {
-        final m = raw as Map<dynamic, dynamic>;
-        final c = (m['correctCount'] as int?) ?? 0;
-        final i = (m['incorrectCount'] as int?) ?? 0;
-        list.add(_GameAccuracy(name: gameName, correct: c, incorrect: i));
-      });
-    }
-    setState(() {
-      _gameAccuracies = list;
-      _loadingGameAcc = false;
+  final snap = await _dbRef.child('users/$_uid/games').get();
+  final List<_GameAccuracy> list = [];
+  if (snap.exists && snap.value is Map) {
+    final games = _deepCastMap(snap.value as Map) ?? {};
+    games.forEach((gameName, gameData) {
+      // Correctly access the nested main_game object
+      final mainGameData = _deepCastMap(gameData['main_game']);
+      if (mainGameData != null) {
+        final c = (mainGameData['correctCount'] as int?) ?? 0;
+        final i = (mainGameData['incorrectCount'] as int?) ?? 0;
+        // Only add games that have been played to the list
+        if (c + i > 0) {
+          list.add(_GameAccuracy(name: gameName, correct: c, incorrect: i));
+        }
+      }
     });
   }
+  setState(() {
+    _gameAccuracies = list;
+    _loadingGameAcc = false;
+  });
+}
+
 
 Future<void> _loadDashboardStats() async {
     final uid = _uid;
@@ -209,14 +281,49 @@ Future<void> _loadDashboardStats() async {
   }
 
 
-Future<void> _loadAccuracyData() async {
+// --- Helper Functions (Place these in your _ComparePageState) ---
+
+  Map<String, dynamic>? _deepCastMap(Map? data) {
+    if (data == null) return null;
+    return Map<String, dynamic>.from(data.map((key, value) {
+      var newKey = key.toString();
+      var newValue = value;
+      if (value is Map) {
+        newValue = _deepCastMap(value);
+      } else if (value is List) {
+        newValue = _deepCastList(value);
+      }
+      return MapEntry(newKey, newValue);
+    }));
+  }
+
+  List<dynamic>? _deepCastList(List? data) {
+    if (data == null) return null;
+    return data.map((item) {
+      if (item is Map) {
+        return _deepCastMap(item);
+      } else if (item is List) {
+        return _deepCastList(item);
+      }
+      return item;
+    }).toList();
+  }
+
+// --- Updated Function ---
+
+  Future<void> _loadAccuracyData() async {
     final snap = await _dbRef.child('users/$_uid/games').get();
-    int corr = 0, inc = 0;
+    int corr = 0;
+    int inc = 0;
     if (snap.exists && snap.value is Map) {
-      (snap.value as Map).forEach((_, gameData) {
-        final m = gameData as Map;
-        corr += (m['correctCount'] as int?) ?? 0;
-        inc += (m['incorrectCount'] as int?) ?? 0;
+      final games = _deepCastMap(snap.value as Map) ?? {};
+      games.forEach((_, gameData) {
+        // Correctly access the nested main_game object
+        final mainGameData = _deepCastMap(gameData['main_game']);
+        if (mainGameData != null) {
+          corr += (mainGameData['correctCount'] as int?) ?? 0;
+          inc += (mainGameData['incorrectCount'] as int?) ?? 0;
+        }
       });
     }
     setState(() {
