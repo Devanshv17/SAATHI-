@@ -675,13 +675,12 @@ class _GamePageState extends State<GamePage> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 245, 255, 255),
       appBar: AppBar(
-        title: Flexible(
-            child: Text(titleText,
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-                overflow: TextOverflow.ellipsis)),
+        title: Text(titleText, // <--- CORRECTED
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white),
+            overflow: TextOverflow.ellipsis),
         backgroundColor: const Color.fromARGB(255, 101, 65, 239),
         automaticallyImplyLeading: !_isPretestMode,
         actions: [
@@ -786,6 +785,38 @@ class _GamePageState extends State<GamePage> {
     final showRes = _hasSubmitted && isSel;
     final corr = option['isCorrect'] as bool? ?? false;
 
+    // Safely get both the image URL and the title from the option data
+    final imageUrl = option['imageUrl'] as String?;
+    final title = option['title'] as String?;
+
+    // This widget will hold either the Image or the Text
+    Widget optionContent;
+
+    // --- Logic to decide what to display ---
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      // Priority 1: If an image URL exists, show the image.
+      optionContent = Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+          const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+        ),
+      );
+    } else if (title != null && title.isNotEmpty) {
+      // Priority 2: If no image, but a title exists, show the text.
+      optionContent = Text(
+        title,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+      );
+    } else {
+      // Fallback: If neither is available, show a placeholder icon.
+      optionContent = const Icon(Icons.help_outline, size: 40, color: Colors.grey);
+    }
+    // --- End of logic ---
+
     return GestureDetector(
       onTap: () => _selectOption(index),
       child: Stack(
@@ -798,9 +829,9 @@ class _GamePageState extends State<GamePage> {
               border: isSel && !_hasSubmitted
                   ? Border.all(color: Colors.blue, width: 4)
                   : showRes
-                      ? Border.all(
-                          color: corr ? Colors.green : Colors.red, width: 4)
-                      : null,
+                  ? Border.all(
+                  color: corr ? Colors.green : Colors.red, width: 4)
+                  : null,
               boxShadow: [
                 BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
@@ -811,9 +842,8 @@ class _GamePageState extends State<GamePage> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Center(
-                  child: Text(option['title'] as String,
-                      style: const TextStyle(
-                          fontSize: 25, fontWeight: FontWeight.bold))),
+                child: optionContent, // Display the content we determined above
+              ),
             ),
           ),
           if (showRes)

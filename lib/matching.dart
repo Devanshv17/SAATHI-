@@ -677,13 +677,12 @@ class _MatchingPageState extends State<MatchingPage> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 245, 255, 255),
       appBar: AppBar(
-        title: Flexible(
-            child: Text(titleText,
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-                overflow: TextOverflow.ellipsis)),
+        title: Text(titleText, // <--- CORRECTED
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white),
+            overflow: TextOverflow.ellipsis),
         backgroundColor: const Color.fromARGB(255, 101, 65, 239),
         automaticallyImplyLeading: !_isPretestMode,
         actions: [

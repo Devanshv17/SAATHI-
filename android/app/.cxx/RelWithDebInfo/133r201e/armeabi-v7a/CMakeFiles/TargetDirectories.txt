@@ -1,0 +1,2 @@
+/Users/devansh/SAATHI-/android/app/.cxx/RelWithDebInfo/133r201e/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/devansh/SAATHI-/android/app/.cxx/RelWithDebInfo/133r201e/armeabi-v7a/CMakeFiles/rebuild_cache.dir
