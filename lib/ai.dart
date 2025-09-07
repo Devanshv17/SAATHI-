@@ -37,6 +37,7 @@ class AiService {
         : imageDescription.trim();
 
     // Provide a clear JSON-only contract and instruct the model to NOT HALLUCINATE.
+    // Also include an explicit hint for numeric counting tasks.
     final prompt = Content.text('''
 You are given ONLY these facts. Use them — do NOT invent or hallucinate facts.
 
@@ -45,6 +46,8 @@ ${question.trim()}
 
 Image description (from database; MAY be empty):
 $safeImageDesc
+
+If the image description is a single number (e.g., "3" or "There are 3 objects"), interpret it as "There are N objects" and use that as the primary fact for counting tasks. Do NOT guess counts or invent objects.
 
 Options:
 ${options.map((o) => '- ${o.trim()}').join('\n')}
@@ -56,7 +59,7 @@ $languageInstruction
 
 Task:
 1) Guess why the user might have made this mistake (a short sentence).
-2) Explain why the correct answer is right using ONLY the supplied facts (question text and image description). If the image description clearly says the object, base the explanation on that. 
+2) Explain why the correct answer is right using ONLY the supplied facts (question text and image description). If the image description clearly says the object or the number, base the explanation on that. 
 3) If you cannot determine the reason from these facts, put 'UNKNOWN' as the value for that field — do NOT invent reasons.
 
 Return **only** valid JSON with exactly two string fields: "mistake" and "explanation".
@@ -131,7 +134,7 @@ No extra text, no markdown, no backticks, no lists. JSON ONLY.
 
   /// Very conservative single-quote -> double-quote fixer for JSON-like strings.
   String _tryFixSingleQuotes(String s) {
-    // Replace ': ' with ": " and keys in single quotes -> double quotes
+    // Replace keys and string values enclosed in single quotes to double quotes
     // CAVEAT: only a last-resort tool — keep conservative.
     var out = s.replaceAll(RegExp(r"(?<=\{|,)\s*'([^']+)'\s*:"), r'"\1":');
     out = out.replaceAll(RegExp(r":\s*'([^']*)'(?=\s*(,|\}))"), r': "\1"');

@@ -1,3 +1,4 @@
+// let_us_count_page.dart
 import 'dart:async';
 import 'dart:ui'; // for ImageFilter
 import 'dart:math';
@@ -24,6 +25,7 @@ class LetUsCountPage extends StatefulWidget {
 }
 
 class _LetUsCountPageState extends State<LetUsCountPage> {
+
   // --- Firebase Instances ---
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -75,6 +77,64 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     super.dispose();
   }
 
+  // Paste inside class _LetUsCountPageState
+
+  void _previousQuestion() {
+    if (_currentQuestionIndex > 0) {
+      setState(() => _currentQuestionIndex--);
+      _initQuestionState();
+    }
+  }
+
+  void _nextQuestion() async {
+    if (_isPretestMode) {
+      if (_currentQuestionIndex >= _questions.length - 1) {
+        await _calculateAndSavePretestResults();
+      } else {
+        setState(() => _currentQuestionIndex++);
+        _initQuestionState();
+      }
+      return;
+    }
+
+    if (_currentQuestionIndex < _questions.length - 1) {
+      setState(() => _currentQuestionIndex++);
+      _initQuestionState();
+      return;
+    }
+
+    // finished current level -> try advance level or finish game
+    final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
+    final levelsToShow = (mainGameData['levelsToShow'] as List?)?.cast<String>() ?? [];
+    int currentLevelIdx = mainGameData['currentLevelIndex'] as int? ?? 0;
+    currentLevelIdx++;
+
+    if (currentLevelIdx < levelsToShow.length) {
+      setState(() => _isLoading = true);
+      mainGameData['currentLevelIndex'] = currentLevelIdx;
+      _gameState['main_game'] = mainGameData;
+      await _dbRef
+          .child("users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
+          .set(currentLevelIdx);
+      await _loadCurrentLevelQuestions();
+      setState(() => _isLoading = false);
+    } else {
+      // end of game: go to result page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ResultPage(
+            gameTitle: widget.gameTitle,
+            score: mainGameData['score'] ?? 0,
+            correctCount: mainGameData['correctCount'] ?? 0,
+            incorrectCount: mainGameData['incorrectCount'] ?? 0,
+            isHindi: widget.isHindi,
+          ),
+        ),
+      );
+    }
+  }
+
   // --- Safe casting helper functions ---
   Map<String, dynamic>? _deepCastMap(Map? data) {
     if (data == null) return null;
@@ -107,7 +167,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     final user = _auth.currentUser;
     if (user == null) return;
     final snap =
-        await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
+    await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
     if (snap.exists) {
       _gameState = _deepCastMap(snap.value as Map) ?? {};
       _pretestCompleted = _gameState['pretestCompleted'] ?? false;
@@ -174,7 +234,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       };
       await _dbRef
           .child(
-              "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
+          "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
           .set(initialPretestState);
       _gameState['pretest'] = initialPretestState;
       await _loadPretestQuestions(questionIds);
@@ -203,13 +263,13 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     }
     _questions = questionIds
         .map((qInfo) {
-          final doc = docsById[qInfo['id']];
-          if (doc != null && doc.exists) {
-            final data = doc.data() as Map<String, dynamic>;
-            return {'id': doc.id, 'level': qInfo['level'], 'data': data};
-          }
-          return null;
-        })
+      final doc = docsById[qInfo['id']];
+      if (doc != null && doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {'id': doc.id, 'level': qInfo['level'], 'data': data};
+      }
+      return null;
+    })
         .where((q) => q != null)
         .cast<Map<String, dynamic>>()
         .toList();
@@ -307,7 +367,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         .get();
     _questions = snapshot.docs
         .map((doc) =>
-            {'id': doc.id, 'level': currentLevelName, 'data': doc.data()})
+    {'id': doc.id, 'level': currentLevelName, 'data': doc.data()})
         .toList();
     final levelProgress = _deepCastMap(mainGameData['levelProgress']) ?? {};
     final progressInCurrentLevel =
@@ -332,10 +392,10 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       final imageCount =
           int.tryParse(data['numberField']?.toString() ?? "0") ?? 0;
       _assetsByQuestion[qId] = List.generate(imageCount,
-          (_) => _shapeAssets[_random.nextInt(_shapeAssets.length)]);
+              (_) => _shapeAssets[_random.nextInt(_shapeAssets.length)]);
     }
     _imageAssets = _assetsByQuestion[qId]!;
-    
+
     if (_userAnswers.containsKey(qId)) {
       final saved = _userAnswers[qId] as Map<String, dynamic>;
       _pendingSelectedIndex = saved['selectedOptionIndex'] as int?;
@@ -356,7 +416,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     if (_pendingSelectedIndex == null || _hasSubmitted) return;
     final qId = _questions[_currentQuestionIndex]['id'] as String;
     final data =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
     final options = data['options'] as List<dynamic>;
     final isCorrect = options[_pendingSelectedIndex!]['isCorrect'] as bool;
 
@@ -364,7 +424,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       'selectedOptionIndex': _pendingSelectedIndex,
       'isCorrect': isCorrect,
       'timeTakenSeconds':
-          DateTime.now().difference(_questionStartTime!).inSeconds
+      DateTime.now().difference(_questionStartTime!).inSeconds
     };
 
     if (_isPretestMode) {
@@ -386,12 +446,12 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     } else {
       levelScores['incorrect'] = (levelScores['incorrect'] as int? ?? 0) + 1;
     }
-    _gameState['pretest'] = pretestState; 
+    _gameState['pretest'] = pretestState;
     pretestState['currentQuestionIndex'] = _currentQuestionIndex;
     pretestState['answers'] = _userAnswers;
     await _dbRef
         .child(
-            "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
+        "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
         .set(pretestState);
   }
 
@@ -457,7 +517,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
 
     int correct = 0;
     int incorrect = 0;
-    
+
     if (todayActivity['date'] == dateKey) {
       correct = todayActivity['correct'] ?? 0;
       incorrect = todayActivity['incorrect'] ?? 0;
@@ -483,13 +543,13 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     final updates = <String, Object>{};
     final inc = ServerValue.increment(1);
     updates["users/${user.uid}/totalAttempted"] = inc;
-     updates["users/${user.uid}/score"] =
+    updates["users/${user.uid}/score"] =
         ServerValue.increment(isCorrect ? 1 : 0);
 
-    
+
     updates["users/${user.uid}/monthlyStats/$dateKey/correct"] = ServerValue.increment(isCorrect ? 1 : 0);
     updates["users/${user.uid}/monthlyStats/$dateKey/incorrect"] = ServerValue.increment(isCorrect ? 0 : 1);
-    
+
     final streakSnap = await _dbRef.child("users/${user.uid}/streak").get();
     if (isCorrect) {
       if (streakSnap.exists) {
@@ -505,70 +565,55 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     if (updates.isNotEmpty) await _dbRef.update(updates);
   }
 
-  void _nextQuestion() async {
-    if (_isPretestMode) {
-      if (_currentQuestionIndex >= _questions.length - 1) {
-        _calculateAndSavePretestResults();
-      } else {
-        setState(() => _currentQuestionIndex++);
-        _initQuestionState();
-      }
-      return;
-    }
-    if (_currentQuestionIndex < _questions.length - 1) {
-      setState(() => _currentQuestionIndex++);
-      _initQuestionState();
-    } else {
-      final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
-      final levelsToShow =
-          (mainGameData['levelsToShow'] as List?)?.cast<String>() ?? [];
-      int currentLevelIdx = mainGameData['currentLevelIndex'] as int? ?? 0;
-      currentLevelIdx++;
-      if (currentLevelIdx < levelsToShow.length) {
-        setState(() => _isLoading = true);
-        mainGameData['currentLevelIndex'] = currentLevelIdx;
-        _gameState['main_game'] = mainGameData;
-        await _dbRef
-            .child(
-                "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
-            .set(currentLevelIdx);
-        await _loadCurrentLevelQuestions();
-        setState(() => _isLoading = false);
-      } else {
-        Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (_) => ResultPage(
-                    gameTitle: widget.gameTitle,
-                    score: mainGameData['score'] ?? 0,
-                    correctCount: mainGameData['correctCount'] ?? 0,
-                    incorrectCount: mainGameData['incorrectCount'] ?? 0,
-                    isHindi: widget.isHindi)));
-      }
-    }
-  }
-
-  void _previousQuestion() {
-    if (_currentQuestionIndex > 0) {
-      setState(() => _currentQuestionIndex--);
-      _initQuestionState();
-    }
-  }
-
   // --- AI Feature ---
   Future<void> _analyzeWithAI() async {
     if (_pendingSelectedIndex == null) return;
-    
+
     final currentQuestionData =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
-    final questionText = currentQuestionData['text'] as String? ?? "";
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    final questionText = (currentQuestionData['text'] as String?)?.trim() ?? "";
+
     final options = (currentQuestionData['options'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
 
-    final optionTitles = options.map((o) => o['title'] as String).toList();
-    final correctTitle = optionTitles[
-        options.indexWhere((o) => o['isCorrect'] as bool? ?? false)];
+    // Build option titles safely
+    final optionTitles = options
+        .map((o) => ((o['title'] as String?) ?? '').trim())
+        .toList();
+
+    final correctIndex =
+    options.indexWhere((o) => (o['isCorrect'] as bool? ?? false));
+    final correctTitle =
+    correctIndex >= 0 ? optionTitles[correctIndex] : (optionTitles.isNotEmpty ? optionTitles[0] : '');
+
     final userTitle = optionTitles[_pendingSelectedIndex!];
+
+    // --- NEW: synthesize an image description from numberField ---
+    String? imageDescription;
+    try {
+      // Prefer an explicit numberField on the question doc
+      final numberFieldRaw = currentQuestionData['numberField'];
+      if (numberFieldRaw != null) {
+        final n = int.tryParse(numberFieldRaw.toString());
+        if (n != null) {
+          imageDescription = 'There are $n objects.';
+        }
+      }
+
+      // Fallback: if we generated assets for display, use their actual count
+      if (imageDescription == null && _imageAssets.isNotEmpty) {
+        imageDescription = 'There are ${_imageAssets.length} objects.';
+      }
+    } catch (_) {
+      // ignore and continue; imageDescription may stay null
+    }
+
+    // final fallback: keep question text (not ideal)
+    imageDescription ??= questionText.isNotEmpty ? questionText : null;
+
+    // Log what we will send to AI (for debugging)
+    // ignore: avoid_print
+    print('AI call: question="$questionText" imageDescription="$imageDescription" correct="$correctTitle" user="$userTitle" options=$optionTitles');
 
     showDialog(
       context: context,
@@ -594,8 +639,11 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         options: optionTitles,
         correctAnswer: correctTitle,
         userAnswer: userTitle,
+        imageDescription: imageDescription,
+        forceHindi: widget.isHindi,
       );
-      if (mounted) Navigator.of(context).pop(); 
+
+      if (mounted) Navigator.of(context).pop();
       if (mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -604,7 +652,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               question: questionText,
               correctOption: correctTitle,
               attemptedOption: userTitle,
-              imageAssets: _imageAssets, 
+              imageAssets: _imageAssets,
               script: fb['explanation'] ?? fb.toString(),
               isHindi: widget.isHindi,
             ),
@@ -613,9 +661,10 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       }
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('AI feedback failed: $e')));
+      }
     }
   }
 
@@ -658,7 +707,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
     final pretestState = _deepCastMap(_gameState['pretest']);
     final currentQuestionData =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
     final questionText = currentQuestionData['text'] as String? ?? "";
     final options = (currentQuestionData['options'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
@@ -666,7 +715,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     final titleText = _isPretestMode
         ? '${widget.gameTitle} (Pre-test)'
         : '${widget.gameTitle} - ${_questions[_currentQuestionIndex]['level']}'
-            .toUpperCase();
+        .toUpperCase();
 
     int currentScore = 0;
     int currentCorrect = 0;
@@ -674,14 +723,14 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
 
     if (_isPretestMode) {
       currentCorrect = pretestState?['levelScores']?.values.fold(
-              0,
+          0,
               (sum, level) =>
-                  sum + ((_deepCastMap(level)?['correct'] as int?) ?? 0)) ??
+          sum + ((_deepCastMap(level)?['correct'] as int?) ?? 0)) ??
           0;
       currentIncorrect = pretestState?['levelScores']?.values.fold(
-              0,
+          0,
               (sum, level) =>
-                  sum + ((_deepCastMap(level)?['incorrect'] as int?) ?? 0)) ??
+          sum + ((_deepCastMap(level)?['incorrect'] as int?) ?? 0)) ??
           0;
       currentScore = currentCorrect;
     } else {
@@ -689,15 +738,15 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
       currentCorrect = mainGameData['correctCount'] ?? 0;
       currentIncorrect = mainGameData['incorrectCount'] ?? 0;
     }
-    
+
     final isCurrentAnswerCorrect = _hasSubmitted &&
         _pendingSelectedIndex != null &&
         (options[_pendingSelectedIndex!]['isCorrect'] as bool);
 
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 245, 255, 255),
-       appBar: AppBar(
-        title: Text(titleText, 
+      appBar: AppBar(
+        title: Text(titleText,
             style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -718,7 +767,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
             Text(questionText,
                 textAlign: TextAlign.center,
                 style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             Wrap(
               spacing: 10,
@@ -770,7 +819,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
               ElevatedButton(
                   onPressed:
-                      _currentQuestionIndex > 0 ? _previousQuestion : null,
+                  _currentQuestionIndex > 0 ? _previousQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor: _currentQuestionIndex > 0
                           ? Colors.orange
@@ -784,9 +833,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                       : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          (_pendingSelectedIndex != null && !_hasSubmitted)
-                              ? Colors.blue
-                              : Colors.grey),
+                      (_pendingSelectedIndex != null && !_hasSubmitted)
+                          ? Colors.blue
+                          : Colors.grey),
                   child: Text(widget.isHindi ? "जमा करें" : "Submit",
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold))),
@@ -794,7 +843,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                   onPressed: _hasSubmitted ? _nextQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          _hasSubmitted ? Colors.green : Colors.grey),
+                      _hasSubmitted ? Colors.green : Colors.grey),
                   child: Text(widget.isHindi ? "अगला" : "Next",
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold))),
@@ -822,9 +871,9 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               border: isSel && !_hasSubmitted
                   ? Border.all(color: Colors.blue, width: 4)
                   : showRes
-                      ? Border.all(
-                          color: corr ? Colors.green : Colors.red, width: 4)
-                      : null,
+                  ? Border.all(
+                  color: corr ? Colors.green : Colors.red, width: 4)
+                  : null,
               boxShadow: [
                 BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
@@ -895,8 +944,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
               child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                        widget.isHindi ? "परीक्षा परिणाम" : "Pre-test Results",
+                    Text(widget.isHindi ? "परीक्षा परिणाम" : "Pre-test Results",
                         style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -927,8 +975,8 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                                   data['passed']
                                       ? (widget.isHindi ? "पास" : "Passed")
                                       : (widget.isHindi
-                                          ? "फिर से प्रयास करें"
-                                          : "Try Again"),
+                                      ? "फिर से प्रयास करें"
+                                      : "Try Again"),
                                   style: TextStyle(
                                       color: data['passed']
                                           ? Colors.green
@@ -963,15 +1011,15 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         content: Text(
           widget.isHindi
               ? "१. विकल्प चुनें (नीला बॉर्डर).\n"
-                "२. जमा करें पर टैप करें.\n"
-                "३. सही: हरा टिक; गलत: लाल क्रॉस.\n"
-                "४. Prev/Next.\n"
-                "५. प्रगति सेव."
+              "२. जमा करें पर टैप करें.\n"
+              "३. सही: हरा टिक; गलत: लाल क्रॉस.\n"
+              "४. Prev/Next.\n"
+              "५. प्रगति सेव."
               : "1. Tap an option (blue border).\n"
-                "2. Tap Submit.\n"
-                "3. Correct: green tick; incorrect: red cross.\n"
-                "4. Use Previous/Next.\n"
-                "5. Progress is saved.",
+              "2. Tap Submit.\n"
+              "3. Correct: green tick; incorrect: red cross.\n"
+              "4. Use Previous/Next.\n"
+              "5. Progress is saved.",
         ),
         actions: [
           TextButton(
@@ -983,4 +1031,3 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
     );
   }
 }
-
