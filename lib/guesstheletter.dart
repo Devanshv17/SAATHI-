@@ -1,3 +1,4 @@
+// guess_the_letter_page.dart
 import 'dart:async';
 import 'dart:ui'; // for ImageFilter
 import 'package:flutter/material.dart';
@@ -95,7 +96,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     final user = _auth.currentUser;
     if (user == null) return;
     final snap =
-        await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
+    await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
     if (snap.exists) {
       _gameState = _deepCastMap(snap.value as Map) ?? {};
       _pretestCompleted = _gameState['pretestCompleted'] ?? false;
@@ -162,7 +163,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       };
       await _dbRef
           .child(
-              "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
+          "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
           .set(initialPretestState);
       _gameState['pretest'] = initialPretestState;
       await _loadPretestQuestions(questionIds);
@@ -191,13 +192,13 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     }
     _questions = questionIds
         .map((qInfo) {
-          final doc = docsById[qInfo['id']];
-          if (doc != null && doc.exists) {
-            final data = doc.data() as Map<String, dynamic>;
-            return {'id': doc.id, 'level': qInfo['level'], 'data': data};
-          }
-          return null;
-        })
+      final doc = docsById[qInfo['id']];
+      if (doc != null && doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {'id': doc.id, 'level': qInfo['level'], 'data': data};
+      }
+      return null;
+    })
         .where((q) => q != null)
         .cast<Map<String, dynamic>>()
         .toList();
@@ -295,7 +296,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         .get();
     _questions = snapshot.docs
         .map((doc) =>
-            {'id': doc.id, 'level': currentLevelName, 'data': doc.data()})
+    {'id': doc.id, 'level': currentLevelName, 'data': doc.data()})
         .toList();
     final levelProgress = _deepCastMap(mainGameData['levelProgress']) ?? {};
     final progressInCurrentLevel =
@@ -335,7 +336,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     if (_pendingSelectedIndex == null || _hasSubmitted) return;
     final qId = _questions[_currentQuestionIndex]['id'] as String;
     final data =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
     final options = data['options'] as List<dynamic>;
     final isCorrect = options[_pendingSelectedIndex!]['isCorrect'] as bool;
 
@@ -343,7 +344,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
       'selectedOptionIndex': _pendingSelectedIndex,
       'isCorrect': isCorrect,
       'timeTakenSeconds':
-          DateTime.now().difference(_questionStartTime!).inSeconds
+      DateTime.now().difference(_questionStartTime!).inSeconds
     };
 
     if (_isPretestMode) {
@@ -360,7 +361,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   Future<void> _updatePretestState(bool isCorrect, String level) async {
     final pretestState = _deepCastMap(_gameState['pretest'])!;
     final levelScores =
-        pretestState['levelScores'][level] as Map<String, dynamic>;
+    pretestState['levelScores'][level] as Map<String, dynamic>;
     if (isCorrect) {
       levelScores['correct'] = (levelScores['correct'] as int? ?? 0) + 1;
     } else {
@@ -371,7 +372,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     pretestState['answers'] = _userAnswers;
     await _dbRef
         .child(
-            "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
+        "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
         .set(pretestState);
   }
 
@@ -463,7 +464,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     final updates = <String, Object>{};
     final inc = ServerValue.increment(1);
     updates["users/${user.uid}/totalAttempted"] = inc;
-     updates["users/${user.uid}/score"] =
+    updates["users/${user.uid}/score"] =
         ServerValue.increment(isCorrect ? 1 : 0);
 
 
@@ -512,7 +513,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         _gameState['main_game'] = mainGameData;
         await _dbRef
             .child(
-                "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
+            "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
             .set(currentLevelIdx);
         await _loadCurrentLevelQuestions();
         setState(() => _isLoading = false);
@@ -542,16 +543,63 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     if (_pendingSelectedIndex == null) return;
 
     final currentQuestionData =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
-    final questionText = currentQuestionData['text'] as String? ?? "";
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    final questionText = (currentQuestionData['text'] as String?)?.trim() ?? "";
     final imageUrl = currentQuestionData['imageUrl'] as String?;
+
+    // --- NEW: find description inside options if present ---
     final options = (currentQuestionData['options'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
 
-    final optionTitles = options.map((o) => o['title'] as String).toList();
+    // Safely build option titles (fallback to empty string)
+    final optionTitles = options
+        .map((o) => ((o['title'] as String?) ?? '').trim())
+        .toList();
+
+    // Prefer description from the option marked isCorrect, otherwise first non-empty description
+    String? imageDescription;
+    try {
+      final correctOptionIndex =
+      options.indexWhere((o) => (o['isCorrect'] as bool? ?? false));
+      if (correctOptionIndex >= 0 && correctOptionIndex < options.length) {
+        imageDescription =
+            (options[correctOptionIndex]['description'] as String?)?.trim();
+      }
+    } catch (_) {}
+
+    imageDescription ??= options
+        .map((o) => (o['description'] as String?)?.trim())
+        .firstWhere((d) => d != null && d.isNotEmpty, orElse: () => null);
+
+    // Also check some likely top-level keys in the doc (if author used them)
+    imageDescription ??= (currentQuestionData['description'] as String?)?.trim();
+    imageDescription ??=
+        (currentQuestionData['imageDescription'] as String?)?.trim();
+    imageDescription ??= (currentQuestionData['label'] as String?)?.trim();
+    imageDescription ??= (currentQuestionData['caption'] as String?)?.trim();
+
+    // final fallback: use question text (not ideal, but safe)
+    imageDescription ??= questionText.isNotEmpty ? questionText : null;
+
     final correctTitle = optionTitles[
-        options.indexWhere((o) => o['isCorrect'] as bool? ?? false)];
+    options.indexWhere((o) => (o['isCorrect'] as bool? ?? false))];
     final userTitle = optionTitles[_pendingSelectedIndex!];
+
+    // Optional: local sanity-check for letter-from-description tasks:
+    try {
+      final qLower = questionText.toLowerCase();
+      if (qLower.contains('first letter') || qLower.contains('first character')) {
+        if (imageDescription != null && imageDescription.isNotEmpty) {
+          final predictedLetter = imageDescription.trim()[0].toUpperCase();
+          if (predictedLetter != correctTitle.trim().toUpperCase()) {
+            // debug print - helps identify DB mismatch
+            // ignore: avoid_print
+            print('DEBUG: predicted letter "$predictedLetter" from description '
+                'does not match stored correctTitle "$correctTitle" for question id ${_questions[_currentQuestionIndex]['id']}');
+          }
+        }
+      }
+    } catch (_) {}
 
     showDialog(
       context: context,
@@ -572,11 +620,13 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     );
 
     try {
-      final fb = await _aiService.getFeedback(
+      final fb = await _ai_service_getFeedbackSafe(
         question: questionText,
         options: optionTitles,
         correctAnswer: correctTitle,
         userAnswer: userTitle,
+        imageDescription: imageDescription,
+        forceHindi: widget.isHindi,
       );
       if (mounted) Navigator.of(context).pop();
       if (mounted) {
@@ -600,6 +650,30 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('AI feedback failed: $e')));
     }
+  }
+
+  // Small wrapper to call AI service and add extra logging
+  Future<Map<String, dynamic>> _ai_service_getFeedbackSafe({
+    required String question,
+    required List<String> options,
+    required String correctAnswer,
+    required String userAnswer,
+    String? imageDescription,
+    bool forceHindi = false,
+  }) async {
+    // ignore: avoid_print
+    print('Calling AI with: question="$question" imageDesc="$imageDescription" correct="$correctAnswer" user="$userAnswer" options=$options');
+    final res = await _aiService.getFeedback(
+      question: question,
+      options: options,
+      correctAnswer: correctAnswer,
+      userAnswer: userAnswer,
+      imageDescription: imageDescription,
+      forceHindi: forceHindi,
+    );
+    // ignore: avoid_print
+    print('AI parsed response: $res');
+    return res;
   }
 
   // --- UI Widgets ---
@@ -641,7 +715,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
     final pretestState = _deepCastMap(_gameState['pretest']);
     final currentQuestionData =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
     final questionText = currentQuestionData['text'] as String? ?? "";
     final imageUrl = currentQuestionData['imageUrl'] as String?;
     final options = (currentQuestionData['options'] as List<dynamic>? ?? [])
@@ -650,7 +724,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     final titleText = _isPretestMode
         ? '${widget.gameTitle} (Pre-test)'
         : '${widget.gameTitle} - ${_questions[_currentQuestionIndex]['level']}'
-            .toUpperCase();
+        .toUpperCase();
 
     int currentScore = 0;
     int currentCorrect = 0;
@@ -658,14 +732,14 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
 
     if (_isPretestMode) {
       currentCorrect = pretestState?['levelScores']?.values.fold(
-              0,
+          0,
               (sum, level) =>
-                  sum + ((_deepCastMap(level)?['correct'] as int?) ?? 0)) ??
+          sum + ((_deepCastMap(level)?['correct'] as int?) ?? 0)) ??
           0;
       currentIncorrect = pretestState?['levelScores']?.values.fold(
-              0,
+          0,
               (sum, level) =>
-                  sum + ((_deepCastMap(level)?['incorrect'] as int?) ?? 0)) ??
+          sum + ((_deepCastMap(level)?['incorrect'] as int?) ?? 0)) ??
           0;
       currentScore = currentCorrect;
     } else {
@@ -680,8 +754,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
 
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 245, 255, 255),
-       appBar: AppBar(
-        title: Text(titleText, 
+      appBar: AppBar(
+        title: Text(titleText,
             style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -702,13 +776,13 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
             Text(questionText,
                 textAlign: TextAlign.center,
                 style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             if (imageUrl != null)
               Image.network(imageUrl,
                   height: 100,
                   errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.image_not_supported)),
+                  const Icon(Icons.image_not_supported)),
             const SizedBox(height: 15),
             GridView.builder(
               shrinkWrap: true,
@@ -751,7 +825,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
               ElevatedButton(
                   onPressed:
-                      _currentQuestionIndex > 0 ? _previousQuestion : null,
+                  _currentQuestionIndex > 0 ? _previousQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor: _currentQuestionIndex > 0
                           ? Colors.orange
@@ -765,9 +839,9 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                       : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          (_pendingSelectedIndex != null && !_hasSubmitted)
-                              ? Colors.blue
-                              : Colors.grey),
+                      (_pendingSelectedIndex != null && !_hasSubmitted)
+                          ? Colors.blue
+                          : Colors.grey),
                   child: Text(widget.isHindi ? "जमा करें" : "Submit",
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold))),
@@ -775,7 +849,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                   onPressed: _hasSubmitted ? _nextQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          _hasSubmitted ? Colors.green : Colors.grey),
+                      _hasSubmitted ? Colors.green : Colors.grey),
                   child: Text(widget.isHindi ? "अगला" : "Next",
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold))),
@@ -803,9 +877,9 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               border: isSel && !_hasSubmitted
                   ? Border.all(color: Colors.blue, width: 4)
                   : showRes
-                      ? Border.all(
-                          color: corr ? Colors.green : Colors.red, width: 4)
-                      : null,
+                  ? Border.all(
+                  color: corr ? Colors.green : Colors.red, width: 4)
+                  : null,
               boxShadow: [
                 BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
@@ -910,8 +984,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                                   data['passed']
                                       ? (widget.isHindi ? "पास" : "Passed")
                                       : (widget.isHindi
-                                          ? "फिर से प्रयास करें"
-                                          : "Try Again"),
+                                      ? "फिर से प्रयास करें"
+                                      : "Try Again"),
                                   style: TextStyle(
                                       color: data['passed']
                                           ? Colors.green
@@ -946,15 +1020,15 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         content: Text(
           widget.isHindi
               ? "१. विकल्प चुनें (नीला बॉर्डर).\n"
-                  "२. जमा करें पर टैप करें.\n"
-                  "३. सही: हरा टिक; गलत: लाल क्रॉस.\n"
-                  "४. Prev/Next.\n"
-                  "५. प्रगति सेव."
+              "२. जमा करें पर टैप करें.\n"
+              "३. सही: हरा टिक; गलत: लाल क्रॉस.\n"
+              "४. Prev/Next.\n"
+              "५. प्रगति सेव."
               : "1. Tap an option (blue border).\n"
-                  "2. Tap Submit.\n"
-                  "3. Correct: green tick; incorrect: red cross.\n"
-                  "4. Use Previous/Next.\n"
-                  "5. Progress is saved.",
+              "2. Tap Submit.\n"
+              "3. Correct: green tick; incorrect: red cross.\n"
+              "4. Use Previous/Next.\n"
+              "5. Progress is saved.",
         ),
         actions: [
           TextButton(
