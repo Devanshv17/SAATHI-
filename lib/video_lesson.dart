@@ -35,10 +35,10 @@ class GoogleTranslateTtsService {
     if (!await file.exists()) {
       final uri = Uri.parse(
         'https://translate.google.com/translate_tts'
-        '?ie=UTF-8'
-        '&q=${Uri.encodeComponent(text)}'
-        '&tl=$lang'
-        '&client=gtx',
+            '?ie=UTF-8'
+            '&q=${Uri.encodeComponent(text)}'
+            '&tl=$lang'
+            '&client=gtx',
       );
 
       final res = await http.get(uri, headers: {
@@ -66,14 +66,6 @@ class GoogleTranslateTtsService {
 }
 
 /// VideoLesson widget
-///
-/// Usage (examples):
-/// - VideoLesson(script: "AI text...")                                      // default fullscreen
-/// - VideoLesson(fromPage: 'matching', question: q, correctOption: c, attemptedOption: a, script: s)
-/// - VideoLesson(fromPage: 'letuscount', question: q, correctOption: c, attemptedOption: a, imageAssets: imgs, script: s)
-/// - VideoLesson(fromPage: 'guesstheletter', question: q, correctOption: c, attemptedOption: a, imageUrl: url, script: s)
-/// - VideoLesson(fromPage: 'compare', question: q, correctOption: c, attemptedOption: a, leftAssets: l, rightAssets: r, script: s)
-/// - VideoLesson(fromPage: 'letustelltime', question: q, correctOption: c, attemptedOption: a, clockTime: dt, script: s)
 class VideoLesson extends StatefulWidget {
   final String script;
   final String? fromPage;
@@ -83,9 +75,13 @@ class VideoLesson extends StatefulWidget {
   final List<String>? imageAssets; // letuscount
   final List<String>? leftAssets; // compare
   final List<String>? rightAssets; // compare
-  final String? imageUrl; // guesstheletter
+  final String? imageUrl; // guesstheletter (main question image)
   final DateTime? clockTime; // letustelltime
   final bool? isHindi;
+
+  // --- FIX: Added missing parameters ---
+  final String? correctOptionImageUrl;
+  final String? attemptedOptionImageUrl;
 
   const VideoLesson({
     Key? key,
@@ -100,6 +96,9 @@ class VideoLesson extends StatefulWidget {
     this.imageUrl,
     this.clockTime,
     this.isHindi,
+    // --- FIX: Added to constructor ---
+    this.correctOptionImageUrl,
+    this.attemptedOptionImageUrl,
   }) : super(key: key);
 
   @override
@@ -122,6 +121,10 @@ class _VideoLessonState extends State<VideoLesson> {
   String? headerImageUrl;
   DateTime? headerClockTime;
 
+  // --- FIX: Added state variables for option image URLs ---
+  String? headerCorrectOptionImageUrl;
+  String? headerAttemptedOptionImageUrl;
+
   @override
   void initState() {
     super.initState();
@@ -135,6 +138,10 @@ class _VideoLessonState extends State<VideoLesson> {
     headerRight = widget.rightAssets ?? [];
     headerImageUrl = widget.imageUrl;
     headerClockTime = widget.clockTime;
+
+    // --- FIX: Initialize the new state variables ---
+    headerCorrectOptionImageUrl = widget.correctOptionImageUrl;
+    headerAttemptedOptionImageUrl = widget.attemptedOptionImageUrl;
 
     // Split script into sentence-like slides for the animated text area.
     _slides = widget.script
@@ -154,14 +161,12 @@ class _VideoLessonState extends State<VideoLesson> {
   }
 
   Future<void> _playSlides() async {
-    while (_currentSlide < _slides.length) {
+    while (_currentSlide < _slides.length && mounted) {
       final text = _slides[_currentSlide];
 
-      // Prepare animation completer
       _textAnimationCompleter = Completer<void>();
-      setState(() {}); // rebuild AnimatedTextKit (it uses ValueKey to restart)
+      setState(() {});
 
-      // Speak via TTS (catch errors but don't block)
       try {
         final langOverride = widget.isHindi == true ? 'hi' : null;
         await _ttsService.speak(text, localeOverride: langOverride);
@@ -169,16 +174,18 @@ class _VideoLessonState extends State<VideoLesson> {
         debugPrint('TTS error: $e');
       }
 
-      // Wait until the typewriter animation finishes
       await _textAnimationCompleter?.future;
 
-      // Short pause then next slide
+      if (!mounted) return;
       await Future.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+
       setState(() => _currentSlide++);
     }
   }
 
-  Widget _buildOptionCard({
+  // Card for text-based options
+  Widget _buildTextOptionCard({
     required String label,
     required String content,
     required Color borderColor,
@@ -239,6 +246,62 @@ class _VideoLessonState extends State<VideoLesson> {
     );
   }
 
+  // --- FIX: New helper for image-based options ---
+  Widget _buildImageOptionCard({
+    required String label,
+    required String title,
+    required String? imageUrl,
+    required Color color,
+  }) {
+    Widget content;
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      content = Image.network(
+        imageUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) =>
+        const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+      );
+    } else {
+      content = Text(
+        title,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      );
+    }
+
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 120,
+          width: 120,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: Center(child: content),
+        ),
+      ],
+    );
+  }
+
   Widget _buildImagesWrap(List<String> assets) {
     if (assets.isEmpty) return const SizedBox.shrink();
     return Wrap(
@@ -247,10 +310,10 @@ class _VideoLessonState extends State<VideoLesson> {
       alignment: WrapAlignment.center,
       children: assets
           .map((a) => Image.asset(a,
-              width: 40,
-              height: 40,
-              errorBuilder: (_, __, ___) =>
-                  const SizedBox(width: 40, height: 40)))
+          width: 40,
+          height: 40,
+          errorBuilder: (_, __, ___) =>
+          const SizedBox(width: 40, height: 40)))
           .toList(),
     );
   }
@@ -261,6 +324,117 @@ class _VideoLessonState extends State<VideoLesson> {
     final currentAnimatedText = done
         ? (widget.isHindi == true ? '— पाठ समाप्त —' : '— End of lesson —')
         : (_slides.isNotEmpty ? _slides[_currentSlide] : '');
+
+    // -------------------- GUESSTHELETTER MODE (MODIFIED) --------------------
+    if (widget.fromPage == 'guesstheletter') {
+      final labelCorrect = widget.isHindi == true ? 'सही उत्तर' : 'Correct Answer';
+      final labelYour = widget.isHindi == true ? 'आपका उत्तर' : 'Your Answer';
+      final correctText = headerCorrect.isEmpty ? '-' : headerCorrect;
+      final attemptedText = headerAttempted.isEmpty ? '-' : headerAttempted;
+
+      return Scaffold(
+        appBar: AppBar(
+            title: Text(
+                widget.isHindi == true ? 'AI विश्लेषण' : 'AI Explanation')),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // Question
+                Container(
+                  width: double.infinity,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+                      ]),
+                  child: Text(headerQuestion,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w600)),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Network image for the question
+                if (headerImageUrl != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Image.network(headerImageUrl!,
+                        height: 120,
+                        errorBuilder: (_, __, ___) => const SizedBox(
+                            height: 120,
+                            child: Center(child: Icon(Icons.broken_image)))),
+                  ),
+
+                const SizedBox(height: 12),
+
+                // --- FIX: Replaced _buildOptionCard with _buildImageOptionCard ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildImageOptionCard(
+                      label: labelCorrect,
+                      title: correctText,
+                      imageUrl: headerCorrectOptionImageUrl,
+                      color: Colors.green,
+                    ),
+                    _buildImageOptionCard(
+                      label: labelYour,
+                      title: attemptedText,
+                      imageUrl: headerAttemptedOptionImageUrl,
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 14),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                // Animated writeup
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.grey.withOpacity(0.10),
+                              blurRadius: 6)
+                        ]),
+                    child: DefaultTextStyle(
+                      style:
+                      const TextStyle(fontSize: 18, color: Colors.black87),
+                      child: AnimatedTextKit(
+                        key: ValueKey<int>(_currentSlide),
+                        isRepeatingAnimation: false,
+                        totalRepeatCount: 1,
+                        animatedTexts: [
+                          TypewriterAnimatedText(currentAnimatedText,
+                              speed: const Duration(milliseconds: 40),
+                              cursor: '|'),
+                        ],
+                        onFinished: () => _textAnimationCompleter?.complete(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // --- All other game modes remain unchanged ---
 
     // -------------------- LETUSTELLTIME MODE --------------------
     if (widget.fromPage == 'letustelltime') {
@@ -284,7 +458,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -330,16 +504,16 @@ class _VideoLessonState extends State<VideoLesson> {
                 // Option cards
                 Row(
                   children: [
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelCorrect,
                         content: correctText,
                         borderColor: Colors.green,
                         showTick: true),
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                            attemptedIsCorrect ? Colors.green : Colors.red,
+                        attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -364,7 +538,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         ]),
                     child: DefaultTextStyle(
                       style:
-                          const TextStyle(fontSize: 18, color: Colors.black87),
+                      const TextStyle(fontSize: 18, color: Colors.black87),
                       child: AnimatedTextKit(
                         key: ValueKey<int>(_currentSlide),
                         isRepeatingAnimation: false,
@@ -408,7 +582,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -432,7 +606,7 @@ class _VideoLessonState extends State<VideoLesson> {
                             decoration: BoxDecoration(
                                 color: Colors.white,
                                 border:
-                                    Border.all(color: Colors.black54, width: 2),
+                                Border.all(color: Colors.black54, width: 2),
                                 borderRadius: BorderRadius.circular(12)),
                             child: _buildImagesWrap(headerLeft))),
                     const SizedBox(width: 10),
@@ -442,7 +616,7 @@ class _VideoLessonState extends State<VideoLesson> {
                             decoration: BoxDecoration(
                                 color: Colors.white,
                                 border:
-                                    Border.all(color: Colors.black54, width: 2),
+                                Border.all(color: Colors.black54, width: 2),
                                 borderRadius: BorderRadius.circular(12)),
                             child: _buildImagesWrap(headerRight))),
                   ],
@@ -460,16 +634,16 @@ class _VideoLessonState extends State<VideoLesson> {
                 // Option cards
                 Row(
                   children: [
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelCorrect,
                         content: correctText,
                         borderColor: Colors.green,
                         showTick: true),
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                            attemptedIsCorrect ? Colors.green : Colors.red,
+                        attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -494,7 +668,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         ]),
                     child: DefaultTextStyle(
                       style:
-                          const TextStyle(fontSize: 18, color: Colors.black87),
+                      const TextStyle(fontSize: 18, color: Colors.black87),
                       child: AnimatedTextKit(
                         key: ValueKey<int>(_currentSlide),
                         isRepeatingAnimation: false,
@@ -538,7 +712,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -560,16 +734,16 @@ class _VideoLessonState extends State<VideoLesson> {
                 // Options
                 Row(
                   children: [
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelCorrect,
                         content: correctText,
                         borderColor: Colors.green,
                         showTick: true),
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                            attemptedIsCorrect ? Colors.green : Colors.red,
+                        attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -594,117 +768,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         ]),
                     child: DefaultTextStyle(
                       style:
-                          const TextStyle(fontSize: 18, color: Colors.black87),
-                      child: AnimatedTextKit(
-                        key: ValueKey<int>(_currentSlide),
-                        isRepeatingAnimation: false,
-                        totalRepeatCount: 1,
-                        animatedTexts: [
-                          TypewriterAnimatedText(currentAnimatedText,
-                              speed: const Duration(milliseconds: 40),
-                              cursor: '|'),
-                        ],
-                        onFinished: () => _textAnimationCompleter?.complete(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // -------------------- GUESSTHELETTER MODE --------------------
-    if (widget.fromPage == 'guesstheletter') {
-      final labelCorrect = widget.isHindi == true ? 'सही' : 'Correct';
-      final labelYour = widget.isHindi == true ? 'आपका उत्तर' : 'Your answer';
-      final correctText = headerCorrect.isEmpty ? '-' : headerCorrect;
-      final attemptedText = headerAttempted.isEmpty ? '-' : headerAttempted;
-      final attemptedIsCorrect = headerCorrect.trim().isNotEmpty &&
-          (headerCorrect.trim() == headerAttempted.trim());
-
-      return Scaffold(
-        appBar: AppBar(
-            title: Text(
-                widget.isHindi == true ? 'AI विश्लेषण' : 'AI Explanation')),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Question
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.grey.withOpacity(0.12), blurRadius: 6)
-                      ]),
-                  child: Text(headerQuestion,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.w600)),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Network image
-                if (headerImageUrl != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Image.network(headerImageUrl!,
-                        height: 120,
-                        errorBuilder: (_, __, ___) => const SizedBox(
-                            height: 120,
-                            child: Center(child: Icon(Icons.broken_image)))),
-                  ),
-
-                const SizedBox(height: 12),
-
-                // Options
-                Row(
-                  children: [
-                    _buildOptionCard(
-                        label: labelCorrect,
-                        content: correctText,
-                        borderColor: Colors.green,
-                        showTick: true),
-                    _buildOptionCard(
-                        label: labelYour,
-                        content: attemptedText,
-                        borderColor:
-                            attemptedIsCorrect ? Colors.green : Colors.red,
-                        showTick: attemptedIsCorrect,
-                        isAttempt: true),
-                  ],
-                ),
-
-                const SizedBox(height: 14),
-                const Divider(),
-                const SizedBox(height: 12),
-
-                // Animated writeup
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.grey.withOpacity(0.10),
-                              blurRadius: 6)
-                        ]),
-                    child: DefaultTextStyle(
-                      style:
-                          const TextStyle(fontSize: 18, color: Colors.black87),
+                      const TextStyle(fontSize: 18, color: Colors.black87),
                       child: AnimatedTextKit(
                         key: ValueKey<int>(_currentSlide),
                         isRepeatingAnimation: false,
@@ -748,7 +812,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -766,16 +830,16 @@ class _VideoLessonState extends State<VideoLesson> {
                 // Options
                 Row(
                   children: [
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelCorrect,
                         content: correctText,
                         borderColor: Colors.green,
                         showTick: true),
-                    _buildOptionCard(
+                    _buildTextOptionCard(
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                            attemptedIsCorrect ? Colors.green : Colors.red,
+                        attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -800,7 +864,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         ]),
                     child: DefaultTextStyle(
                       style:
-                          const TextStyle(fontSize: 18, color: Colors.black87),
+                      const TextStyle(fontSize: 18, color: Colors.black87),
                       child: AnimatedTextKit(
                         key: ValueKey<int>(_currentSlide),
                         isRepeatingAnimation: false,
@@ -839,8 +903,8 @@ class _VideoLessonState extends State<VideoLesson> {
                 TypewriterAnimatedText(
                     done
                         ? (widget.isHindi == true
-                            ? '— पाठ समाप्त —'
-                            : '— End of lesson —')
+                        ? '— पाठ समाप्त —'
+                        : '— End of lesson —')
                         : (_slides.isNotEmpty ? _slides[_currentSlide] : ''),
                     speed: const Duration(milliseconds: 50),
                     cursor: '|'),

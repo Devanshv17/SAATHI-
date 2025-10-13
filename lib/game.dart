@@ -92,7 +92,7 @@ class _GamePageState extends State<GamePage> {
     final user = _auth.currentUser;
     if (user == null) return;
     final snap =
-        await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
+    await _dbRef.child("users/${user.uid}/games/${widget.gameTitle}").get();
     if (snap.exists) {
       _gameState = _deepCastMap(snap.value as Map) ?? {};
       _pretestCompleted = _gameState['pretestCompleted'] ?? false;
@@ -159,7 +159,7 @@ class _GamePageState extends State<GamePage> {
       };
       await _dbRef
           .child(
-              "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
+          "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
           .set(initialPretestState);
       _gameState['pretest'] = initialPretestState;
       await _loadPretestQuestions(questionIds);
@@ -188,13 +188,13 @@ class _GamePageState extends State<GamePage> {
     }
     _questions = questionIds
         .map((qInfo) {
-          final doc = docsById[qInfo['id']];
-          if (doc != null && doc.exists) {
-            final data = doc.data() as Map<String, dynamic>;
-            return {'id': doc.id, 'level': qInfo['level'], 'data': data};
-          }
-          return null;
-        })
+      final doc = docsById[qInfo['id']];
+      if (doc != null && doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {'id': doc.id, 'level': qInfo['level'], 'data': data};
+      }
+      return null;
+    })
         .where((q) => q != null)
         .cast<Map<String, dynamic>>()
         .toList();
@@ -292,7 +292,7 @@ class _GamePageState extends State<GamePage> {
         .get();
     _questions = snapshot.docs
         .map((doc) =>
-            {'id': doc.id, 'level': currentLevelName, 'data': doc.data()})
+    {'id': doc.id, 'level': currentLevelName, 'data': doc.data()})
         .toList();
     final levelProgress = _deepCastMap(mainGameData['levelProgress']) ?? {};
     final progressInCurrentLevel =
@@ -308,10 +308,10 @@ class _GamePageState extends State<GamePage> {
       if (mounted) setState(() {});
       return;
     }
-    
+
     final currentQuestion = _questions[_currentQuestionIndex];
     final qId = currentQuestion['id'] as String;
-    
+
     if (_userAnswers.containsKey(qId)) {
       final saved = _userAnswers[qId] as Map<String, dynamic>;
       _pendingSelectedIndex = saved['selectedOptionIndex'] as int?;
@@ -332,7 +332,7 @@ class _GamePageState extends State<GamePage> {
     if (_pendingSelectedIndex == null || _hasSubmitted) return;
     final qId = _questions[_currentQuestionIndex]['id'] as String;
     final data =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
     final options = data['options'] as List<dynamic>;
     final isCorrect = options[_pendingSelectedIndex!]['isCorrect'] as bool;
 
@@ -340,7 +340,7 @@ class _GamePageState extends State<GamePage> {
       'selectedOptionIndex': _pendingSelectedIndex,
       'isCorrect': isCorrect,
       'timeTakenSeconds':
-          DateTime.now().difference(_questionStartTime!).inSeconds
+      DateTime.now().difference(_questionStartTime!).inSeconds
     };
 
     if (_isPretestMode) {
@@ -357,18 +357,18 @@ class _GamePageState extends State<GamePage> {
   Future<void> _updatePretestState(bool isCorrect, String level) async {
     final pretestState = _deepCastMap(_gameState['pretest'])!;
     final levelScores =
-        pretestState['levelScores'][level] as Map<String, dynamic>;
+    pretestState['levelScores'][level] as Map<String, dynamic>;
     if (isCorrect) {
       levelScores['correct'] = (levelScores['correct'] as int? ?? 0) + 1;
     } else {
       levelScores['incorrect'] = (levelScores['incorrect'] as int? ?? 0) + 1;
     }
-    _gameState['pretest'] = pretestState; 
+    _gameState['pretest'] = pretestState;
     pretestState['currentQuestionIndex'] = _currentQuestionIndex;
     pretestState['answers'] = _userAnswers;
     await _dbRef
         .child(
-            "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
+        "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/pretest")
         .set(pretestState);
   }
 
@@ -434,7 +434,7 @@ class _GamePageState extends State<GamePage> {
 
     int correct = 0;
     int incorrect = 0;
-    
+
     if (todayActivity['date'] == dateKey) {
       correct = todayActivity['correct'] ?? 0;
       incorrect = todayActivity['incorrect'] ?? 0;
@@ -460,13 +460,13 @@ class _GamePageState extends State<GamePage> {
     final updates = <String, Object>{};
     final inc = ServerValue.increment(1);
     updates["users/${user.uid}/totalAttempted"] = inc;
-     updates["users/${user.uid}/score"] =
+    updates["users/${user.uid}/score"] =
         ServerValue.increment(isCorrect ? 1 : 0);
 
-    
+
     updates["users/${user.uid}/monthlyStats/$dateKey/correct"] = ServerValue.increment(isCorrect ? 1 : 0);
     updates["users/${user.uid}/monthlyStats/$dateKey/incorrect"] = ServerValue.increment(isCorrect ? 0 : 1);
-    
+
     final streakSnap = await _dbRef.child("users/${user.uid}/streak").get();
     if (isCorrect) {
       if (streakSnap.exists) {
@@ -507,7 +507,7 @@ class _GamePageState extends State<GamePage> {
         _gameState['main_game'] = mainGameData;
         await _dbRef
             .child(
-                "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
+            "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
             .set(currentLevelIdx);
         await _loadCurrentLevelQuestions();
         setState(() => _isLoading = false);
@@ -535,18 +535,47 @@ class _GamePageState extends State<GamePage> {
   // --- AI Feature ---
   Future<void> _analyzeWithAI() async {
     if (_pendingSelectedIndex == null) return;
-    
+
     final currentQuestionData =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
     final questionText = currentQuestionData['text'] as String? ?? "";
     final imageUrl = currentQuestionData['imageUrl'] as String?;
     final options = (currentQuestionData['options'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
 
     final optionTitles = options.map((o) => o['title'] as String).toList();
-    final correctTitle = optionTitles[
-        options.indexWhere((o) => o['isCorrect'] as bool? ?? false)];
-    final userTitle = optionTitles[_pendingSelectedIndex!];
+
+    final correctOptionIndex =
+    options.indexWhere((o) => o['isCorrect'] as bool? ?? false);
+
+    if (correctOptionIndex == -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: Correct answer not found.")));
+      return;
+    }
+
+    final Map<String, dynamic> correctOptionData = options[correctOptionIndex];
+    final Map<String, dynamic> userOptionData = options[_pendingSelectedIndex!];
+
+    final String correctTitle = correctOptionData['title'] ?? '';
+    final String? correctImageUrl = correctOptionData['imageUrl'];
+    final String? correctDescription = correctOptionData['description'];
+
+    final String userTitle = userOptionData['title'] ?? '';
+    final String? attemptedImageUrl = userOptionData['imageUrl'];
+    final String? userDescription = userOptionData['description'];
+
+    final String detailedDescriptionForAI;
+    if (correctDescription != null && userDescription != null) {
+      detailedDescriptionForAI =
+      "The question is about an image of a '$correctDescription'. The user incorrectly chose the option for an image of a '$userDescription'.";
+    } else if (correctDescription != null) {
+      detailedDescriptionForAI = "The question is about an image of a '$correctDescription'.";
+    }
+    else {
+      detailedDescriptionForAI = "The question is about the image shown.";
+    }
+
 
     showDialog(
       context: context,
@@ -572,8 +601,9 @@ class _GamePageState extends State<GamePage> {
         options: optionTitles,
         correctAnswer: correctTitle,
         userAnswer: userTitle,
+        imageDescription: detailedDescriptionForAI,
       );
-      if (mounted) Navigator.of(context).pop(); 
+      if (mounted) Navigator.of(context).pop();
       if (mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -582,9 +612,11 @@ class _GamePageState extends State<GamePage> {
               question: questionText,
               correctOption: correctTitle,
               attemptedOption: userTitle,
-              imageUrl: imageUrl, 
+              imageUrl: imageUrl,
               script: fb['explanation'] ?? fb.toString(),
               isHindi: widget.isHindi,
+              correctOptionImageUrl: correctImageUrl,
+              attemptedOptionImageUrl: attemptedImageUrl,
             ),
           ),
         );
@@ -636,7 +668,7 @@ class _GamePageState extends State<GamePage> {
     final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
     final pretestState = _deepCastMap(_gameState['pretest']);
     final currentQuestionData =
-        _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
+    _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
     final questionText = currentQuestionData['text'] as String? ?? "";
     final imageUrl = currentQuestionData['imageUrl'] as String?;
     final options = (currentQuestionData['options'] as List<dynamic>? ?? [])
@@ -645,7 +677,7 @@ class _GamePageState extends State<GamePage> {
     final titleText = _isPretestMode
         ? '${widget.gameTitle} (Pre-test)'
         : '${widget.gameTitle} - ${_questions[_currentQuestionIndex]['level']}'
-            .toUpperCase();
+        .toUpperCase();
 
     int currentScore = 0;
     int currentCorrect = 0;
@@ -653,14 +685,14 @@ class _GamePageState extends State<GamePage> {
 
     if (_isPretestMode) {
       currentCorrect = pretestState?['levelScores']?.values.fold(
-              0,
+          0,
               (sum, level) =>
-                  sum + ((_deepCastMap(level)?['correct'] as int?) ?? 0)) ??
+          sum + ((_deepCastMap(level)?['correct'] as int?) ?? 0)) ??
           0;
       currentIncorrect = pretestState?['levelScores']?.values.fold(
-              0,
+          0,
               (sum, level) =>
-                  sum + ((_deepCastMap(level)?['incorrect'] as int?) ?? 0)) ??
+          sum + ((_deepCastMap(level)?['incorrect'] as int?) ?? 0)) ??
           0;
       currentScore = currentCorrect;
     } else {
@@ -668,7 +700,7 @@ class _GamePageState extends State<GamePage> {
       currentCorrect = mainGameData['correctCount'] ?? 0;
       currentIncorrect = mainGameData['incorrectCount'] ?? 0;
     }
-    
+
     final isCurrentAnswerCorrect = _hasSubmitted && _pendingSelectedIndex != null &&
         (options[_pendingSelectedIndex!]['isCorrect'] as bool);
 
@@ -696,13 +728,13 @@ class _GamePageState extends State<GamePage> {
             Text(questionText,
                 textAlign: TextAlign.center,
                 style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             if (imageUrl != null)
               Image.network(imageUrl,
                   height: 100,
                   errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.image_not_supported)),
+                  const Icon(Icons.image_not_supported)),
             const SizedBox(height: 15),
             GridView.builder(
               shrinkWrap: true,
@@ -745,7 +777,7 @@ class _GamePageState extends State<GamePage> {
             Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
               ElevatedButton(
                   onPressed:
-                      _currentQuestionIndex > 0 ? _previousQuestion : null,
+                  _currentQuestionIndex > 0 ? _previousQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor: _currentQuestionIndex > 0
                           ? Colors.orange
@@ -759,9 +791,9 @@ class _GamePageState extends State<GamePage> {
                       : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          (_pendingSelectedIndex != null && !_hasSubmitted)
-                              ? Colors.blue
-                              : Colors.grey),
+                      (_pendingSelectedIndex != null && !_hasSubmitted)
+                          ? Colors.blue
+                          : Colors.grey),
                   child: Text(widget.isHindi ? "जमा करें" : "Submit",
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold))),
@@ -769,7 +801,7 @@ class _GamePageState extends State<GamePage> {
                   onPressed: _hasSubmitted ? _nextQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          _hasSubmitted ? Colors.green : Colors.grey),
+                      _hasSubmitted ? Colors.green : Colors.grey),
                   child: Text(widget.isHindi ? "अगला" : "Next",
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold))),
@@ -933,8 +965,8 @@ class _GamePageState extends State<GamePage> {
                                   data['passed']
                                       ? (widget.isHindi ? "पास" : "Passed")
                                       : (widget.isHindi
-                                          ? "फिर से प्रयास करें"
-                                          : "Try Again"),
+                                      ? "फिर से प्रयास करें"
+                                      : "Try Again"),
                                   style: TextStyle(
                                       color: data['passed']
                                           ? Colors.green
@@ -969,15 +1001,15 @@ class _GamePageState extends State<GamePage> {
         content: Text(
           widget.isHindi
               ? "१. विकल्प चुनें (नीला बॉर्डर).\n"
-                "२. जमा करें पर टैप करें.\n"
-                "३. सही: हरा टिक; गलत: लाल क्रॉस.\n"
-                "४. Prev/Next.\n"
-                "५. प्रगति सेव."
+              "२. जमा करें पर टैप करें.\n"
+              "३. सही: हरा टिक; गलत: लाल क्रॉस.\n"
+              "४. Prev/Next.\n"
+              "५. प्रगति सेव."
               : "1. Tap an option (blue border).\n"
-                "2. Tap Submit.\n"
-                "3. Correct: green tick; incorrect: red cross.\n"
-                "4. Use Previous/Next.\n"
-                "5. Progress is saved.",
+              "2. Tap Submit.\n"
+              "3. Correct: green tick; incorrect: red cross.\n"
+              "4. Use Previous/Next.\n"
+              "5. Progress is saved.",
         ),
         actions: [
           TextButton(
@@ -989,4 +1021,3 @@ class _GamePageState extends State<GamePage> {
     );
   }
 }
-
