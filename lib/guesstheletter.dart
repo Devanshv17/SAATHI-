@@ -802,13 +802,28 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
             const SizedBox(height: 20),
             if (_hasSubmitted && !isCurrentAnswerCorrect)
               Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: ElevatedButton.icon(
-                  onPressed: _analyzeWithAI,
-                  icon: const Icon(Icons.lightbulb_outline),
-                  label: Text(widget.isHindi
-                      ? 'AI से सही उत्तर जानें'
-                      : 'Know the correct answer using AI'),
+                padding: const EdgeInsets.only(top: 20.0,  bottom: 15.0), // Increased padding slightly for glow space
+                child: GlowingWrapper( // <--- Wrap with the new widget
+                  glowColor: Color.fromARGB(255, 101, 65, 239), // You can choose Blue or Purple
+                  child: ElevatedButton.icon(
+                    onPressed: _analyzeWithAI,
+                    icon: const Icon(Icons.auto_awesome, size: 28,), // Changed icon to look more "AI"
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Color.fromARGB(255, 101, 65, 239),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 18),
+                      elevation: 5, // Slight elevation to pop out of the glow
+                    ),
+                    label: Text(
+                      widget.isHindi
+                          ? 'सही उत्तर जानें'
+                          : 'Know the correct answer',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ),
                 ),
               ),
             Column(children: [
@@ -1062,6 +1077,67 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
           )
         ],
       ),
+    );
+  }
+}
+class GlowingWrapper extends StatefulWidget {
+  final Widget child;
+  final Color glowColor;
+
+  const GlowingWrapper({
+    Key? key,
+    required this.child,
+    this.glowColor = Colors.blueAccent,
+  }) : super(key: key);
+
+  @override
+  _GlowingWrapperState createState() => _GlowingWrapperState();
+}
+
+class _GlowingWrapperState extends State<GlowingWrapper>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 2.0, end: 15.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30), // Matches button shape
+            boxShadow: [
+              BoxShadow(
+                color: widget.glowColor.withOpacity(0.6),
+                blurRadius: _animation.value,
+                spreadRadius: _animation.value / 4, // Subtle spread
+              ),
+            ],
+          ),
+          child: widget.child,
+        );
+      },
+      child: widget.child,
     );
   }
 }
