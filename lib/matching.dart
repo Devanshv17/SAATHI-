@@ -9,6 +9,7 @@ import 'ai.dart';
 import 'video_lesson.dart';
 import 'theme/app_colors.dart';
 import 'theme/text_styles.dart';
+import 'widgets/voice_icon.dart';
 
 class MatchingPage extends StatefulWidget {
   final String gameTitle;
@@ -697,6 +698,7 @@ class _MatchingPageState extends State<MatchingPage> {
         backgroundColor: AppColors.primary,
         automaticallyImplyLeading: !_isPretestMode,
         actions: [
+          VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
               icon: const Icon(Icons.info_outline, color: Colors.white),
               onPressed: _showInstructionsDialog)
@@ -706,10 +708,19 @@ class _MatchingPageState extends State<MatchingPage> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(children: [
-            Text(questionText,
-                textAlign: TextAlign.center,
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(questionText,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 8),
+                VoiceIcon(text: questionText, isHindi: widget.isHindi),
+              ],
+            ),
             const SizedBox(height: 30),
             Expanded(
                 child: GridView.builder(
@@ -847,6 +858,15 @@ class _MatchingPageState extends State<MatchingPage> {
               ]),
             ),
           ),
+          Positioned(
+            top: 5,
+            left: 5,
+            child: VoiceIcon(
+                text: option['title'] as String,
+                isHindi: widget.isHindi,
+                color: Colors.grey,
+                size: 20),
+          ),
           if (showRes)
             Positioned(
                 top: 5,
@@ -867,19 +887,43 @@ class _MatchingPageState extends State<MatchingPage> {
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                          widget.isHindi
-                              ? "एक छोटी परीक्षा"
-                              : "A Quick Pre-test",
-                          style: const TextStyle(
-                              fontSize: 28, fontWeight: FontWeight.bold)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                              widget.isHindi
+                                  ? "एक छोटी परीक्षा"
+                                  : "A Quick Pre-test",
+                              style: const TextStyle(
+                                  fontSize: 28, fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 10),
+                          VoiceIcon(
+                              text: widget.isHindi
+                                  ? "एक छोटी परीक्षा"
+                                  : "A Quick Pre-test",
+                              isHindi: widget.isHindi),
+                        ],
+                      ),
                       const SizedBox(height: 20),
-                      Text(
-                          widget.isHindi
-                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
-                              : "We will conduct a short 10-question test to assess your current understanding.",
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 18)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                                widget.isHindi
+                                    ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                                    : "We will conduct a short 10-question test to assess your current understanding.",
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 18)),
+                          ),
+                          const SizedBox(width: 8),
+                          VoiceIcon(
+                              text: widget.isHindi
+                                  ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                                  : "We will conduct a short 10-question test to assess your current understanding.",
+                              isHindi: widget.isHindi),
+                        ],
+                      ),
                       const SizedBox(height: 40),
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(

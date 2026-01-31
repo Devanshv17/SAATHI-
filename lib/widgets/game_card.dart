@@ -57,11 +57,16 @@ class GameCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: AppTextStyles.gameTitle,
+                Row(
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.gameTitle,
+                    ),
+                    const SizedBox(width: 8),
+                    VoiceIcon(text: title, isHindi: isHindi, size: 20),
+                  ],
                 ),
-                VoiceIcon(text: title, isHindi: isHindi, size: 20),
                 if (hasPlayed)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),

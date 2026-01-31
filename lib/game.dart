@@ -7,6 +7,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
 import 'ai.dart';
 import 'video_lesson.dart';
+import 'widgets/voice_icon.dart';
 
 class GamePage extends StatefulWidget {
   final String gameTitle;
@@ -716,6 +717,7 @@ class _GamePageState extends State<GamePage> {
         backgroundColor: const Color.fromARGB(255, 101, 65, 239),
         automaticallyImplyLeading: !_isPretestMode,
         actions: [
+          VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
               icon: const Icon(Icons.info_outline, color: Colors.white),
               onPressed: _showInstructionsDialog)
@@ -725,10 +727,19 @@ class _GamePageState extends State<GamePage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(children: [
-            Text(questionText,
-                textAlign: TextAlign.center,
-                style:
-                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(questionText,
+                      textAlign: TextAlign.center,
+                      style:
+                      const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+                VoiceIcon(text: questionText, isHindi: widget.isHindi),
+              ],
+            ),
             const SizedBox(height: 20),
             if (imageUrl != null)
               Image.network(imageUrl,
@@ -893,6 +904,16 @@ class _GamePageState extends State<GamePage> {
               ),
             ),
           ),
+          Positioned(
+            top: 5,
+            left: 5,
+            child: VoiceIcon(
+              text: option['title'] as String? ?? 'Option',
+              isHindi: widget.isHindi,
+              size: 20,
+              color: Colors.grey
+            ),
+          ),
           if (showRes)
             Positioned(
               top: 8,
@@ -917,6 +938,12 @@ class _GamePageState extends State<GamePage> {
                       Text(widget.isHindi ? "एक छोटी परीक्षा" : "A Quick Pre-test",
                           style: const TextStyle(
                               fontSize: 28, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "एक छोटी परीक्षा"
+                              : "A Quick Pre-test",
+                          isHindi: widget.isHindi),
                       const SizedBox(height: 20),
                       Text(
                           widget.isHindi
@@ -924,6 +951,12 @@ class _GamePageState extends State<GamePage> {
                               : "We will conduct a short 10-question test to assess your current understanding.",
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 18)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                              : "We will conduct a short 10-question test to assess your current understanding.",
+                          isHindi: widget.isHindi),
                       const SizedBox(height: 40),
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(

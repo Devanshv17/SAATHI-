@@ -10,6 +10,7 @@ import 'ai.dart';
 import 'video_lesson.dart';
 import 'theme/app_colors.dart';
 import 'theme/text_styles.dart';
+import 'widgets/voice_icon.dart';
 
 class ComparePage extends StatefulWidget {
   final String gameTitle;
@@ -712,6 +713,7 @@ class _ComparePageState extends State<ComparePage> {
                   overflow: TextOverflow.ellipsis)),
           backgroundColor: AppColors.primary,
           actions: [
+            VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
             IconButton(
                 icon: const Icon(Icons.info_outline,
                     size: 30, color: Colors.white),
@@ -729,6 +731,12 @@ class _ComparePageState extends State<ComparePage> {
                           : 'Choose the correct sign:',
                       style: const TextStyle(
                           fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  VoiceIcon(
+                    text: widget.isHindi
+                          ? 'सही चिन्ह चुनें:'
+                          : 'Choose the correct sign:',
+                    isHindi: widget.isHindi),
                   const SizedBox(height: 20),
                   Row(children: [
                     Expanded(child: _buildShapeGrid(_leftAssets)),
@@ -860,6 +868,12 @@ class _ComparePageState extends State<ComparePage> {
                               : "A Quick Pre-test",
                           style: const TextStyle(
                               fontSize: 28, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "एक छोटी परीक्षा"
+                              : "A Quick Pre-test",
+                          isHindi: widget.isHindi),
                       const SizedBox(height: 20),
                       Text(
                           widget.isHindi
@@ -867,6 +881,12 @@ class _ComparePageState extends State<ComparePage> {
                               : "We will conduct a short 10-question test to assess your current understanding.",
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 18)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                        text: widget.isHindi
+                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                              : "We will conduct a short 10-question test to assess your current understanding.",
+                        isHindi: widget.isHindi),
                       const SizedBox(height: 40),
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -1019,6 +1039,11 @@ class OptionTile extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       fontSize: 24, fontWeight: FontWeight.bold))),
+          Positioned(
+            top: 5,
+            left: 5,
+            child: VoiceIcon(text: ' $text ', isHindi: isHindi, size: 20, color: Colors.grey),
+          ),
           if (overlayIcon != null)
             Positioned(
                 right: 10,

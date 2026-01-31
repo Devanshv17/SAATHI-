@@ -11,6 +11,7 @@ import 'ai.dart';
 import 'video_lesson.dart';
 import 'theme/app_colors.dart';
 import 'theme/text_styles.dart';
+import 'widgets/voice_icon.dart';
 
 class LetUsCountPage extends StatefulWidget {
   final String gameTitle;
@@ -767,6 +768,7 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         backgroundColor: AppColors.primary,
         automaticallyImplyLeading: !_isPretestMode,
         actions: [
+          VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
               icon: const Icon(Icons.info_outline, color: Colors.white),
               onPressed: _showInstructionsDialog)
@@ -776,10 +778,17 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(children: [
-            Text(questionText,
-                textAlign: TextAlign.center,
-                style:
-                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(questionText,
+                    textAlign: TextAlign.center,
+                    style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                VoiceIcon(text: questionText, isHindi: widget.isHindi),
+              ],
+            ),
             const SizedBox(height: 20),
             Wrap(
               spacing: 10,
@@ -907,10 +916,24 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Center(
-                  child: Text(option['title'] as String,
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold))),
+              child: Stack(
+                children: [
+                   Center(
+                      child: Text(option['title'] as String,
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold))),
+                   Positioned(
+                      top: 5,
+                      left: 5,
+                      child: VoiceIcon(
+                        text: option['title'] as String,
+                        isHindi: widget.isHindi,
+                        size: 20,
+                        color: Colors.grey
+                      ),
+                   ),
+                ]
+              ),
             ),
           ),
           if (showRes)
@@ -937,6 +960,12 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                       Text(widget.isHindi ? "एक छोटी परीक्षा" : "A Quick Pre-test",
                           style: const TextStyle(
                               fontSize: 28, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "एक छोटी परीक्षा"
+                              : "A Quick Pre-test",
+                          isHindi: widget.isHindi),
                       const SizedBox(height: 20),
                       Text(
                           widget.isHindi
@@ -944,6 +973,12 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                               : "We will conduct a short 10-question test to assess your current understanding.",
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 18)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                              : "We will conduct a short 10-question test to assess your current understanding.",
+                          isHindi: widget.isHindi),
                       const SizedBox(height: 40),
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(

@@ -87,24 +87,35 @@ class _LoginPageState extends State<LoginPage> {
               Image.asset('assets/logo.png', height: 150),
               const SizedBox(height: 15),
               // Welcome text
-              Text(
-                isHindi ? 'स्वागत है' : 'Welcome Back',
-                style: AppTextStyles.header,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                isHindi
-                    ? 'कृपया अपने फ़ोन नंबर से लॉगिन करें'
-                    : 'Please login with your phone number',
-                style: AppTextStyles.body,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              VoiceIcon(
-                text: isHindi
-                    ? 'स्वागत है. कृपया अपने फ़ोन नंबर से लॉगिन करें'
-                    : 'Welcome Back. Please login with your phone number',
-                isHindi: isHindi,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Column(
+                      children: [
+                        Text(
+                          isHindi ? 'स्वागत है' : 'Welcome Back',
+                          style: AppTextStyles.header,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isHindi
+                              ? 'कृपया अपने फ़ोन नंबर से लॉगिन करें'
+                              : 'Please login with your phone number',
+                          style: AppTextStyles.body,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  VoiceIcon(
+                    text: isHindi
+                        ? 'स्वागत है. कृपया अपने फ़ोन नंबर से लॉगिन करें'
+                        : 'Welcome Back. Please login with your phone number',
+                    isHindi: isHindi,
+                  ),
+                ],
               ),
               const SizedBox(height: 15),
 
@@ -121,17 +132,23 @@ class _LoginPageState extends State<LoginPage> {
                     key: _formKey,
                     child: Column(
                       children: [
-                        Text(
-                          isHindi
-                              ? 'अपना फ़ोन नंबर दर्ज करें'
-                              : 'Enter Your Phone Number',
-                          style: AppTextStyles.subHeader,
-                        ),
-                        VoiceIcon(
-                          text: isHindi
-                              ? 'अपना फ़ोन नंबर दर्ज करें'
-                              : 'Enter Your Phone Number',
-                          isHindi: isHindi,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              isHindi
+                                  ? 'अपना फ़ोन नंबर दर्ज करें'
+                                  : 'Enter Your Phone Number',
+                              style: AppTextStyles.subHeader,
+                            ),
+                            const SizedBox(width: 10),
+                            VoiceIcon(
+                              text: isHindi
+                                  ? 'अपना फ़ोन नंबर दर्ज करें'
+                                  : 'Enter Your Phone Number',
+                              isHindi: isHindi,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 20),
                         Row(

@@ -10,6 +10,7 @@ import 'ai.dart';
 import 'video_lesson.dart';
 import 'theme/app_colors.dart';
 import 'theme/text_styles.dart';
+import 'widgets/voice_icon.dart';
 
 class LetUsTellTimePage extends StatefulWidget {
   final String gameTitle;
@@ -712,6 +713,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         backgroundColor: AppColors.primary,
         automaticallyImplyLeading: !_isPretestMode,
         actions: [
+          VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
               icon: const Icon(Icons.info_outline, color: Colors.white),
               onPressed: _showInstructionsDialog)
@@ -721,11 +723,18 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(children: [
-            Text(widget.isHindi ? "सही समय चुनें" : "Select the correct time",
-                style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(widget.isHindi ? "सही समय चुनें" : "Select the correct time",
+                    style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87)),
+                const SizedBox(width: 8),
+                VoiceIcon(text: widget.isHindi ? "सही समय चुनें" : "Select the correct time", isHindi: widget.isHindi),
+              ],
+            ),
             const SizedBox(height: 10),
             if (_clockTime != null)
               Container(
@@ -861,13 +870,27 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Center(
-                  child: Text(
-                option['title'] as String,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              )),
+              child: Stack(
+                children: [
+                  Center(
+                      child: Text(
+                    option['title'] as String,
+                    style:
+                        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  )),
+                  Positioned(
+                    top: 5,
+                    left: 5,
+                    child: VoiceIcon(
+                      text: option['title'] as String,
+                      isHindi: widget.isHindi,
+                      size: 20,
+                      color: Colors.grey
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           if (showRes)
@@ -897,6 +920,12 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                               : "A Quick Pre-test",
                           style: const TextStyle(
                               fontSize: 28, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "एक छोटी परीक्षा"
+                              : "A Quick Pre-test",
+                          isHindi: widget.isHindi),
                       const SizedBox(height: 20),
                       Text(
                           widget.isHindi
@@ -904,6 +933,12 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                               : "We will conduct a short 10-question test to assess your current understanding.",
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 18)),
+                      const SizedBox(height: 10),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                              : "We will conduct a short 10-question test to assess your current understanding.",
+                          isHindi: widget.isHindi),
                       const SizedBox(height: 40),
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(

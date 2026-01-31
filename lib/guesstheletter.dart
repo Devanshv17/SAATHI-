@@ -787,11 +787,19 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(children: [
-            Text(questionText,
-                textAlign: TextAlign.center,
-                style:
-                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            VoiceIcon(text: questionText, isHindi: widget.isHindi),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(questionText,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+                VoiceIcon(text: questionText, isHindi: widget.isHindi),
+              ],
+            ),
             const SizedBox(height: 10),
             const SizedBox(height: 20),
             if (imageUrl != null)
@@ -954,30 +962,44 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                          widget.isHindi
-                              ? "एक छोटी परीक्षा"
-                              : "A Quick Pre-test",
-                          style: const TextStyle(
-                                fontSize: 28, fontWeight: FontWeight.bold)),
-                      VoiceIcon(
-                          text: widget.isHindi
-                              ? "एक छोटी परीक्षा"
-                              : "A Quick Pre-test",
-                          isHindi: widget.isHindi),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                              widget.isHindi
+                                  ? "एक छोटी परीक्षा"
+                                  : "A Quick Pre-test",
+                              style: const TextStyle(
+                                  fontSize: 28, fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 10),
+                          VoiceIcon(
+                              text: widget.isHindi
+                                  ? "एक छोटी परीक्षा"
+                                  : "A Quick Pre-test",
+                              isHindi: widget.isHindi),
+                        ],
+                      ),
                       const SizedBox(height: 20),
                       const SizedBox(height: 20),
-                      Text(
-                          widget.isHindi
-                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
-                              : "We will conduct a short 10-question test to assess your current understanding.",
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 18)),
-                      VoiceIcon(
-                          text: widget.isHindi
-                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
-                              : "We will conduct a short 10-question test to assess your current understanding.",
-                          isHindi: widget.isHindi),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                                widget.isHindi
+                                    ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                                    : "We will conduct a short 10-question test to assess your current understanding.",
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 18)),
+                          ),
+                          const SizedBox(width: 8),
+                          VoiceIcon(
+                              text: widget.isHindi
+                                  ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                                  : "We will conduct a short 10-question test to assess your current understanding.",
+                              isHindi: widget.isHindi),
+                        ],
+                      ),
                       const SizedBox(height: 40),
                       const SizedBox(height: 40),
                       ElevatedButton(
