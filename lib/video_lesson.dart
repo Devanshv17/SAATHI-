@@ -7,11 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter_analog_clock/flutter_analog_clock.dart';
 
 /// Google Translate TTS (unofficial endpoint) with simple file caching.
-/// Note: this uses an unofficial endpoint — works for many community tools but may change.
+/// NOTE: This uses an unofficial endpoint — it may change or be rate-limited.
+/// To avoid very long pauses when the text is long, speak() will chunk the
+/// input into smaller pieces (prefer sentence-aware splits) and play them
+/// sequentially.
 class GoogleTranslateTtsService {
   Future<String> _getCachePath(String text, String locale) async {
     final dir = await getApplicationDocumentsDirectory();
@@ -19,49 +21,137 @@ class GoogleTranslateTtsService {
     return '${dir.path}/$safe.mp3';
   }
 
-  /// Speaks text using Google Translate TTS, caching the MP3.
+  // Splits text into chunks ~<= maxChunkLength while trying to respect sentences.
+  List<String> _chunkText(String text, {int maxChunkLength = 240}) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return [];
+
+    // Quick path for short text
+    if (trimmed.length <= maxChunkLength) return [trimmed];
+
+    // Split to sentences (keep punctuation)
+    final sentences = trimmed.split(RegExp(r'(?<=[.?!])\s+'));
+    final chunks = <String>[];
+    var current = StringBuffer();
+
+    for (final s in sentences) {
+      if (current.isEmpty) {
+        current.write(s);
+      } else if ((current.length + 1 + s.length) <= maxChunkLength) {
+        current.write(' ');
+        current.write(s);
+      } else {
+        chunks.add(current.toString().trim());
+        current = StringBuffer();
+        current.write(s);
+      }
+    }
+    if (current.isNotEmpty) {
+      chunks.add(current.toString().trim());
+    }
+
+    // If any sentence itself is longer than maxChunkLength, fallback to splitting by words
+    for (var i = 0; i < chunks.length; i++) {
+      if (chunks[i].length > maxChunkLength) {
+        final words = chunks[i].split(RegExp(r'\s+'));
+        var sb = StringBuffer();
+        final replaced = <String>[];
+        for (final w in words) {
+          if (sb.isEmpty) {
+            sb.write(w);
+          } else if ((sb.length + 1 + w.length) <= maxChunkLength) {
+            sb.write(' ');
+            sb.write(w);
+          } else {
+            replaced.add(sb.toString().trim());
+            sb = StringBuffer();
+            sb.write(w);
+          }
+        }
+        if (sb.isNotEmpty) replaced.add(sb.toString().trim());
+        // replace the overly-long chunk with the smaller ones
+        chunks.removeAt(i);
+        chunks.insertAll(i, replaced);
+        i += replaced.length - 1;
+      }
+    }
+
+    return chunks;
+  }
+
+  /// Speaks text using Google Translate TTS, caching the MP3s.
   /// `localeOverride` can be 'hi' or 'en' to force language.
   Future<void> speak(String text, {String? localeOverride}) async {
     if (text.trim().isEmpty) return;
+
     final guessedHindi = RegExp(r'[\u0900-\u097F]').hasMatch(text);
     final isHindi = localeOverride == 'hi'
         ? true
         : (localeOverride == 'en' ? false : guessedHindi);
     final lang = localeOverride ?? (isHindi ? 'hi' : 'en');
 
-    final path = await _getCachePath(text, lang);
-    final file = File(path);
+    final chunks = _chunkText(text, maxChunkLength: 240);
+    if (chunks.isEmpty) return;
 
-    if (!await file.exists()) {
-      final uri = Uri.parse(
-        'https://translate.google.com/translate_tts'
-            '?ie=UTF-8'
-            '&q=${Uri.encodeComponent(text)}'
-            '&tl=$lang'
-            '&client=gtx',
-      );
+    // Play sequentially. Use a single AudioPlayer per speak call to keep ordering.
+    final player = AudioPlayer();
+    for (final chunk in chunks) {
+      final path = await _getCachePath(chunk, lang);
+      final file = File(path);
 
-      final res = await http.get(uri, headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/104.0.0.0 Safari/537.36',
-        'Accept': 'audio/mpeg',
-      });
+      if (!await file.exists()) {
+        final uri = Uri.parse(
+          'https://translate.google.com/translate_tts'
+          '?ie=UTF-8'
+          '&q=${Uri.encodeComponent(chunk)}'
+          '&tl=$lang'
+          '&client=gtx',
+        );
 
-      if (res.statusCode != 200 || res.bodyBytes.isEmpty) {
-        throw Exception('Translate TTS failed (${res.statusCode})');
+        final res = await http.get(uri, headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+              'AppleWebKit/537.36 (KHTML, like Gecko) '
+              'Chrome/104.0.0.0 Safari/537.36',
+          'Accept': 'audio/mpeg',
+        });
+
+        if (res.statusCode != 200 || res.bodyBytes.isEmpty) {
+          debugPrint('Translate TTS failed (${res.statusCode}) for chunk.');
+          // continue to next chunk instead of throwing to avoid stopping entire speech
+          continue;
+        }
+
+        await file.writeAsBytes(res.bodyBytes, flush: true);
       }
 
-      await file.writeAsBytes(res.bodyBytes, flush: true);
+      try {
+        // await ensures chunks play sequentially
+        await player.play(DeviceFileSource(path));
+        // Wait until playback completes for this file:
+        // AudioPlayer returns a Future that completes when playback begins, but not finishes.
+        // To wait for completion, use onPlayerComplete. We'll await a Completer.
+        final completer = Completer<void>();
+        void onCompleteHandler(_) {
+          if (!completer.isCompleted) completer.complete();
+        }
+
+        player.onPlayerComplete.listen(onCompleteHandler);
+        // Some players may immediately call onComplete for short audio; guard with timeout.
+        await completer.future.timeout(const Duration(seconds: 10),
+            onTimeout: () {
+          // timeout: continue to next chunk
+          return;
+        });
+        // cancel subscription implicitly by letting listener go out of scope
+      } catch (e) {
+        debugPrint('TTS playback error (chunk): $e');
+      }
     }
 
-    final player = AudioPlayer();
-    // Play cached file; await to keep flow predictable.
+    // release player resources
     try {
-      await player.play(DeviceFileSource(path));
-    } catch (e) {
-      debugPrint('TTS playback error: $e');
-    }
+      await player.dispose();
+    } catch (_) {}
   }
 }
 
@@ -79,7 +169,7 @@ class VideoLesson extends StatefulWidget {
   final DateTime? clockTime; // letustelltime
   final bool? isHindi;
 
-  // --- FIX: Added missing parameters ---
+  // --- Added optional image URLs for options ---
   final String? correctOptionImageUrl;
   final String? attemptedOptionImageUrl;
 
@@ -96,7 +186,6 @@ class VideoLesson extends StatefulWidget {
     this.imageUrl,
     this.clockTime,
     this.isHindi,
-    // --- FIX: Added to constructor ---
     this.correctOptionImageUrl,
     this.attemptedOptionImageUrl,
   }) : super(key: key);
@@ -107,9 +196,6 @@ class VideoLesson extends StatefulWidget {
 
 class _VideoLessonState extends State<VideoLesson> {
   late final GoogleTranslateTtsService _ttsService;
-  late final List<String> _slides;
-  int _currentSlide = 0;
-  Completer<void>? _textAnimationCompleter;
 
   // Header fields for special modes
   String headerQuestion = '';
@@ -121,7 +207,7 @@ class _VideoLessonState extends State<VideoLesson> {
   String? headerImageUrl;
   DateTime? headerClockTime;
 
-  // --- FIX: Added state variables for option image URLs ---
+  // Image url states for image-option cards
   String? headerCorrectOptionImageUrl;
   String? headerAttemptedOptionImageUrl;
 
@@ -139,48 +225,27 @@ class _VideoLessonState extends State<VideoLesson> {
     headerImageUrl = widget.imageUrl;
     headerClockTime = widget.clockTime;
 
-    // --- FIX: Initialize the new state variables ---
     headerCorrectOptionImageUrl = widget.correctOptionImageUrl;
     headerAttemptedOptionImageUrl = widget.attemptedOptionImageUrl;
 
-    // Split script into sentence-like slides for the animated text area.
-    _slides = widget.script
-        .split(RegExp(r'(?<=[.?!])\s+'))
-        .where((s) => s.trim().isNotEmpty)
-        .toList();
-
-    debugPrint(
-        'VideoLesson init: fromPage=${widget.fromPage}, slides=${_slides.length}');
-    WidgetsBinding.instance.addPostFrameCallback((_) => _playSlides());
+    debugPrint('VideoLesson init: fromPage=${widget.fromPage}');
+    // Speak the entire explanation once after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _playFullExplanation();
+    });
   }
 
   @override
   void dispose() {
-    // nothing to dispose in service currently; but keep method for future cleanup
     super.dispose();
   }
 
-  Future<void> _playSlides() async {
-    while (_currentSlide < _slides.length && mounted) {
-      final text = _slides[_currentSlide];
-
-      _textAnimationCompleter = Completer<void>();
-      setState(() {});
-
-      try {
-        final langOverride = widget.isHindi == true ? 'hi' : null;
-        await _ttsService.speak(text, localeOverride: langOverride);
-      } catch (e) {
-        debugPrint('TTS error: $e');
-      }
-
-      await _textAnimationCompleter?.future;
-
-      if (!mounted) return;
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
-
-      setState(() => _currentSlide++);
+  Future<void> _playFullExplanation() async {
+    try {
+      final langOverride = widget.isHindi == true ? 'hi' : null;
+      await _ttsService.speak(widget.script, localeOverride: langOverride);
+    } catch (e) {
+      debugPrint('TTS error: $e');
     }
   }
 
@@ -246,7 +311,7 @@ class _VideoLessonState extends State<VideoLesson> {
     );
   }
 
-  // --- FIX: New helper for image-based options ---
+  // Image-based option card
   Widget _buildImageOptionCard({
     required String label,
     required String title,
@@ -259,7 +324,7 @@ class _VideoLessonState extends State<VideoLesson> {
         imageUrl,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) =>
-        const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+            const Icon(Icons.broken_image, size: 40, color: Colors.grey),
       );
     } else {
       content = Text(
@@ -309,25 +374,50 @@ class _VideoLessonState extends State<VideoLesson> {
       runSpacing: 8,
       alignment: WrapAlignment.center,
       children: assets
-          .map((a) => Image.asset(a,
-          width: 40,
-          height: 40,
-          errorBuilder: (_, __, ___) =>
-          const SizedBox(width: 40, height: 40)))
+          .map((a) =>
+              Image.asset(a, width: 40, height: 40, errorBuilder: (_, __, ___) {
+                return const SizedBox(width: 40, height: 40);
+              }))
           .toList(),
+    );
+  }
+
+  // Reusable scrollable writeup container
+  Widget _buildScrollableWriteup() {
+    return Expanded(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.grey.withOpacity(0.10), blurRadius: 6)
+          ],
+        ),
+        child: Scrollbar(
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            child: Text(
+              widget.script,
+              style: const TextStyle(
+                fontSize: 18,
+                height: 1.5,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final done = _currentSlide >= _slides.length;
-    final currentAnimatedText = done
-        ? (widget.isHindi == true ? '— पाठ समाप्त —' : '— End of lesson —')
-        : (_slides.isNotEmpty ? _slides[_currentSlide] : '');
-
     // -------------------- GUESSTHELETTER MODE (MODIFIED) --------------------
     if (widget.fromPage == 'guesstheletter') {
-      final labelCorrect = widget.isHindi == true ? 'सही उत्तर' : 'Correct Answer';
+      final labelCorrect =
+          widget.isHindi == true ? 'सही उत्तर' : 'Correct Answer';
       final labelYour = widget.isHindi == true ? 'आपका उत्तर' : 'Your Answer';
       final correctText = headerCorrect.isEmpty ? '-' : headerCorrect;
       final attemptedText = headerAttempted.isEmpty ? '-' : headerAttempted;
@@ -345,7 +435,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -374,7 +464,7 @@ class _VideoLessonState extends State<VideoLesson> {
 
                 const SizedBox(height: 12),
 
-                // --- FIX: Replaced _buildOptionCard with _buildImageOptionCard ---
+                // Image option cards row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -397,44 +487,14 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Animated writeup
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.grey.withOpacity(0.10),
-                              blurRadius: 6)
-                        ]),
-                    child: DefaultTextStyle(
-                      style:
-                      const TextStyle(fontSize: 18, color: Colors.black87),
-                      child: AnimatedTextKit(
-                        key: ValueKey<int>(_currentSlide),
-                        isRepeatingAnimation: false,
-                        totalRepeatCount: 1,
-                        animatedTexts: [
-                          TypewriterAnimatedText(currentAnimatedText,
-                              speed: const Duration(milliseconds: 40),
-                              cursor: '|'),
-                        ],
-                        onFinished: () => _textAnimationCompleter?.complete(),
-                      ),
-                    ),
-                  ),
-                ),
+                // Scrollable full explanation
+                _buildScrollableWriteup(),
               ],
             ),
           ),
         ),
       );
     }
-
-    // --- All other game modes remain unchanged ---
 
     // -------------------- LETUSTELLTIME MODE --------------------
     if (widget.fromPage == 'letustelltime') {
@@ -458,7 +518,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -513,7 +573,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                        attemptedIsCorrect ? Colors.green : Colors.red,
+                            attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -523,36 +583,8 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Animated writeup
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.grey.withOpacity(0.10),
-                              blurRadius: 6)
-                        ]),
-                    child: DefaultTextStyle(
-                      style:
-                      const TextStyle(fontSize: 18, color: Colors.black87),
-                      child: AnimatedTextKit(
-                        key: ValueKey<int>(_currentSlide),
-                        isRepeatingAnimation: false,
-                        totalRepeatCount: 1,
-                        animatedTexts: [
-                          TypewriterAnimatedText(currentAnimatedText,
-                              speed: const Duration(milliseconds: 40),
-                              cursor: '|'),
-                        ],
-                        onFinished: () => _textAnimationCompleter?.complete(),
-                      ),
-                    ),
-                  ),
-                ),
+                // Scrollable full explanation
+                _buildScrollableWriteup(),
               ],
             ),
           ),
@@ -582,7 +614,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -606,7 +638,7 @@ class _VideoLessonState extends State<VideoLesson> {
                             decoration: BoxDecoration(
                                 color: Colors.white,
                                 border:
-                                Border.all(color: Colors.black54, width: 2),
+                                    Border.all(color: Colors.black54, width: 2),
                                 borderRadius: BorderRadius.circular(12)),
                             child: _buildImagesWrap(headerLeft))),
                     const SizedBox(width: 10),
@@ -616,7 +648,7 @@ class _VideoLessonState extends State<VideoLesson> {
                             decoration: BoxDecoration(
                                 color: Colors.white,
                                 border:
-                                Border.all(color: Colors.black54, width: 2),
+                                    Border.all(color: Colors.black54, width: 2),
                                 borderRadius: BorderRadius.circular(12)),
                             child: _buildImagesWrap(headerRight))),
                   ],
@@ -643,7 +675,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                        attemptedIsCorrect ? Colors.green : Colors.red,
+                            attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -653,36 +685,8 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Animated writeup
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.grey.withOpacity(0.10),
-                              blurRadius: 6)
-                        ]),
-                    child: DefaultTextStyle(
-                      style:
-                      const TextStyle(fontSize: 18, color: Colors.black87),
-                      child: AnimatedTextKit(
-                        key: ValueKey<int>(_currentSlide),
-                        isRepeatingAnimation: false,
-                        totalRepeatCount: 1,
-                        animatedTexts: [
-                          TypewriterAnimatedText(currentAnimatedText,
-                              speed: const Duration(milliseconds: 40),
-                              cursor: '|'),
-                        ],
-                        onFinished: () => _textAnimationCompleter?.complete(),
-                      ),
-                    ),
-                  ),
-                ),
+                // Scrollable full explanation
+                _buildScrollableWriteup(),
               ],
             ),
           ),
@@ -712,7 +716,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -743,7 +747,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                        attemptedIsCorrect ? Colors.green : Colors.red,
+                            attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -753,36 +757,8 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Animated writeup
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.grey.withOpacity(0.10),
-                              blurRadius: 6)
-                        ]),
-                    child: DefaultTextStyle(
-                      style:
-                      const TextStyle(fontSize: 18, color: Colors.black87),
-                      child: AnimatedTextKit(
-                        key: ValueKey<int>(_currentSlide),
-                        isRepeatingAnimation: false,
-                        totalRepeatCount: 1,
-                        animatedTexts: [
-                          TypewriterAnimatedText(currentAnimatedText,
-                              speed: const Duration(milliseconds: 40),
-                              cursor: '|'),
-                        ],
-                        onFinished: () => _textAnimationCompleter?.complete(),
-                      ),
-                    ),
-                  ),
-                ),
+                // Scrollable full explanation
+                _buildScrollableWriteup(),
               ],
             ),
           ),
@@ -812,7 +788,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 Container(
                   width: double.infinity,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -839,7 +815,7 @@ class _VideoLessonState extends State<VideoLesson> {
                         label: labelYour,
                         content: attemptedText,
                         borderColor:
-                        attemptedIsCorrect ? Colors.green : Colors.red,
+                            attemptedIsCorrect ? Colors.green : Colors.red,
                         showTick: attemptedIsCorrect,
                         isAttempt: true),
                   ],
@@ -849,36 +825,8 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Animated writeup
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.grey.withOpacity(0.10),
-                              blurRadius: 6)
-                        ]),
-                    child: DefaultTextStyle(
-                      style:
-                      const TextStyle(fontSize: 18, color: Colors.black87),
-                      child: AnimatedTextKit(
-                        key: ValueKey<int>(_currentSlide),
-                        isRepeatingAnimation: false,
-                        totalRepeatCount: 1,
-                        animatedTexts: [
-                          TypewriterAnimatedText(currentAnimatedText,
-                              speed: const Duration(milliseconds: 40),
-                              cursor: '|'),
-                        ],
-                        onFinished: () => _textAnimationCompleter?.complete(),
-                      ),
-                    ),
-                  ),
-                ),
+                // Scrollable full explanation
+                _buildScrollableWriteup(),
               ],
             ),
           ),
@@ -886,30 +834,32 @@ class _VideoLessonState extends State<VideoLesson> {
       );
     }
 
-    // -------------------- DEFAULT full-screen slides --------------------
+    // -------------------- DEFAULT full-screen script view --------------------
     return Scaffold(
       appBar: AppBar(title: const Text('Video Lesson')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: DefaultTextStyle(
-            style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w500, color: Colors.black),
-            child: AnimatedTextKit(
-              key: ValueKey<int>(_currentSlide),
-              isRepeatingAnimation: false,
-              totalRepeatCount: 1,
-              animatedTexts: [
-                TypewriterAnimatedText(
-                    done
-                        ? (widget.isHindi == true
-                        ? '— पाठ समाप्त —'
-                        : '— End of lesson —')
-                        : (_slides.isNotEmpty ? _slides[_currentSlide] : ''),
-                    speed: const Duration(milliseconds: 50),
-                    cursor: '|'),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: Colors.grey.withOpacity(0.12), blurRadius: 6)
               ],
-              onFinished: () => _textAnimationCompleter?.complete(),
+            ),
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                child: DefaultTextStyle(
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black),
+                  child: Text(widget.script),
+                ),
+              ),
             ),
           ),
         ),
