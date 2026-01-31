@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
+import 'widgets/voice_icon.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -99,6 +100,13 @@ class _LoginPageState extends State<LoginPage> {
                     GoogleFonts.trocchi(fontSize: 16, color: Colors.teal.shade800),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 8),
+              VoiceIcon(
+                text: isHindi
+                    ? 'स्वागत है. कृपया अपने फ़ोन नंबर से लॉगिन करें'
+                    : 'Welcome Back. Please login with your phone number',
+                isHindi: isHindi,
+              ),
               const SizedBox(height: 15),
 
               // Input Card
@@ -120,6 +128,12 @@ class _LoginPageState extends State<LoginPage> {
                               : 'Enter Your Phone Number',
                           style: GoogleFonts.trocchi(
                               fontSize: 18, fontWeight: FontWeight.w600, color: Color.fromARGB(255, 101, 65, 239)),
+                        ),
+                        VoiceIcon(
+                          text: isHindi
+                              ? 'अपना फ़ोन नंबर दर्ज करें'
+                              : 'Enter Your Phone Number',
+                          isHindi: isHindi,
                         ),
                         const SizedBox(height: 20),
                         Row(

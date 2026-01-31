@@ -11,9 +11,11 @@ import 'menu_bar.dart';
 import 'game.dart';
 import 'compare.dart';
 import 'guesstheletter.dart';
+import 'guesstheletter.dart';
 import 'matching.dart';
 import 'letustelltime.dart';
 import 'letuscount.dart';
+import 'widgets/voice_icon.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -270,6 +272,7 @@ class _HomePageState extends State<HomePage> {
                   style: const TextStyle(
                       fontSize: 16, color: Color.fromARGB(255, 101, 65, 239), fontWeight: FontWeight.bold,fontFamily: 'MyCustom2'),
                 ),
+                VoiceIcon(text: title, isHindi: isHindi, size: 20),
                 if (hasPlayed)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),

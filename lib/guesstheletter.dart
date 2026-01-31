@@ -8,6 +8,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
 import 'ai.dart';
 import 'video_lesson.dart';
+import 'widgets/voice_icon.dart';
 
 class GuessTheLetterPage extends StatefulWidget {
   final String gameTitle;
@@ -761,13 +762,14 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                 fontWeight: FontWeight.bold,
                 color: Colors.white),
             overflow: TextOverflow.ellipsis),
-        backgroundColor: const Color.fromARGB(255, 101, 65, 239),
-        automaticallyImplyLeading: !_isPretestMode,
         actions: [
+          VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
               icon: const Icon(Icons.info_outline, color: Colors.white),
               onPressed: _showInstructionsDialog)
         ],
+        backgroundColor: const Color.fromARGB(255, 101, 65, 239),
+        automaticallyImplyLeading: !_isPretestMode,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -777,6 +779,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                 textAlign: TextAlign.center,
                 style:
                 const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            VoiceIcon(text: questionText, isHindi: widget.isHindi),
+            const SizedBox(height: 10),
             const SizedBox(height: 20),
             if (imageUrl != null)
               Image.network(imageUrl,
@@ -902,6 +906,15 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               child: Icon(corr ? Icons.check_circle : Icons.cancel,
                   size: 50, color: corr ? Colors.green : Colors.red),
             ),
+          Positioned(
+             top: 8,
+             left: 8,
+             child: VoiceIcon(
+                  text: option['title'] as String,
+                  isHindi: widget.isHindi,
+                  size: 20,
+                  color: Colors.grey),
+          ),
         ],
       ),
     );
@@ -921,7 +934,13 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                               ? "एक छोटी परीक्षा"
                               : "A Quick Pre-test",
                           style: const TextStyle(
-                              fontSize: 28, fontWeight: FontWeight.bold)),
+                                fontSize: 28, fontWeight: FontWeight.bold)),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "एक छोटी परीक्षा"
+                              : "A Quick Pre-test",
+                          isHindi: widget.isHindi),
+                      const SizedBox(height: 20),
                       const SizedBox(height: 20),
                       Text(
                           widget.isHindi
@@ -929,6 +948,12 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                               : "We will conduct a short 10-question test to assess your current understanding.",
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 18)),
+                      VoiceIcon(
+                          text: widget.isHindi
+                              ? "हम आपकी वर्तमान समझ का आकलन करने के लिए 10 प्रश्नों की एक छोटी परीक्षा लेंगे।"
+                              : "We will conduct a short 10-question test to assess your current understanding.",
+                          isHindi: widget.isHindi),
+                      const SizedBox(height: 40),
                       const SizedBox(height: 40),
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(
