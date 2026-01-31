@@ -8,6 +8,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'result.dart';
 import 'ai.dart';
 import 'video_lesson.dart';
+import 'theme/app_colors.dart';
+import 'theme/text_styles.dart';
 
 class ComparePage extends StatefulWidget {
   final String gameTitle;
@@ -46,6 +48,7 @@ class _ComparePageState extends State<ComparePage> {
   DateTime? _questionStartTime;
   DateTime? _gameStartTime;
   Map<String, Map<String, dynamic>> _pretestResultSummary = {};
+  bool _isProcessing = false;
 
   // --- Game-Specific UI State ---
   List<CompareOption> _currentOptions = [];
@@ -356,7 +359,8 @@ class _ComparePageState extends State<ComparePage> {
   }
 
   Future<void> _submitAnswer() async {
-    if (_pendingSelectedIndex == null || _hasSubmitted) return;
+    if (_pendingSelectedIndex == null || _hasSubmitted || _isProcessing) return;
+    setState(() => _isProcessing = true);
     final isCorrect = _currentOptions[_pendingSelectedIndex!].isCorrect;
     final qId = _questions[_currentQuestionIndex]['id'] as String;
     _userAnswers[qId] = {
@@ -372,9 +376,12 @@ class _ComparePageState extends State<ComparePage> {
     } else {
       await _updateMainGameState(isCorrect);
     }
-    setState(() {
-      _hasSubmitted = true;
-    });
+    if (mounted) {
+      setState(() {
+        _hasSubmitted = true;
+        _isProcessing = false;
+      });
+    }
   }
 
   Future<void> _updatePretestState(bool isCorrect, String level) async {
@@ -508,18 +515,23 @@ class _ComparePageState extends State<ComparePage> {
   }
 
   void _nextQuestion() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
     if (_isPretestMode) {
       if (_currentQuestionIndex >= _questions.length - 1) {
-        _calculateAndSavePretestResults();
+        await _calculateAndSavePretestResults();
       } else {
         setState(() => _currentQuestionIndex++);
         _initQuestionState();
       }
+      if (mounted) setState(() => _isProcessing = false);
       return;
     }
     if (_currentQuestionIndex < _questions.length - 1) {
       setState(() => _currentQuestionIndex++);
       _initQuestionState();
+      if (mounted) setState(() => _isProcessing = false);
     } else {
       final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
       final levelsToShow =
@@ -535,7 +547,7 @@ class _ComparePageState extends State<ComparePage> {
                 "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
             .set(currentLevelIdx);
         await _loadCurrentLevelQuestions();
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       } else {
         Navigator.pushReplacement(
             context,
@@ -689,7 +701,7 @@ class _ComparePageState extends State<ComparePage> {
         _currentOptions[_pendingSelectedIndex!].isCorrect;
 
     return Scaffold(
-      backgroundColor: Colors.lightBlue[50],
+      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
           title: Flexible(
               child: Text(titleText,
@@ -698,7 +710,7 @@ class _ComparePageState extends State<ComparePage> {
                       fontWeight: FontWeight.bold,
                       color: Colors.white),
                   overflow: TextOverflow.ellipsis)),
-          backgroundColor: Colors.blue.shade300,
+          backgroundColor: AppColors.primary,
           actions: [
             IconButton(
                 icon: const Icon(Icons.info_outline,
@@ -735,8 +747,8 @@ class _ComparePageState extends State<ComparePage> {
                     final show = _hasSubmitted && isSel;
                     final ok = opt.isCorrect;
                     Color border = Colors.grey;
-                    if (isSel && !_hasSubmitted) border = Colors.blue;
-                    if (show) border = ok ? Colors.green : Colors.red;
+                    if (isSel && !_hasSubmitted) border = AppColors.primary;
+                    if (show) border = ok ? AppColors.correctGreen : AppColors.incorrectRed;
                     return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: OptionTile(
@@ -744,7 +756,7 @@ class _ComparePageState extends State<ComparePage> {
                             borderColor: border,
                             overlayIcon: show
                                 ? Icon(ok ? Icons.check_circle : Icons.cancel,
-                                    color: ok ? Colors.green : Colors.red,
+                                    color: ok ? AppColors.correctGreen : AppColors.incorrectRed,
                                     size: 50)
                                 : null,
                             onTap: () => _selectOption(i),
@@ -811,9 +823,8 @@ class _ComparePageState extends State<ComparePage> {
                                 : null,
                             style: ElevatedButton.styleFrom(
                                 backgroundColor:
-                                    (_pendingSelectedIndex != null &&
-                                            !_hasSubmitted)
-                                        ? Colors.blue
+                                    (_pendingSelectedIndex != null && !_hasSubmitted)
+                                        ? AppColors.primary
                                         : Colors.grey),
                             child: Text(widget.isHindi ? 'जमा करें' : 'Submit',
                                 style: const TextStyle(
@@ -823,7 +834,7 @@ class _ComparePageState extends State<ComparePage> {
                             onPressed: _hasSubmitted ? _nextQuestion : null,
                             style: ElevatedButton.styleFrom(
                                 backgroundColor:
-                                    _hasSubmitted ? Colors.green : Colors.grey),
+                                    _hasSubmitted ? AppColors.correctGreen : Colors.grey),
                             child: Text(widget.isHindi ? 'अगला' : 'Next',
                                 style: const TextStyle(
                                     color: Colors.white,

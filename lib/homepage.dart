@@ -16,6 +16,8 @@ import 'matching.dart';
 import 'letustelltime.dart';
 import 'letuscount.dart';
 import 'widgets/voice_icon.dart';
+import 'widgets/game_card.dart';
+import 'theme/app_colors.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -234,100 +236,11 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Widget buildBox(String key, bool isHindi, Color bgColor,String imgpath,String imgpathHindi) {
-    final title = isHindi ? boxTextsHindi[key]! : boxTextsEnglish[key]!;
-    final correct = correctScores[title] ?? 0;
-    final incorrect = incorrectScores[title] ?? 0;
-    final hasPlayed = (correct + incorrect) > 0;
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.85,
-      padding: const EdgeInsets.all(10),
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border.all(color: Color.fromARGB(255, 101, 65, 239), width: 2),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              border: Border.all(color: Color.fromARGB(255, 101, 65, 239),width: 1),
-              borderRadius: BorderRadius.circular(50),
-              image:  DecorationImage(
-                image: AssetImage(isHindi?imgpathHindi:imgpath),
-                fit: BoxFit.cover
-              ),
-            ),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                      fontSize: 16, color: Color.fromARGB(255, 101, 65, 239), fontWeight: FontWeight.bold,fontFamily: 'MyCustom2'),
-                ),
-                VoiceIcon(text: title, isHindi: isHindi, size: 20),
-                if (hasPlayed)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '$correct',
-                            style: const TextStyle(
-                                color: Color.fromARGB(255, 63, 108, 64),
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,fontFamily: 'MyCustomFont'),
-                          ),
-                          const TextSpan( text: '  |  ', style: const TextStyle(color: Color.fromARGB(255, 101, 65, 239),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
-                          TextSpan(
-                            text: '$incorrect',
-                            style: const TextStyle(
-                                color: Color.fromARGB(255, 200, 82, 87),
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold, fontFamily: 'MyCustomFont'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromARGB(255, 191, 235, 239)),
-                      onPressed: () => _navigateBasedOnText(title, isHindi),
-                      child: Text( style: const TextStyle(color: Color.fromARGB(255, 101, 65, 239), fontSize: 14,fontFamily: 'MyCustomFont',fontWeight: FontWeight.normal),
-                        hasPlayed ? continueText(isHindi) : playText(isHindi),
-                      ),
-                    ),
-                   
-                    
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
     return Scaffold(
-      backgroundColor: Color.fromARGB(255, 245, 255, 255),
+      backgroundColor: AppColors.backgroundLight,
       appBar: NavBar(
         isHindi: isHindi,
         onToggleLanguage: (value) {
@@ -342,17 +255,106 @@ class _HomePageState extends State<HomePage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              buildBox('Box1', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/npp.png','assets/npph.jpg'),
-              buildBox('Box2', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/gtl.png','assets/gtlh.jpg'),
-              buildBox('Box3', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/cmp.png','assets/cmp.png'),
-              buildBox('Box4', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/cnt.png','assets/cnth.jpg'),
-              buildBox('Box5', isHindi, Color.fromARGB(100, 191, 235, 239),'assets/namenm.png','assets/namenmh.jpg'),
-              buildBox('Box6', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/numnp.png','assets/numnph.jpg'),
-              buildBox('Box7', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/ltt.png','assets/ltth.jpg'),
-              // buildBox('Box8', isHindi, Colors.blue.shade100),
-              buildBox('Box9', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/ak.png','assets/akh.jpg'),
-              buildBox('Box10', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/lr.png','assets/lrh.jpg'),
-              buildBox('Box11', isHindi, Color.fromARGB(100, 191, 235, 239), 'assets/fs.png','assets/fsh.jpg'),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box1']! : boxTextsEnglish['Box1']!,
+                imagePath: isHindi ? 'assets/npph.jpg' : 'assets/npp.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box1']! : boxTextsEnglish['Box1']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box1']! : boxTextsEnglish['Box1']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box1']! : boxTextsEnglish['Box1']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box2']! : boxTextsEnglish['Box2']!,
+                imagePath: isHindi ? 'assets/gtlh.jpg' : 'assets/gtl.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box2']! : boxTextsEnglish['Box2']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box2']! : boxTextsEnglish['Box2']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box2']! : boxTextsEnglish['Box2']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box3']! : boxTextsEnglish['Box3']!,
+                imagePath: isHindi ? 'assets/cmp.png' : 'assets/cmp.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box3']! : boxTextsEnglish['Box3']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box3']! : boxTextsEnglish['Box3']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box3']! : boxTextsEnglish['Box3']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box4']! : boxTextsEnglish['Box4']!,
+                imagePath: isHindi ? 'assets/cnth.jpg' : 'assets/cnt.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box4']! : boxTextsEnglish['Box4']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box4']! : boxTextsEnglish['Box4']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box4']! : boxTextsEnglish['Box4']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box5']! : boxTextsEnglish['Box5']!,
+                imagePath: isHindi ? 'assets/namenmh.jpg' : 'assets/namenm.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box5']! : boxTextsEnglish['Box5']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box5']! : boxTextsEnglish['Box5']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box5']! : boxTextsEnglish['Box5']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box6']! : boxTextsEnglish['Box6']!,
+                imagePath: isHindi ? 'assets/numnph.jpg' : 'assets/numnp.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box6']! : boxTextsEnglish['Box6']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box6']! : boxTextsEnglish['Box6']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box6']! : boxTextsEnglish['Box6']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box7']! : boxTextsEnglish['Box7']!,
+                imagePath: isHindi ? 'assets/ltth.jpg' : 'assets/ltt.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box7']! : boxTextsEnglish['Box7']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box7']! : boxTextsEnglish['Box7']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box7']! : boxTextsEnglish['Box7']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box9']! : boxTextsEnglish['Box9']!,
+                imagePath: isHindi ? 'assets/akh.jpg' : 'assets/ak.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box9']! : boxTextsEnglish['Box9']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box9']! : boxTextsEnglish['Box9']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box9']! : boxTextsEnglish['Box9']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box10']! : boxTextsEnglish['Box10']!,
+                imagePath: isHindi ? 'assets/lrh.jpg' : 'assets/lr.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box10']! : boxTextsEnglish['Box10']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box10']! : boxTextsEnglish['Box10']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box10']! : boxTextsEnglish['Box10']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
+              GameCard(
+                title: isHindi ? boxTextsHindi['Box11']! : boxTextsEnglish['Box11']!,
+                imagePath: isHindi ? 'assets/fsh.jpg' : 'assets/fs.png',
+                correctScore: correctScores[isHindi ? boxTextsHindi['Box11']! : boxTextsEnglish['Box11']!] ?? 0,
+                incorrectScore: incorrectScores[isHindi ? boxTextsHindi['Box11']! : boxTextsEnglish['Box11']!] ?? 0,
+                isHindi: isHindi,
+                onPlay: () => _navigateBasedOnText(isHindi ? boxTextsHindi['Box11']! : boxTextsEnglish['Box11']!, isHindi),
+                playLabel: playText(isHindi),
+                continueLabel: continueText(isHindi),
+              ),
               const SizedBox(height: 60),
             ],
             

@@ -5,6 +5,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
 import 'widgets/voice_icon.dart';
+import 'widgets/gradient_button.dart';
+import 'theme/app_colors.dart';
+import 'theme/text_styles.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -67,7 +70,7 @@ class _LoginPageState extends State<LoginPage> {
     final isHindi = Provider.of<LanguageNotifier>(context).isHindi;
 
     return Scaffold(
-      backgroundColor: Color.fromARGB(255, 245, 255, 255),
+      backgroundColor: AppColors.backgroundLight,
       appBar: NavBar(
         isHindi: isHindi,
         onToggleLanguage: (val) =>
@@ -86,18 +89,14 @@ class _LoginPageState extends State<LoginPage> {
               // Welcome text
               Text(
                 isHindi ? 'स्वागत है' : 'Welcome Back',
-                style: GoogleFonts.trocchi(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w600, color: Color.fromARGB(255, 101, 65, 239)
-                ),
+                style: AppTextStyles.header,
               ),
               const SizedBox(height: 6),
               Text(
                 isHindi
                     ? 'कृपया अपने फ़ोन नंबर से लॉगिन करें'
                     : 'Please login with your phone number',
-                style:
-                    GoogleFonts.trocchi(fontSize: 16, color: Colors.teal.shade800),
+                style: AppTextStyles.body,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -111,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
 
               // Input Card
               Card(
-                color: Color.fromARGB(255, 201, 245, 245),
+                color: AppColors.cardBackground,
                 elevation: 6,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
@@ -126,8 +125,7 @@ class _LoginPageState extends State<LoginPage> {
                           isHindi
                               ? 'अपना फ़ोन नंबर दर्ज करें'
                               : 'Enter Your Phone Number',
-                          style: GoogleFonts.trocchi(
-                              fontSize: 18, fontWeight: FontWeight.w600, color: Color.fromARGB(255, 101, 65, 239)),
+                          style: AppTextStyles.subHeader,
                         ),
                         VoiceIcon(
                           text: isHindi
@@ -144,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
                                 controller: _countryCodeController,
                                 keyboardType: TextInputType.phone,
                                 decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.flag, color: Color.fromARGB(255, 101, 65, 239),),
+                                  prefixIcon: const Icon(Icons.flag, color: AppColors.primary,),
                                   labelText: isHindi ? 'कोड' : 'Code',
                                   border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12)),
@@ -161,7 +159,7 @@ class _LoginPageState extends State<LoginPage> {
                                 controller: _phoneController,
                                 keyboardType: TextInputType.phone,
                                 decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.phone, color: Color.fromARGB(255, 101, 65, 239),),
+                                  prefixIcon: const Icon(Icons.phone, color: AppColors.primary,),
                                   labelText:
                                       isHindi ? 'मोबाइल नंबर' : 'Mobile Number',
                                   border: OutlineInputBorder(
@@ -177,44 +175,10 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                         const SizedBox(height: 32),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _checking ? null : _onSendOtp,
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: EdgeInsets.zero,
-                            ),
-                            child: _checking
-                                ? const CircularProgressIndicator(
-                                    valueColor:
-                                        AlwaysStoppedAnimation(Colors.white),
-                                  )
-                                : Ink(
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color.fromARGB(255, 101, 221, 209),
-                                          Color.fromARGB(255, 101, 65, 239)
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        isHindi ? 'ओटीपी भेजें' : 'Send OTP',
-                                        style: GoogleFonts.trocchi(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                          ),
+                        GradientButton(
+                          text: isHindi ? 'ओटीपी भेजें' : 'Send OTP',
+                          onPressed: _checking ? null : _onSendOtp,
+                          isLoading: _checking,
                         ),
                         const SizedBox(height: 16),
                         // Register link
@@ -225,8 +189,7 @@ class _LoginPageState extends State<LoginPage> {
                             isHindi
                                 ? 'खाता नहीं है? रजिस्टर करें'
                                 : "Don't have an account? Register",
-                            style:
-                                GoogleFonts.trocchi(color: Colors.teal.shade800),
+                            style: AppTextStyles.body,
                           ),
                         ),
                       ],

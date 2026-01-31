@@ -9,6 +9,8 @@ import 'result.dart';
 import 'ai.dart';
 import 'video_lesson.dart';
 import 'widgets/voice_icon.dart';
+import 'theme/app_colors.dart';
+import 'theme/text_styles.dart';
 
 class GuessTheLetterPage extends StatefulWidget {
   final String gameTitle;
@@ -47,6 +49,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   DateTime? _questionStartTime;
   DateTime? _gameStartTime;
   Map<String, Map<String, dynamic>> _pretestResultSummary = {};
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -334,7 +337,8 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   }
 
   Future<void> _submitAnswer() async {
-    if (_pendingSelectedIndex == null || _hasSubmitted) return;
+    if (_pendingSelectedIndex == null || _hasSubmitted || _isProcessing) return;
+    setState(() => _isProcessing = true);
     final qId = _questions[_currentQuestionIndex]['id'] as String;
     final data =
     _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
@@ -354,9 +358,12 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
     } else {
       await _updateMainGameState(isCorrect);
     }
-    setState(() {
-      _hasSubmitted = true;
-    });
+    if (mounted) {
+      setState(() {
+        _hasSubmitted = true;
+        _isProcessing = false;
+      });
+    }
   }
 
   Future<void> _updatePretestState(bool isCorrect, String level) async {
@@ -490,18 +497,23 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
   }
 
   void _nextQuestion() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
     if (_isPretestMode) {
       if (_currentQuestionIndex >= _questions.length - 1) {
-        _calculateAndSavePretestResults();
+        await _calculateAndSavePretestResults();
       } else {
         setState(() => _currentQuestionIndex++);
         _initQuestionState();
       }
+      if (mounted) setState(() => _isProcessing = false);
       return;
     }
     if (_currentQuestionIndex < _questions.length - 1) {
       setState(() => _currentQuestionIndex++);
       _initQuestionState();
+      if (mounted) setState(() => _isProcessing = false);
     } else {
       final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
       final levelsToShow =
@@ -517,7 +529,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
             "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
             .set(currentLevelIdx);
         await _loadCurrentLevelQuestions();
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       } else {
         Navigator.pushReplacement(
             context,
@@ -754,7 +766,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
         (options[_pendingSelectedIndex!]['isCorrect'] as bool);
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         title: Text(titleText,
             style: const TextStyle(
@@ -768,7 +780,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               icon: const Icon(Icons.info_outline, color: Colors.white),
               onPressed: _showInstructionsDialog)
         ],
-        backgroundColor: const Color.fromARGB(255, 101, 65, 239),
+        backgroundColor: AppColors.primary,
         automaticallyImplyLeading: !_isPretestMode,
       ),
       body: SafeArea(
@@ -850,8 +862,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                           ? Colors.orange
                           : Colors.grey),
                   child: Text(widget.isHindi ? "पिछला" : "Previous",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
+                      style: AppTextStyles.buttonText)),
               ElevatedButton(
                   onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
                       ? _submitAnswer
@@ -859,16 +870,15 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
                       (_pendingSelectedIndex != null && !_hasSubmitted)
-                          ? Colors.blue
+                          ? AppColors.primary
                           : Colors.grey),
                   child: Text(widget.isHindi ? "जमा करें" : "Submit",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
+                      style: AppTextStyles.buttonText)),
               ElevatedButton(
                   onPressed: _hasSubmitted ? _nextQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                      _hasSubmitted ? Colors.green : Colors.grey),
+                      _hasSubmitted ? AppColors.correctGreen : Colors.grey),
                   child: Text(widget.isHindi ? "अगला" : "Next",
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold))),
@@ -894,10 +904,10 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: isSel && !_hasSubmitted
-                  ? Border.all(color: Colors.blue, width: 4)
+                  ? Border.all(color: AppColors.primary, width: 4)
                   : showRes
                   ? Border.all(
-                  color: corr ? Colors.green : Colors.red, width: 4)
+                  color: corr ? AppColors.correctGreen : AppColors.incorrectRed, width: 4)
                   : null,
               boxShadow: [
                 BoxShadow(
@@ -919,7 +929,7 @@ class _GuessTheLetterPageState extends State<GuessTheLetterPage> {
               top: 8,
               right: 8,
               child: Icon(corr ? Icons.check_circle : Icons.cancel,
-                  size: 50, color: corr ? Colors.green : Colors.red),
+                  size: 50, color: corr ? AppColors.correctGreen : AppColors.incorrectRed),
             ),
           Positioned(
              top: 8,

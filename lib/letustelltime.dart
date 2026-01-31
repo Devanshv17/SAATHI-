@@ -8,6 +8,8 @@ import 'package:flutter_analog_clock/flutter_analog_clock.dart';
 import 'result.dart';
 import 'ai.dart';
 import 'video_lesson.dart';
+import 'theme/app_colors.dart';
+import 'theme/text_styles.dart';
 
 class LetUsTellTimePage extends StatefulWidget {
   final String gameTitle;
@@ -46,6 +48,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   DateTime? _questionStartTime;
   DateTime? _gameStartTime;
   Map<String, Map<String, dynamic>> _pretestResultSummary = {};
+  bool _isProcessing = false;
 
   // --- Game-Specific UI State ---
   DateTime? _clockTime;
@@ -345,7 +348,8 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   }
 
   Future<void> _submitAnswer() async {
-    if (_pendingSelectedIndex == null || _hasSubmitted) return;
+    if (_pendingSelectedIndex == null || _hasSubmitted || _isProcessing) return;
+    setState(() => _isProcessing = true);
     final qId = _questions[_currentQuestionIndex]['id'] as String;
     final data =
         _questions[_currentQuestionIndex]['data'] as Map<String, dynamic>;
@@ -365,9 +369,12 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
     } else {
       await _updateMainGameState(isCorrect);
     }
-    setState(() {
-      _hasSubmitted = true;
-    });
+    if (mounted) {
+      setState(() {
+        _hasSubmitted = true;
+        _isProcessing = false;
+      });
+    }
   }
 
   Future<void> _updatePretestState(bool isCorrect, String level) async {
@@ -500,18 +507,23 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
   }
 
   void _nextQuestion() async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+
     if (_isPretestMode) {
       if (_currentQuestionIndex >= _questions.length - 1) {
-        _calculateAndSavePretestResults();
+        await _calculateAndSavePretestResults();
       } else {
         setState(() => _currentQuestionIndex++);
         _initQuestionState();
       }
+      if (mounted) setState(() => _isProcessing = false);
       return;
     }
     if (_currentQuestionIndex < _questions.length - 1) {
       setState(() => _currentQuestionIndex++);
       _initQuestionState();
+      if (mounted) setState(() => _isProcessing = false);
     } else {
       final mainGameData = _deepCastMap(_gameState['main_game']) ?? {};
       final levelsToShow =
@@ -527,7 +539,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 "users/${_auth.currentUser!.uid}/games/${widget.gameTitle}/main_game/currentLevelIndex")
             .set(currentLevelIdx);
         await _loadCurrentLevelQuestions();
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       } else {
         Navigator.pushReplacement(
             context,
@@ -689,7 +701,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         (options[_pendingSelectedIndex!]['isCorrect'] as bool);
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+      backgroundColor: AppColors.backgroundLight,
        appBar: AppBar(
         title: Text(titleText, 
             style: const TextStyle(
@@ -697,7 +709,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                 fontWeight: FontWeight.bold,
                 color: Colors.white),
             overflow: TextOverflow.ellipsis),
-        backgroundColor: const Color.fromARGB(255, 101, 65, 239),
+        backgroundColor: AppColors.primary,
         automaticallyImplyLeading: !_isPretestMode,
         actions: [
           IconButton(
@@ -794,8 +806,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                           ? Colors.orange
                           : Colors.grey),
                   child: Text(widget.isHindi ? "पिछला" : "Previous",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
+                      style: AppTextStyles.buttonText)),
               ElevatedButton(
                   onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
                       ? _submitAnswer
@@ -803,19 +814,17 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
                           (_pendingSelectedIndex != null && !_hasSubmitted)
-                              ? Colors.blue
+                              ? AppColors.primary
                               : Colors.grey),
                   child: Text(widget.isHindi ? "जमा करें" : "Submit",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
+                      style: AppTextStyles.buttonText)),
               ElevatedButton(
                   onPressed: _hasSubmitted ? _nextQuestion : null,
                   style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          _hasSubmitted ? Colors.green : Colors.grey),
+                          _hasSubmitted ? AppColors.correctGreen : Colors.grey),
                   child: Text(widget.isHindi ? "अगला" : "Next",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
+                      style: AppTextStyles.buttonText)),
             ]),
           ]),
         ),
@@ -875,7 +884,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
 
   Widget _buildPretestIntro() {
     return Scaffold(
-        backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+        backgroundColor: AppColors.backgroundLight,
         body: Center(
             child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -912,7 +921,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
 
   Widget _buildPretestResults() {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+      backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
           child: Padding(
               padding: const EdgeInsets.all(24.0),
