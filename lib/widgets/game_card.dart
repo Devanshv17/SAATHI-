@@ -28,13 +28,13 @@ class GameCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasPlayed = (correctScore + incorrectScore) > 0;
-    
+
     return Container(
       width: MediaQuery.of(context).size.width * 0.85,
       padding: const EdgeInsets.all(10),
       margin: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        color: const Color.fromARGB(100, 191, 235, 239), // Kept original opacity
+        color: const Color.fromARGB(100, 191, 235, 239),
         border: Border.all(color: AppColors.primary, width: 2),
         borderRadius: BorderRadius.circular(15),
       ),
@@ -58,10 +58,15 @@ class GameCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment
+                      .start, // Aligns icon to the top if text wraps
                   children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.gameTitle,
+                    // WRAP THE TEXT WIDGET IN AN EXPANDED WIDGET HERE
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: AppTextStyles.gameTitle,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     VoiceIcon(text: title, isHindi: isHindi, size: 20),

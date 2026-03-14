@@ -838,7 +838,7 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-  Widget buildOptionCard(Map<String, dynamic> option, int index) {
+Widget buildOptionCard(Map<String, dynamic> option, int index) {
     final isSel = _pendingSelectedIndex == index;
     final showRes = _hasSubmitted && isSel;
     final corr = option['isCorrect'] as bool? ?? false;
@@ -859,7 +859,7 @@ class _GamePageState extends State<GamePage> {
           imageUrl,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) =>
-          const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+              const Icon(Icons.broken_image, size: 40, color: Colors.grey),
         ),
       );
     } else if (title != null && title.isNotEmpty) {
@@ -871,7 +871,8 @@ class _GamePageState extends State<GamePage> {
       );
     } else {
       // Fallback: If neither is available, show a placeholder icon.
-      optionContent = const Icon(Icons.help_outline, size: 40, color: Colors.grey);
+      optionContent =
+          const Icon(Icons.help_outline, size: 40, color: Colors.grey);
     }
     // --- End of logic ---
 
@@ -887,9 +888,9 @@ class _GamePageState extends State<GamePage> {
               border: isSel && !_hasSubmitted
                   ? Border.all(color: Colors.blue, width: 4)
                   : showRes
-                  ? Border.all(
-                  color: corr ? Colors.green : Colors.red, width: 4)
-                  : null,
+                      ? Border.all(
+                          color: corr ? Colors.green : Colors.red, width: 4)
+                      : null,
               boxShadow: [
                 BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
@@ -902,16 +903,6 @@ class _GamePageState extends State<GamePage> {
               child: Center(
                 child: optionContent, // Display the content we determined above
               ),
-            ),
-          ),
-          Positioned(
-            top: 5,
-            left: 5,
-            child: VoiceIcon(
-              text: option['title'] as String? ?? 'Option',
-              isHindi: widget.isHindi,
-              size: 20,
-              color: Colors.grey
             ),
           ),
           if (showRes)

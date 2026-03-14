@@ -813,7 +813,7 @@ class _MatchingPageState extends State<MatchingPage> {
     );
   }
 
-  Widget buildOptionCard(Map<String, dynamic> option, int index) {
+Widget buildOptionCard(Map<String, dynamic> option, int index) {
     final isSel = _pendingSelectedIndex == index;
     final showRes = _hasSubmitted && isSel;
     final corr = option['isCorrect'] as bool? ?? false;
@@ -831,7 +831,10 @@ class _MatchingPageState extends State<MatchingPage> {
                   ? Border.all(color: AppColors.primary, width: 4)
                   : showRes
                       ? Border.all(
-                          color: corr ? AppColors.correctGreen : AppColors.incorrectRed, width: 4)
+                          color: corr
+                              ? AppColors.correctGreen
+                              : AppColors.incorrectRed,
+                          width: 4)
                       : null,
               boxShadow: [
                 BoxShadow(
@@ -858,21 +861,15 @@ class _MatchingPageState extends State<MatchingPage> {
               ]),
             ),
           ),
-          Positioned(
-            top: 5,
-            left: 5,
-            child: VoiceIcon(
-                text: option['title'] as String,
-                isHindi: widget.isHindi,
-                color: Colors.grey,
-                size: 20),
-          ),
           if (showRes)
             Positioned(
                 top: 5,
                 right: 5,
                 child: Icon(corr ? Icons.check_circle : Icons.cancel,
-                    size: 50, color: corr ? AppColors.correctGreen : AppColors.incorrectRed)),
+                    size: 50,
+                    color: corr
+                        ? AppColors.correctGreen
+                        : AppColors.incorrectRed)),
         ],
       ),
     );

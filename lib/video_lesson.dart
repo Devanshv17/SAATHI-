@@ -9,6 +9,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_analog_clock/flutter_analog_clock.dart';
 
+// Import your VoiceIcon here
+import 'widgets/voice_icon.dart';
+
 /// Google Translate TTS (unofficial endpoint) with simple file caching.
 /// NOTE: This uses an unofficial endpoint — it may change or be rate-limited.
 /// To avoid very long pauses when the text is long, speak() will chunk the
@@ -382,7 +385,7 @@ class _VideoLessonState extends State<VideoLesson> {
     );
   }
 
-  // Reusable scrollable writeup container
+  // Reusable scrollable writeup container with VoiceIcon embedded!
   Widget _buildScrollableWriteup() {
     return Expanded(
       child: Container(
@@ -398,13 +401,28 @@ class _VideoLessonState extends State<VideoLesson> {
         child: Scrollbar(
           thumbVisibility: true,
           child: SingleChildScrollView(
-            child: Text(
-              widget.script,
-              style: const TextStyle(
-                fontSize: 18,
-                height: 1.5,
-                color: Colors.black87,
-              ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start, // Align to top
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.script,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      height: 1.5,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Here is the VoiceIcon added!
+                VoiceIcon(
+                  text: widget.script,
+                  isHindi: widget.isHindi ?? false,
+                  size: 30,
+                  color: Colors.blue,
+                ),
+              ],
             ),
           ),
         ),
@@ -487,7 +505,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation
+                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
               ],
             ),
@@ -583,7 +601,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation
+                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
               ],
             ),
@@ -685,7 +703,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation
+                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
               ],
             ),
@@ -757,7 +775,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation
+                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
               ],
             ),
@@ -825,7 +843,7 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation
+                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
               ],
             ),
@@ -852,12 +870,27 @@ class _VideoLessonState extends State<VideoLesson> {
             child: Scrollbar(
               thumbVisibility: true,
               child: SingleChildScrollView(
-                child: DefaultTextStyle(
-                  style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black),
-                  child: Text(widget.script),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start, // Align to top
+                  children: [
+                    Expanded(
+                      child: DefaultTextStyle(
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black),
+                        child: Text(widget.script),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // VoiceIcon added to the fallback view as well
+                    VoiceIcon(
+                      text: widget.script,
+                      isHindi: widget.isHindi ?? false,
+                      size: 30,
+                      color: Colors.blue,
+                    ),
+                  ],
                 ),
               ),
             ),
