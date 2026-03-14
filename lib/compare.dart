@@ -11,6 +11,7 @@ import 'video_lesson.dart';
 import 'theme/app_colors.dart';
 import 'theme/text_styles.dart';
 import 'widgets/voice_icon.dart';
+import 'services/tts_service.dart';
 
 class ComparePage extends StatefulWidget {
   final String gameTitle;
@@ -382,7 +383,37 @@ class _ComparePageState extends State<ComparePage> {
         _hasSubmitted = true;
         _isProcessing = false;
       });
+      _speakFeedback(isCorrect);
     }
+  }
+
+  void _speakFeedback(bool isCorrect) {
+    final lang = widget.isHindi ? 'hi-IN' : 'en-US';
+    final phrases = isCorrect
+        ? (widget.isHindi
+            ? [
+                'शाबाश! बिल्कुल सही।',
+                'वाह! बहुत बढ़िया।',
+                'सही जवाब! बहुत अच्छे।',
+              ]
+            : [
+                'Correct! Well done!',
+                'Great job! Keep it up!',
+                'Excellent! You got it right!',
+              ])
+        : (widget.isHindi
+            ? [
+                'ध्यान दो, अगली बार सही होगा।',
+                'कोशिश करते रहो, तुम कर सकते हो!',
+                'हिम्मत रखो, अगली बार ज़रूर सही होगा।',
+              ]
+            : [
+                'Focus! You will get it next time.',
+                'Keep trying, you can do it!',
+                "Don't give up! Next one will be correct.",
+              ]);
+    final text = (phrases..shuffle()).first;
+    TtsService().speak(text, language: lang);
   }
 
   Future<void> _updatePretestState(bool isCorrect, String level) async {
@@ -711,6 +742,10 @@ class _ComparePageState extends State<ComparePage> {
                       fontWeight: FontWeight.bold,
                       color: Colors.white),
                   overflow: TextOverflow.ellipsis)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           backgroundColor: AppColors.primary,
           actions: [
             VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
@@ -856,6 +891,15 @@ class _ComparePageState extends State<ComparePage> {
   Widget _buildPretestIntro() {
     return Scaffold(
         backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(widget.isHindi ? 'पूर्व-परीक्षा' : 'Pre-test',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
         body: Center(
             child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -905,6 +949,15 @@ class _ComparePageState extends State<ComparePage> {
   Widget _buildPretestResults() {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(widget.isHindi ? 'परीक्षा परिणाम' : 'Pre-test Results',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       body: SafeArea(
           child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -1015,97 +1068,45 @@ class OptionTile extends StatelessWidget {
   final Widget? overlayIcon;
   final VoidCallback? onTap;
   final bool isHindi;
-
-  const OptionTile({
-    Key? key,
-    required this.text,
-    required this.borderColor,
-    this.overlayIcon,
-    this.onTap,
-    required this.isHindi,
-  }) : super(key: key);
-
-  // Helper method to give the TTS engine full words instead of symbols
-  String _getSpokenText() {
-    String cleanText = text.trim();
-    if (isHindi) {
-      switch (cleanText) {
-        case '<':
-          return 'अ, ब से छोटा है'; // A is less than B
-        case '>':
-          return 'अ, ब से बड़ा है'; // A is greater than B
-        case '=':
-          return 'अ, ब के बराबर है'; // A equals B
-        default:
-          return 'अ $cleanText ब';
-      }
-    } else {
-      switch (cleanText) {
-        case '<':
-          return 'A is less than B';
-        case '>':
-          return 'A is greater than B';
-        case '=':
-          return 'A equals B';
-        default:
-          return 'A $cleanText B';
-      }
-    }
-  }
-
+  const OptionTile(
+      {Key? key,
+      required this.text,
+      required this.borderColor,
+      this.overlayIcon,
+      this.onTap,
+      required this.isHindi})
+      : super(key: key);
   @override
   Widget build(BuildContext context) {
-    // What the user sees visually (e.g., "A < B")
-    final String visualText = isHindi ? 'अ $text ब' : 'A $text B';
-    // What the TTS engine actually reads out loud
-    final String spokenText = _getSpokenText();
-
     return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        children: [
+        onTap: onTap,
+        child: Stack(children: [
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: borderColor, width: 4),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              visualText,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: borderColor, width: 4),
+                  borderRadius: BorderRadius.circular(20)),
+              child: Text(isHindi ? 'अ $text ब' : 'A $text B',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold))),
           Positioned(
             top: 5,
             left: 5,
-            child: VoiceIcon(
-              text: spokenText, // Pass the spelled-out string to the voice icon
-              isHindi: isHindi,
-              size: 20,
-              color: Colors.grey,
-            ),
+            child: VoiceIcon(text: ' $text ', isHindi: isHindi, size: 20, color: Colors.grey),
           ),
           if (overlayIcon != null)
             Positioned(
-              right: 10,
-              top: 10,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
-                  child: overlayIcon!,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+                right: 10,
+                top: 10,
+                child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                        child: overlayIcon!)))
+        ]));
   }
 }
 

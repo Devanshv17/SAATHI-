@@ -12,6 +12,7 @@ import 'video_lesson.dart';
 import 'theme/app_colors.dart';
 import 'theme/text_styles.dart';
 import 'widgets/voice_icon.dart';
+import 'services/tts_service.dart';
 
 class LetUsCountPage extends StatefulWidget {
   final String gameTitle;
@@ -448,7 +449,37 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
         _hasSubmitted = true;
         _isProcessing = false;
       });
+      _speakFeedback(isCorrect);
     }
+  }
+
+  void _speakFeedback(bool isCorrect) {
+    final lang = widget.isHindi ? 'hi-IN' : 'en-US';
+    final phrases = isCorrect
+        ? (widget.isHindi
+            ? [
+                'शाबाश! बिल्कुल सही।',
+                'वाह! बहुत बढ़िया।',
+                'सही जवाब! बहुत अच्छे।',
+              ]
+            : [
+                'Correct! Well done!',
+                'Great job! Keep it up!',
+                'Excellent! You got it right!',
+              ])
+        : (widget.isHindi
+            ? [
+                'ध्यान दो, अगली बार सही होगा।',
+                'कोशिश करते रहो, तुम कर सकते हो!',
+                'हिम्मत रखो, अगली बार ज़रूर सही होगा।',
+              ]
+            : [
+                'Focus! You will get it next time.',
+                'Keep trying, you can do it!',
+                "Don't give up! Next one will be correct.",
+              ]);
+    final text = (phrases..shuffle()).first;
+    TtsService().speak(text, language: lang);
   }
 
   Future<void> _updatePretestState(bool isCorrect, String level) async {
@@ -765,8 +796,11 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                 fontWeight: FontWeight.bold,
                 color: Colors.white),
             overflow: TextOverflow.ellipsis),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         backgroundColor: AppColors.primary,
-        automaticallyImplyLeading: !_isPretestMode,
         actions: [
           VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
@@ -951,6 +985,15 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   Widget _buildPretestIntro() {
     return Scaffold(
         backgroundColor: AppColors.backgroundLight,
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(widget.isHindi ? 'पूर्व-परीक्षा' : 'Pre-test',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
         body: Center(
             child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -997,6 +1040,15 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
   Widget _buildPretestResults() {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(widget.isHindi ? 'परीक्षा परिणाम' : 'Pre-test Results',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       body: SafeArea(
           child: Padding(
               padding: const EdgeInsets.all(24.0),

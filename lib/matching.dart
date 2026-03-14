@@ -10,6 +10,7 @@ import 'video_lesson.dart';
 import 'theme/app_colors.dart';
 import 'theme/text_styles.dart';
 import 'widgets/voice_icon.dart';
+import 'services/tts_service.dart';
 
 class MatchingPage extends StatefulWidget {
   final String gameTitle;
@@ -361,7 +362,37 @@ class _MatchingPageState extends State<MatchingPage> {
         _hasSubmitted = true;
         _isProcessing = false;
       });
+      _speakFeedback(isCorrect);
     }
+  }
+
+  void _speakFeedback(bool isCorrect) {
+    final lang = widget.isHindi ? 'hi-IN' : 'en-US';
+    final phrases = isCorrect
+        ? (widget.isHindi
+            ? [
+                'शाबाश! बिल्कुल सही।',
+                'वाह! बहुत बढ़िया।',
+                'सही जवाब! बहुत अच्छे।',
+              ]
+            : [
+                'Correct! Well done!',
+                'Great job! Keep it up!',
+                'Excellent! You got it right!',
+              ])
+        : (widget.isHindi
+            ? [
+                'ध्यान दो, अगली बार सही होगा।',
+                'कोशिश करते रहो, तुम कर सकते हो!',
+                'हिम्मत रखो, अगली बार ज़रूर सही होगा।',
+              ]
+            : [
+                'Focus! You will get it next time.',
+                'Keep trying, you can do it!',
+                "Don't give up! Next one will be correct.",
+              ]);
+    final text = (phrases..shuffle()).first;
+    TtsService().speak(text, language: lang);
   }
 
   Future<void> _updatePretestState(bool isCorrect, String level) async {
@@ -689,14 +720,17 @@ class _MatchingPageState extends State<MatchingPage> {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
-        title: Text(titleText, // <--- CORRECTED
+        title: Text(titleText,
             style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.white),
             overflow: TextOverflow.ellipsis),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         backgroundColor: AppColors.primary,
-        automaticallyImplyLeading: !_isPretestMode,
         actions: [
           VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
@@ -813,7 +847,7 @@ class _MatchingPageState extends State<MatchingPage> {
     );
   }
 
-Widget buildOptionCard(Map<String, dynamic> option, int index) {
+  Widget buildOptionCard(Map<String, dynamic> option, int index) {
     final isSel = _pendingSelectedIndex == index;
     final showRes = _hasSubmitted && isSel;
     final corr = option['isCorrect'] as bool? ?? false;
@@ -831,10 +865,7 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
                   ? Border.all(color: AppColors.primary, width: 4)
                   : showRes
                       ? Border.all(
-                          color: corr
-                              ? AppColors.correctGreen
-                              : AppColors.incorrectRed,
-                          width: 4)
+                          color: corr ? AppColors.correctGreen : AppColors.incorrectRed, width: 4)
                       : null,
               boxShadow: [
                 BoxShadow(
@@ -861,15 +892,21 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
               ]),
             ),
           ),
+          Positioned(
+            top: 5,
+            left: 5,
+            child: VoiceIcon(
+                text: option['title'] as String,
+                isHindi: widget.isHindi,
+                color: Colors.grey,
+                size: 20),
+          ),
           if (showRes)
             Positioned(
                 top: 5,
                 right: 5,
                 child: Icon(corr ? Icons.check_circle : Icons.cancel,
-                    size: 50,
-                    color: corr
-                        ? AppColors.correctGreen
-                        : AppColors.incorrectRed)),
+                    size: 50, color: corr ? AppColors.correctGreen : AppColors.incorrectRed)),
         ],
       ),
     );
@@ -878,6 +915,15 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
   Widget _buildPretestIntro() {
     return Scaffold(
         backgroundColor: AppColors.backgroundLight,
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(widget.isHindi ? 'पूर्व-परीक्षा' : 'Pre-test',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
         body: Center(
             child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -939,6 +985,15 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
   Widget _buildPretestResults() {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(widget.isHindi ? 'परीक्षा परिणाम' : 'Pre-test Results',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       body: SafeArea(
           child: Padding(
               padding: const EdgeInsets.all(24.0),

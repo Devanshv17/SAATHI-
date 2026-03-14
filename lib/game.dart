@@ -8,6 +8,7 @@ import 'result.dart';
 import 'ai.dart';
 import 'video_lesson.dart';
 import 'widgets/voice_icon.dart';
+import 'services/tts_service.dart';
 
 class GamePage extends StatefulWidget {
   final String gameTitle;
@@ -353,6 +354,36 @@ class _GamePageState extends State<GamePage> {
     setState(() {
       _hasSubmitted = true;
     });
+    _speakFeedback(isCorrect);
+  }
+
+  void _speakFeedback(bool isCorrect) {
+    final lang = widget.isHindi ? 'hi-IN' : 'en-US';
+    final phrases = isCorrect
+        ? (widget.isHindi
+            ? [
+                'शाबाश! बिल्कुल सही।',
+                'वाह! बहुत बढ़िया।',
+                'सही जवाब! बहुत अच्छे।',
+              ]
+            : [
+                'Correct! Well done!',
+                'Great job! Keep it up!',
+                'Excellent! You got it right!',
+              ])
+        : (widget.isHindi
+            ? [
+                'ध्यान दो, अगली बार सही होगा।',
+                'कोशिश करते रहो, तुम कर सकते हो!',
+                'हिम्मत रखो, अगली बार ज़रूर सही होगा।',
+              ]
+            : [
+                'Focus! You will get it next time.',
+                'Keep trying, you can do it!',
+                "Don't give up! Next one will be correct.",
+              ]);
+    final text = (phrases..shuffle()).first;
+    TtsService().speak(text, language: lang);
   }
 
   Future<void> _updatePretestState(bool isCorrect, String level) async {
@@ -708,14 +739,17 @@ class _GamePageState extends State<GamePage> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 245, 255, 255),
       appBar: AppBar(
-        title: Text(titleText, // <--- CORRECTED
+        title: Text(titleText,
             style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.white),
             overflow: TextOverflow.ellipsis),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         backgroundColor: const Color.fromARGB(255, 101, 65, 239),
-        automaticallyImplyLeading: !_isPretestMode,
         actions: [
           VoiceIcon(text: titleText, isHindi: widget.isHindi, color: Colors.white),
           IconButton(
@@ -838,7 +872,7 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-Widget buildOptionCard(Map<String, dynamic> option, int index) {
+  Widget buildOptionCard(Map<String, dynamic> option, int index) {
     final isSel = _pendingSelectedIndex == index;
     final showRes = _hasSubmitted && isSel;
     final corr = option['isCorrect'] as bool? ?? false;
@@ -859,7 +893,7 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
           imageUrl,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+          const Icon(Icons.broken_image, size: 40, color: Colors.grey),
         ),
       );
     } else if (title != null && title.isNotEmpty) {
@@ -871,8 +905,7 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
       );
     } else {
       // Fallback: If neither is available, show a placeholder icon.
-      optionContent =
-          const Icon(Icons.help_outline, size: 40, color: Colors.grey);
+      optionContent = const Icon(Icons.help_outline, size: 40, color: Colors.grey);
     }
     // --- End of logic ---
 
@@ -888,9 +921,9 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
               border: isSel && !_hasSubmitted
                   ? Border.all(color: Colors.blue, width: 4)
                   : showRes
-                      ? Border.all(
-                          color: corr ? Colors.green : Colors.red, width: 4)
-                      : null,
+                  ? Border.all(
+                  color: corr ? Colors.green : Colors.red, width: 4)
+                  : null,
               boxShadow: [
                 BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
@@ -903,6 +936,16 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
               child: Center(
                 child: optionContent, // Display the content we determined above
               ),
+            ),
+          ),
+          Positioned(
+            top: 5,
+            left: 5,
+            child: VoiceIcon(
+              text: option['title'] as String? ?? 'Option',
+              isHindi: widget.isHindi,
+              size: 20,
+              color: Colors.grey
             ),
           ),
           if (showRes)
@@ -920,6 +963,15 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
   Widget _buildPretestIntro() {
     return Scaffold(
         backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+        appBar: AppBar(
+          backgroundColor: const Color.fromARGB(255, 101, 65, 239),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(widget.isHindi ? 'पूर्व-परीक्षा' : 'Pre-test',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
         body: Center(
             child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -966,6 +1018,15 @@ Widget buildOptionCard(Map<String, dynamic> option, int index) {
   Widget _buildPretestResults() {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 245, 255, 255),
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 101, 65, 239),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(widget.isHindi ? 'परीक्षा परिणाम' : 'Pre-test Results',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
       body: SafeArea(
           child: Padding(
               padding: const EdgeInsets.all(24.0),
