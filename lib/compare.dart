@@ -779,7 +779,7 @@ class _ComparePageState extends State<ComparePage> {
                     Expanded(child: _buildShapeGrid(_rightAssets))
                   ]),
                   const SizedBox(height: 10),
-                  Text(widget.isHindi ? 'अ B' : 'A B',
+                  Text(widget.isHindi ? 'अ ब' : 'A B',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 15),
@@ -1061,52 +1061,103 @@ class _ComparePageState extends State<ComparePage> {
     );
   }
 }
-
 class OptionTile extends StatelessWidget {
   final String text;
   final Color borderColor;
   final Widget? overlayIcon;
   final VoidCallback? onTap;
   final bool isHindi;
-  const OptionTile(
-      {Key? key,
-      required this.text,
-      required this.borderColor,
-      this.overlayIcon,
-      this.onTap,
-      required this.isHindi})
-      : super(key: key);
+
+  const OptionTile({
+    Key? key,
+    required this.text,
+    required this.borderColor,
+    this.overlayIcon,
+    this.onTap,
+    required this.isHindi,
+  }) : super(key: key);
+
+  // Helper method to give the TTS engine full words instead of symbols
+  String _getSpokenText() {
+    String cleanText = text.trim();
+    if (isHindi) {
+      switch (cleanText) {
+        case '<':
+          return 'अ, ब से छोटा है'; // A is less than B
+        case '>':
+          return 'अ, ब से बड़ा है'; // A is greater than B
+        case '=':
+          return 'अ, ब के बराबर है'; // A equals B
+        default:
+          return 'अ $cleanText ब';
+      }
+    } else {
+      switch (cleanText) {
+        case '<':
+          return 'A is less than B';
+        case '>':
+          return 'A is greater than B';
+        case '=':
+          return 'A equals B';
+        default:
+          return 'A $cleanText B';
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // What the user sees visually (e.g., "A < B")
+    final String visualText = isHindi ? 'अ $text ब' : 'A $text B';
+    // What the TTS engine actually reads out loud
+    final String spokenText = _getSpokenText();
+
     return GestureDetector(
-        onTap: onTap,
-        child: Stack(children: [
+      onTap: onTap,
+      child: Stack(
+        children: [
           Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: borderColor, width: 4),
-                  borderRadius: BorderRadius.circular(20)),
-              child: Text(isHindi ? 'अ $text ब' : 'A $text B',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold))),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: borderColor, width: 4),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              visualText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           Positioned(
             top: 5,
             left: 5,
-            child: VoiceIcon(text: ' $text ', isHindi: isHindi, size: 20, color: Colors.grey),
+            child: VoiceIcon(
+              text: spokenText, // Pass the spelled-out string to the voice icon
+              isHindi: isHindi,
+              size: 20,
+              color: Colors.grey,
+            ),
           ),
           if (overlayIcon != null)
             Positioned(
-                right: 10,
-                top: 10,
-                child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
-                        child: overlayIcon!)))
-        ]));
+              right: 10,
+              top: 10,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                  child: overlayIcon!,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
