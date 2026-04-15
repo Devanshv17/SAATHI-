@@ -4,6 +4,7 @@ import 'navbar.dart';
 import 'menu_bar.dart';
 import 'language_notifier.dart';
 import 'package:provider/provider.dart';
+import 'utils/responsive.dart';
 
 class TeamPage extends StatelessWidget {
   const TeamPage({super.key});
@@ -59,68 +60,81 @@ class TeamPage extends StatelessWidget {
       ),
       drawer: CustomMenuBar(isHindi: isHindi),
       backgroundColor: Color.fromARGB(255, 245, 255, 255),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title
-            Text(
-              isHindi ? 'हमारी टीम' : 'Our Team',
-              style: GoogleFonts.trocchi(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 101, 65, 239)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isHindi
-                  ? 'यह परियोजना कई समर्पित लोगों के सहयोग से संभव हुई है।'
-                  : 'This project has been made possible by a group of passionate contributors.',
-              style: GoogleFonts.trocchi(fontSize: 16, color: Colors.grey[700]),
-            ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: Responsive.maxContentWidth),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Text(
+                  isHindi ? 'हमारी टीम' : 'Our Team',
+                  style: GoogleFonts.trocchi(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 101, 65, 239)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isHindi
+                      ? 'यह परियोजना कई समर्पित लोगों के सहयोग से संभव हुई है।'
+                      : 'This project has been made possible by a group of passionate contributors.',
+                  style: GoogleFonts.trocchi(fontSize: 16, color: Colors.grey[700]),
+                ),
 
-            const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
-            // Project Supervisor Section
-            Text(
-              isHindi ? ' परियोजना पर्यवेक्षक' : ' Project Supervisor',
-              style: GoogleFonts.trocchi(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 101, 65, 239)),
-            ),
-            const SizedBox(height: 16),
-            _buildMemberCard(
-              image: 'assets/Anveshna.jpg',
-              name: 'Dr. Anveshna Srivastava',
-              role:
-                  'Assistant Professor, IIT Kanpur',
-              bio:
-                  'Assistant Professor. Anveshna heads the Cognition, Learning and Innovation in Pedagogy (CLIP) lab in the Dept. of Cognitive Science at IIT Kanpur. She envisioned and supervised the Saathi project.',
-            ),
+                // Project Supervisor Section
+                Text(
+                  isHindi ? ' परियोजना पर्यवेक्षक' : ' Project Supervisor',
+                  style: GoogleFonts.trocchi(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 101, 65, 239)),
+                ),
+                const SizedBox(height: 16),
+                _buildMemberCard(
+                  image: 'assets/Anveshna.jpg',
+                  name: 'Dr. Anveshna Srivastava',
+                  role: 'Assistant Professor, IIT Kanpur',
+                  bio:
+                      'Assistant Professor. Anveshna heads the Cognition, Learning and Innovation in Pedagogy (CLIP) lab in the Dept. of Cognitive Science at IIT Kanpur. She envisioned and supervised the Saathi project.',
+                ),
 
-            const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
-            // Core Team Section
-            Text(
-              isHindi ? ' मुख्य टीम' : ' Core Team',
-              style: GoogleFonts.trocchi(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 101, 65, 239)),
-            ),
-            const SizedBox(height: 16),
-           Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: teamMembers
-                  .map((member) => _buildTeamTile(context, member))
-                  .toList(),
-            ),
+                // Core Team Section
+                Text(
+                  isHindi ? ' मुख्य टीम' : ' Core Team',
+                  style: GoogleFonts.trocchi(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 101, 65, 239)),
+                ),
+                const SizedBox(height: 16),
+                // Responsive grid for team members
+                Builder(builder: (ctx) {
+                  final cols = Responsive.teamGridColumns(ctx);
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: teamMembers.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: cols,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 0.85,
+                    ),
+                    itemBuilder: (_, i) => _buildTeamTile(context, teamMembers[i]),
+                  );
+                }),
 
-            const SizedBox(height: 30),
-          ],
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -166,40 +180,39 @@ class TeamPage extends StatelessWidget {
   }
 
   Widget _buildTeamTile(BuildContext context, TeamMember member) {
-    return SizedBox(
-      width: MediaQuery.of(context).size.width / 2 - 24,
-      child: Card(
-        color:  Color.fromARGB(255, 191, 235, 239),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 3,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 36,
-                backgroundImage: AssetImage(member.image),
-              ),
-              const SizedBox(height: 8),
-              Text(member.name,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.trocchi(
-                      fontWeight: FontWeight.w600, fontSize: 15)),
-              Text(member.role,
-                  style: GoogleFonts.trocchi(
-                      fontSize: 13, color: Colors.cyan[800])),
-              const SizedBox(height: 4),
-              Text(member.bio,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.trocchi(
-                      fontSize: 12, color: Colors.grey[700])),
-            ],
-          ),
+    return Card(
+      color: const Color.fromARGB(255, 191, 235, 239),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 36,
+              backgroundImage: AssetImage(member.image),
+            ),
+            const SizedBox(height: 8),
+            Text(member.name,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.trocchi(
+                    fontWeight: FontWeight.w600, fontSize: 15)),
+            Text(member.role,
+                style: GoogleFonts.trocchi(
+                    fontSize: 13, color: Colors.cyan[800])),
+            const SizedBox(height: 4),
+            Text(member.bio,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.trocchi(
+                    fontSize: 12, color: Colors.grey[700])),
+          ],
         ),
       ),
     );
   }
 }
+
 
 class TeamMember {
   final String name;

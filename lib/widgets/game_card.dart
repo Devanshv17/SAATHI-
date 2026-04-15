@@ -28,11 +28,13 @@ class GameCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasPlayed = (correctScore + incorrectScore) > 0;
+    // Adapt image circle size based on screen width
+    final double imgSize = MediaQuery.of(context).size.width >= 600 ? 80 : 70;
 
     return Container(
-      width: MediaQuery.of(context).size.width * 0.85,
+      // No fixed width — fills parent grid cell or column width
       padding: const EdgeInsets.all(10),
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       decoration: BoxDecoration(
         color: const Color.fromARGB(100, 191, 235, 239),
         border: Border.all(color: AppColors.primary, width: 2),
@@ -41,8 +43,8 @@ class GameCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 70,
-            height: 70,
+            width: imgSize,
+            height: imgSize,
             decoration: BoxDecoration(
               border: Border.all(color: AppColors.primary, width: 1),
               borderRadius: BorderRadius.circular(50),

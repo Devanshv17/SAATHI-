@@ -44,8 +44,9 @@ class CustomMenuBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Set drawer width to 75% of screen width.
-    final width = MediaQuery.of(context).size.width * 0.75;
+    // Set drawer width: 75% on mobile, capped at 320px on larger screens.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final width = (screenWidth * 0.75).clamp(0.0, 320.0);
     return Drawer(
       child: SafeArea(
         child: Container(

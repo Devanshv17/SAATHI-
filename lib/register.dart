@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
+import 'utils/responsive.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
@@ -65,9 +66,11 @@ class _RegisterPageState extends State<RegisterPage> {
         },
       ),
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: Responsive.maxFormWidth),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
             children: [
               Image.asset('assets/logo.png', height: 150),
               const SizedBox(height: 15),
@@ -208,6 +211,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

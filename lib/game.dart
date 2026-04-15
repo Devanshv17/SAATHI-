@@ -9,6 +9,7 @@ import 'ai.dart';
 import 'video_lesson.dart';
 import 'widgets/voice_icon.dart';
 import 'services/tts_service.dart';
+import 'utils/responsive.dart';
 
 class GamePage extends StatefulWidget {
   final String gameTitle;
@@ -758,119 +759,124 @@ class _GamePageState extends State<GamePage> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(questionText,
-                      textAlign: TextAlign.center,
-                      style:
-                      const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 8),
-                VoiceIcon(text: questionText, isHindi: widget.isHindi),
-              ],
-            ),
-            const SizedBox(height: 20),
-            if (imageUrl != null)
-              Image.network(imageUrl,
-                  height: 100,
-                  errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.image_not_supported)),
-            const SizedBox(height: 15),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: options.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.2),
-              itemBuilder: (_, index) => buildOptionCard(options[index], index),
-            ),
-            const SizedBox(height: 20),
-            if (_hasSubmitted && !isCurrentAnswerCorrect)
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0, bottom: 15.0), // Increased padding slightly for glow space
-                child: GlowingWrapper( // <--- Wrap with the new widget
-                  glowColor: Color.fromARGB(255, 101, 65, 239), // You can choose Blue or Purple
-                  child: ElevatedButton.icon(
-                    onPressed: _analyzeWithAI,
-                    icon: const Icon(Icons.auto_awesome, size: 28,), // Changed icon to look more "AI"
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Color.fromARGB(255, 101, 65, 239),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(40),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: Responsive.maxGameWidth),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(questionText,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 18),
-                      elevation: 5, // Slight elevation to pop out of the glow
-                    ),
-                    label: Text(
-                      widget.isHindi
-                          ? 'सही उत्तर जानें'
-                          : 'Know the correct answer',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                    ),
+                      const SizedBox(width: 8),
+                      VoiceIcon(text: questionText, isHindi: widget.isHindi),
+                    ],
                   ),
-                ),
-              ),
-            Column(children: [
-              Text(
-                  widget.isHindi
-                      ? "अंक: $currentScore"
-                      : "Score: $currentScore",
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(
-                  widget.isHindi
-                      ? "सही: $currentCorrect | गलत: $currentIncorrect"
-                      : "Correct: $currentCorrect | Incorrect: $currentIncorrect",
-                  style: const TextStyle(fontSize: 16)),
-            ]),
-            const SizedBox(height: 15),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-              ElevatedButton(
-                  onPressed:
-                  _currentQuestionIndex > 0 ? _previousQuestion : null,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: _currentQuestionIndex > 0
-                          ? Colors.orange
-                          : Colors.grey),
-                  child: Text(widget.isHindi ? "पिछला" : "Previous",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
-              ElevatedButton(
-                  onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
-                      ? _submitAnswer
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                      (_pendingSelectedIndex != null && !_hasSubmitted)
-                          ? Colors.blue
-                          : Colors.grey),
-                  child: Text(widget.isHindi ? "जमा करें" : "Submit",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
-              ElevatedButton(
-                  onPressed: _hasSubmitted ? _nextQuestion : null,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                      _hasSubmitted ? Colors.green : Colors.grey),
-                  child: Text(widget.isHindi ? "अगला" : "Next",
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold))),
-            ]),
-          ]),
-        ),
-      ),
-    );
-  }
+                  const SizedBox(height: 20),
+                  if (imageUrl != null)
+                    Image.network(imageUrl,
+                        height: 100,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.image_not_supported)),
+                  const SizedBox(height: 15),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: options.length,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 1.2),
+                    itemBuilder: (_, index) => buildOptionCard(options[index], index),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_hasSubmitted && !isCurrentAnswerCorrect)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20.0, bottom: 15.0),
+                      child: GlowingWrapper(
+                        glowColor: const Color.fromARGB(255, 101, 65, 239),
+                        child: ElevatedButton.icon(
+                          onPressed: _analyzeWithAI,
+                          icon: const Icon(Icons.auto_awesome, size: 28),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color.fromARGB(255, 101, 65, 239),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 18),
+                            elevation: 5,
+                          ),
+                          label: Text(
+                            widget.isHindi
+                                ? 'सही उत्तर जानें'
+                                : 'Know the correct answer',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Column(children: [
+                    Text(
+                        widget.isHindi
+                            ? "अंक: $currentScore"
+                            : "Score: $currentScore",
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(
+                        widget.isHindi
+                            ? "सही: $currentCorrect | गलत: $currentIncorrect"
+                            : "Correct: $currentCorrect | Incorrect: $currentIncorrect",
+                        style: const TextStyle(fontSize: 16)),
+                  ]),
+                  const SizedBox(height: 15),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                    ElevatedButton(
+                        onPressed: _currentQuestionIndex > 0 ? _previousQuestion : null,
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: _currentQuestionIndex > 0
+                                ? Colors.orange
+                                : Colors.grey),
+                        child: Text(widget.isHindi ? "पिछला" : "Previous",
+                            style: const TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.bold))),
+                    ElevatedButton(
+                        onPressed: (_pendingSelectedIndex != null && !_hasSubmitted)
+                            ? _submitAnswer
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                (_pendingSelectedIndex != null && !_hasSubmitted)
+                                    ? Colors.blue
+                                    : Colors.grey),
+                        child: Text(widget.isHindi ? "जमा करें" : "Submit",
+                            style: const TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.bold))),
+                    ElevatedButton(
+                        onPressed: _hasSubmitted ? _nextQuestion : null,
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                _hasSubmitted ? Colors.green : Colors.grey),
+                        child: Text(widget.isHindi ? "अगला" : "Next",
+                            style: const TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.bold))),
+                  ]),
+                ],          // close outer Column children list
+              ),             // close Column
+            ),               // close SingleChildScrollView
+          ),                 // close ConstrainedBox
+        ),                   // close Center
+      ),                     // close SafeArea
+    );                       // close return Scaffold(
+  }                          // close _buildGameUI()
 
 
 Widget buildOptionCard(Map<String, dynamic> option, int index) {

@@ -13,6 +13,7 @@ import 'package:intl/intl.dart'; // for formatting weekdays
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math' as math;
 import 'package:flutter_heatmap_calendar/flutter_heatmap_calendar.dart';
+import 'utils/responsive.dart';
 
 
 
@@ -387,10 +388,13 @@ Future<void> _loadWeeklyData() async {
           final school = data['school'] == true;
           final sclass = data['class'] as String? ?? '';
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            child: Column(
-              children: [
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: Responsive.maxContentWidth),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                child: Column(
+                  children: [
                 Image.asset('assets/logo.png', height: 140),
 
                 const SizedBox(height: 20),
@@ -555,9 +559,11 @@ Padding(
 const SizedBox(height: 60),
 
 
-              ],
-            ),
-          );
+                ],          // close Column children
+              ),             // close Column
+              ),             // close SingleChildScrollView
+            ),               // close ConstrainedBox
+          );                 // close Center + return
         },
       ),
     );

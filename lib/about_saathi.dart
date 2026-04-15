@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'language_notifier.dart';
 import 'navbar.dart';
 import 'menu_bar.dart';
+import 'utils/responsive.dart';
 
 class AboutSaathiPage extends StatefulWidget {
   const AboutSaathiPage({Key? key}) : super(key: key);
@@ -229,9 +230,12 @@ Future<void> _performDeleteAccount() async {
         showMenuButton: true,
       ),
       drawer: CustomMenuBar(isHindi: isHindi),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: Responsive.maxContentWidth),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+            child: Column(
           children: [
             Image.asset('assets/logo.png', height: 150),
             const SizedBox(height: 15),
@@ -518,6 +522,8 @@ Future<void> _performDeleteAccount() async {
             const SizedBox(height: 50),
       
           ],
+        ),
+      ),
         ),
       ),
     );
