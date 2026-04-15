@@ -374,11 +374,11 @@ class _HomePageState extends State<HomePage> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: cards.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 4,
-                      childAspectRatio: 3.0, // wide cards look good at desktop
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: Responsive.homeGridColumns(context),
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      mainAxisExtent: 140, // Fixed height to prevent overflow
                     ),
                     itemBuilder: (_, i) => cards[i],
                   ),

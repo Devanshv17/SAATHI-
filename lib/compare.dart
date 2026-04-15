@@ -760,18 +760,26 @@ class _ComparePageState extends State<ComparePage> {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                      widget.isHindi
-                          ? 'सही चिन्ह चुनें:'
-                          : 'Choose the correct sign:',
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  VoiceIcon(
-                    text: widget.isHindi
-                          ? 'सही चिन्ह चुनें:'
-                          : 'Choose the correct sign:',
-                    isHindi: widget.isHindi),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                            widget.isHindi
+                                ? 'सही चिन्ह चुनें:'
+                                : 'Choose the correct sign:',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 8),
+                      VoiceIcon(
+                        text: widget.isHindi
+                              ? 'सही चिन्ह चुनें:'
+                              : 'Choose the correct sign:',
+                        isHindi: widget.isHindi),
+                    ],
+                  ),
                   const SizedBox(height: 20),
                   Row(children: [
                     Expanded(child: _buildShapeGrid(_leftAssets)),
@@ -783,28 +791,42 @@ class _ComparePageState extends State<ComparePage> {
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 15),
-                  Column(
-                      children: List.generate(_currentOptions.length, (i) {
-                    final opt = _currentOptions[i];
-                    final isSel = _pendingSelectedIndex == i;
-                    final show = _hasSubmitted && isSel;
-                    final ok = opt.isCorrect;
-                    Color border = Colors.grey;
-                    if (isSel && !_hasSubmitted) border = AppColors.primary;
-                    if (show) border = ok ? AppColors.correctGreen : AppColors.incorrectRed;
-                    return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: OptionTile(
-                            text: opt.title,
-                            borderColor: border,
-                            overlayIcon: show
-                                ? Icon(ok ? Icons.check_circle : Icons.cancel,
-                                    color: ok ? AppColors.correctGreen : AppColors.incorrectRed,
-                                    size: 50)
-                                : null,
-                            onTap: () => _selectOption(i),
-                            isHindi: widget.isHindi));
-                  })),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width > 600 ? 900 : 500),
+                      child: Flex(
+                        direction: MediaQuery.of(context).size.width > 600 ? Axis.horizontal : Axis.vertical,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(_currentOptions.length, (i) {
+                          final opt = _currentOptions[i];
+                          final isSel = _pendingSelectedIndex == i;
+                          final show = _hasSubmitted && isSel;
+                          final ok = opt.isCorrect;
+                          Color border = Colors.grey;
+                          if (isSel && !_hasSubmitted) border = AppColors.primary;
+                          if (show) border = ok ? AppColors.correctGreen : AppColors.incorrectRed;
+                          
+                          Widget tile = Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                              child: OptionTile(
+                                  text: opt.title,
+                                  borderColor: border,
+                                  overlayIcon: show
+                                      ? Icon(ok ? Icons.check_circle : Icons.cancel,
+                                          color: ok ? AppColors.correctGreen : AppColors.incorrectRed,
+                                          size: 50)
+                                      : null,
+                                  onTap: () => _selectOption(i),
+                                  isHindi: widget.isHindi));
+                          
+                          if (MediaQuery.of(context).size.width > 600) {
+                            tile = Expanded(child: tile);
+                          }
+                          return tile;
+                        }),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 15),
                   if (_hasSubmitted && !isCurrentAnswerCorrect)
                     Padding(
@@ -1118,7 +1140,7 @@ class OptionTile extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+            padding: const EdgeInsets.only(top: 35, bottom: 15, left: 16, right: 16),
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: borderColor, width: 4),

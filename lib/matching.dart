@@ -757,15 +757,21 @@ class _MatchingPageState extends State<MatchingPage> {
             ),
             const SizedBox(height: 30),
             Expanded(
-                child: GridView.builder(
-              itemCount: options.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 1.1),
-              itemBuilder: (ctx, idx) => buildOptionCard(options[idx], idx),
-            )),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width > 600 ? 800 : 500),
+                  child: GridView.builder(
+                    itemCount: options.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: MediaQuery.of(context).size.width > 600 ? 1.0 : 1.1),
+                    itemBuilder: (ctx, idx) => buildOptionCard(options[idx], idx),
+                  ),
+                ),
+              ),
+            ),
             // ... inside _buildGameUI Column ...
 
 // Find this part of your code and replace it:

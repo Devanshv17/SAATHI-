@@ -878,8 +878,8 @@ Padding(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 150,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             childAspectRatio: 0.9, // space for label

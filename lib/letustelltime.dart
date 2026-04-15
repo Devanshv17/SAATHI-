@@ -790,15 +790,21 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
               ),
             const SizedBox(height: 20),
             Expanded(
-                child: GridView.builder(
-              itemCount: options.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.4),
-              itemBuilder: (_, i) => buildOptionCard(options[i], i),
-            )),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width > 600 ? 800 : 500),
+                  child: GridView.builder(
+                    itemCount: options.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: MediaQuery.of(context).size.width > 600 ? 1.0 : 1.4),
+                    itemBuilder: (_, i) => buildOptionCard(options[i], i),
+                  ),
+                ),
+              ),
+            ),
             if (_hasSubmitted && !isCurrentAnswerCorrect)
               Padding(
                 padding: const EdgeInsets.only(top: 20.0,  bottom: 15.0), // Increased padding slightly for glow space

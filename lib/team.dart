@@ -116,13 +116,12 @@ class TeamPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 // Responsive grid for team members
                 Builder(builder: (ctx) {
-                  final cols = Responsive.teamGridColumns(ctx);
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: teamMembers.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: cols,
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 250,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
                       childAspectRatio: 0.85,

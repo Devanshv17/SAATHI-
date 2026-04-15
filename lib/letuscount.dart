@@ -833,16 +833,21 @@ class _LetUsCountPageState extends State<LetUsCountPage> {
                   .toList(),
             ),
             const SizedBox(height: 15),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: options.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.5),
-              itemBuilder: (_, index) => buildOptionCard(options[index], index),
+            Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width > 600 ? 800 : 500),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: options.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: MediaQuery.of(context).size.width > 600 ? 1.0 : 1.5),
+                  itemBuilder: (_, index) => buildOptionCard(options[index], index),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             if (_hasSubmitted && !isCurrentAnswerCorrect)
