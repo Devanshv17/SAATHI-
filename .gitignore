@@ -48,3 +48,8 @@ android/key.properties
 upload-keystore.jks
 
 /lib/firebase_options.dart
+
+# React frontend
+react-frontend/.env
+react-frontend/.env.local
+react-frontend/node_modules/

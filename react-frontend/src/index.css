@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6541EF;
+  --color-primary-dark: #412896;
+  --color-background-light: #F5FFFF;
+  --color-card-background: #C9F5F5;
+  --color-light-cyan: #C9F5F5;
+  --color-teal-dark: #00695C;
+  --color-correct-green: #3F6C40;
+  --color-incorrect-red: #C85257;
+  --color-button-background-light: #BFEBF7;
+}
+
+@utility game-card {
+  background-color: rgba(191, 235, 239, 0.4);
+  border: 2px solid #6541EF;
+  border-radius: 15px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #F5FFFF;
+  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+@font-face {
+  font-family: 'MyCustomFont';
+  src: url('/assets/fonts/bobby-jones-regular.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'MyCustom2';
+  src: url('/assets/fonts/Trocchi-Regular.ttf') format('truetype');
+}

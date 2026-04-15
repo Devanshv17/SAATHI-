@@ -1,0 +1,45 @@
+{
+  "name": "saathi-web",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/luxon": "^3.7.1",
+    "@types/react": "^19.2.14",
+    "@types/react-calendar-heatmap": "^1.9.0",
+    "@types/react-clock": "^3.0.1",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.27",
+    "luxon": "^3.7.2",
+    "postcss": "^8.5.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vite-tsconfig-paths": "^6.1.1"
+  },
+  "dependencies": {
+    "@floating-ui/react": "^0.27.19",
+    "@google/generative-ai": "^0.24.1",
+    "@tailwindcss/postcss": "^4.2.1",
+    "clsx": "^2.1.1",
+    "firebase": "^12.10.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^0.577.0",
+    "react-calendar-heatmap": "^1.10.0",
+    "react-clock": "^6.0.0",
+    "react-router-dom": "^7.13.1",
+    "recharts": "^3.8.0",
+    "tailwind-merge": "^3.5.0"
+  }
+}
