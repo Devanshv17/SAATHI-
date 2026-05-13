@@ -6,13 +6,16 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class GeminiTtsService {
   static final GeminiTtsService _instance = GeminiTtsService._internal();
   factory GeminiTtsService() => _instance;
-  GeminiTtsService._internal();
+  GeminiTtsService._internal() {
+    _initRemoteConfig();
+  }
 
-  static const _apiKey = 'AIzaSyAvon1zG2_Sw6RZSXkXFeX5ajUk3-z4seo';
+  static String _apiKey = '';
   static const _model = 'gemini-2.5-flash-preview-tts';
   static const _endpoint =
       'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
@@ -26,6 +29,28 @@ class GeminiTtsService {
 
   // Tracks in-progress prewarm fetches to avoid duplicate API calls.
   final _prewarmInProgress = <String>{};
+
+  /// Initialize Remote Config and fetch the Gemini API key.
+  Future<void> _initRemoteConfig() async {
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setConfigSettings(
+        RemoteConfigSettings(
+          fetchTimeout: const Duration(minutes: 1),
+          minimumFetchInterval: const Duration(hours: 1),
+        ),
+      );
+      await remoteConfig.fetchAndActivate();
+      _apiKey = remoteConfig.getString('gemini_api_key');
+      if (_apiKey.isEmpty) {
+        debugPrint('Warning: gemini_api_key not found in Remote Config');
+      } else {
+        debugPrint('GeminiTtsService initialized with key from Remote Config');
+      }
+    } catch (e) {
+      debugPrint('Error initializing Remote Config: $e');
+    }
+  }
 
   /// Fetches and caches audio in the background without playing.
   /// Call this as soon as text is visible on screen so it's ready by tap time.
@@ -44,16 +69,26 @@ class GeminiTtsService {
     }
   }
 
-  Future<void> _fetchAndCache(String chunk, bool isHindi, File cacheFile) async {
+  Future<void> _fetchAndCache(
+      String chunk, bool isHindi, File cacheFile) async {
     try {
-      final langHint = isHindi ? 'Speak in Hindi (India). ' : 'Speak in English (India). ';
+      final langHint =
+          isHindi ? 'Speak in Hindi (India). ' : 'Speak in English (India). ';
       final prompt = '$_stylePrefix$langHint$chunk';
       final body = jsonEncode({
-        'contents': [{'parts': [{'text': prompt}]}],
+        'contents': [
+          {
+            'parts': [
+              {'text': prompt}
+            ]
+          }
+        ],
         'generationConfig': {
           'responseModalities': ['AUDIO'],
           'speechConfig': {
-            'voiceConfig': {'prebuiltVoiceConfig': {'voiceName': _voice}}
+            'voiceConfig': {
+              'prebuiltVoiceConfig': {'voiceName': _voice}
+            }
           }
         }
       });
@@ -64,7 +99,8 @@ class GeminiTtsService {
       );
       if (res.statusCode != 200) return;
       final json = jsonDecode(res.body);
-      final b64 = json['candidates'][0]['content']['parts'][0]['inlineData']['data'] as String;
+      final b64 = json['candidates'][0]['content']['parts'][0]['inlineData']
+          ['data'] as String;
       final wav = _pcmToWav(base64Decode(b64));
       await cacheFile.writeAsBytes(wav, flush: true);
     } catch (e) {
@@ -148,27 +184,34 @@ class GeminiTtsService {
       {int sampleRate = 24000, int channels = 1, int bitsPerSample = 16}) {
     final byteData = ByteData(44 + pcm.length);
     // RIFF
-    byteData.setUint8(0, 0x52); byteData.setUint8(1, 0x49);
-    byteData.setUint8(2, 0x46); byteData.setUint8(3, 0x46);
+    byteData.setUint8(0, 0x52);
+    byteData.setUint8(1, 0x49);
+    byteData.setUint8(2, 0x46);
+    byteData.setUint8(3, 0x46);
     byteData.setUint32(4, 36 + pcm.length, Endian.little);
     // WAVE
-    byteData.setUint8(8, 0x57); byteData.setUint8(9, 0x41);
-    byteData.setUint8(10, 0x56); byteData.setUint8(11, 0x45);
+    byteData.setUint8(8, 0x57);
+    byteData.setUint8(9, 0x41);
+    byteData.setUint8(10, 0x56);
+    byteData.setUint8(11, 0x45);
     // fmt
-    byteData.setUint8(12, 0x66); byteData.setUint8(13, 0x6D);
-    byteData.setUint8(14, 0x74); byteData.setUint8(15, 0x20);
+    byteData.setUint8(12, 0x66);
+    byteData.setUint8(13, 0x6D);
+    byteData.setUint8(14, 0x74);
+    byteData.setUint8(15, 0x20);
     byteData.setUint32(16, 16, Endian.little);
     byteData.setUint16(20, 1, Endian.little); // PCM
     byteData.setUint16(22, channels, Endian.little);
     byteData.setUint32(24, sampleRate, Endian.little);
     byteData.setUint32(
         28, sampleRate * channels * (bitsPerSample ~/ 8), Endian.little);
-    byteData.setUint16(
-        32, channels * (bitsPerSample ~/ 8), Endian.little);
+    byteData.setUint16(32, channels * (bitsPerSample ~/ 8), Endian.little);
     byteData.setUint16(34, bitsPerSample, Endian.little);
     // data
-    byteData.setUint8(36, 0x64); byteData.setUint8(37, 0x61);
-    byteData.setUint8(38, 0x74); byteData.setUint8(39, 0x61);
+    byteData.setUint8(36, 0x64);
+    byteData.setUint8(37, 0x61);
+    byteData.setUint8(38, 0x74);
+    byteData.setUint8(39, 0x61);
     byteData.setUint32(40, pcm.length, Endian.little);
     final result = byteData.buffer.asUint8List();
     result.setRange(44, 44 + pcm.length, pcm);
