@@ -4,58 +4,46 @@ class TtsService {
   static final TtsService _instance = TtsService._internal();
   factory TtsService() => _instance;
 
-  late FlutterTts _flutterTts;
+  late FlutterTts _tts;
   bool _isSpeaking = false;
 
   TtsService._internal() {
-    _flutterTts = FlutterTts();
-    _initTts();
+    _tts = FlutterTts();
+    _init();
   }
 
-  void _initTts() async {
-    await _flutterTts.setLanguage("en-US");
-    // We can leave this default here, but we will override it in the speak() method
-    await _flutterTts.setSpeechRate(0.6);
-    await _flutterTts.setVolume(1.0);
-    await _flutterTts.setPitch(1.0);
+  void _init() async {
+    await _tts.setVolume(1.0);
+    await _tts.setPitch(1.35);      // higher pitch — warm, teacher-like
+    await _tts.setSpeechRate(0.37); // slightly slow for kids
 
-    _flutterTts.setStartHandler(() {
-      _isSpeaking = true;
-    });
-
-    _flutterTts.setCompletionHandler(() {
-      _isSpeaking = false;
-    });
-
-    _flutterTts.setCancelHandler(() {
-      _isSpeaking = false;
-    });
+    _tts.setStartHandler(() => _isSpeaking = true);
+    _tts.setCompletionHandler(() => _isSpeaking = false);
+    _tts.setCancelHandler(() => _isSpeaking = false);
   }
 
-  // --- UPDATED SPEAK METHOD ---
+  // No-op — flutter_tts is on-device/instant, no pre-fetching needed.
+  void prewarm(String text, {String? language}) {}
+
   Future<void> speak(String text, {String? language}) async {
-    if (text.isEmpty) return;
+    if (text.trim().isEmpty) return;
+    if (_isSpeaking) await stop();
 
-    if (_isSpeaking) {
-      await stop();
+    if (language == 'hi-IN') {
+      await _tts.setLanguage('hi-IN');
+      await _tts.setSpeechRate(0.40);
+      await _tts.setPitch(1.3);
+    } else {
+      await _tts.setLanguage('en-IN'); // Indian English accent
+      await _tts.setSpeechRate(0.37);
+      await _tts.setPitch(1.35);
     }
 
-    if (language != null) {
-      await _flutterTts.setLanguage(language);
-
-      // Boost the speed if it is Hindi!
-      if (language == 'hi-IN') {
-        await _flutterTts.setSpeechRate(
-            0.65); // <-- Increase this number if it's still too slow (max is 1.0)
-      } else {
-        await _flutterTts.setSpeechRate(0.5); // <-- Standard speed for English
-      }
-    }
-
-    await _flutterTts.speak(text);
+    await _tts.speak(text);
   }
 
   Future<void> stop() async {
-    await _flutterTts.stop();
+    await _tts.stop();
+    _isSpeaking = false;
   }
 }

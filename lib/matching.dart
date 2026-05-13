@@ -618,6 +618,7 @@ class _MatchingPageState extends State<MatchingPage> {
         options: optionTitles,
         correctAnswer: correctTitle,
         userAnswer: userTitle,
+        forceHindi: widget.isHindi,
       );
       if (mounted) Navigator.of(context).pop();
       if (mounted) {

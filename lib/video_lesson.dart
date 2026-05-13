@@ -1,162 +1,15 @@
 // lib/video_lesson.dart
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_analog_clock/flutter_analog_clock.dart';
 
-// Import your VoiceIcon here
+import 'ai.dart';
 import 'widgets/voice_icon.dart';
+import 'services/tts_service.dart';
 
-/// Google Translate TTS (unofficial endpoint) with simple file caching.
-/// NOTE: This uses an unofficial endpoint — it may change or be rate-limited.
-/// To avoid very long pauses when the text is long, speak() will chunk the
-/// input into smaller pieces (prefer sentence-aware splits) and play them
-/// sequentially.
-class GoogleTranslateTtsService {
-  Future<String> _getCachePath(String text, String locale) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final safe = '${locale}_${text.hashCode}';
-    return '${dir.path}/$safe.mp3';
-  }
-
-  // Splits text into chunks ~<= maxChunkLength while trying to respect sentences.
-  List<String> _chunkText(String text, {int maxChunkLength = 240}) {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return [];
-
-    // Quick path for short text
-    if (trimmed.length <= maxChunkLength) return [trimmed];
-
-    // Split to sentences (keep punctuation)
-    final sentences = trimmed.split(RegExp(r'(?<=[.?!])\s+'));
-    final chunks = <String>[];
-    var current = StringBuffer();
-
-    for (final s in sentences) {
-      if (current.isEmpty) {
-        current.write(s);
-      } else if ((current.length + 1 + s.length) <= maxChunkLength) {
-        current.write(' ');
-        current.write(s);
-      } else {
-        chunks.add(current.toString().trim());
-        current = StringBuffer();
-        current.write(s);
-      }
-    }
-    if (current.isNotEmpty) {
-      chunks.add(current.toString().trim());
-    }
-
-    // If any sentence itself is longer than maxChunkLength, fallback to splitting by words
-    for (var i = 0; i < chunks.length; i++) {
-      if (chunks[i].length > maxChunkLength) {
-        final words = chunks[i].split(RegExp(r'\s+'));
-        var sb = StringBuffer();
-        final replaced = <String>[];
-        for (final w in words) {
-          if (sb.isEmpty) {
-            sb.write(w);
-          } else if ((sb.length + 1 + w.length) <= maxChunkLength) {
-            sb.write(' ');
-            sb.write(w);
-          } else {
-            replaced.add(sb.toString().trim());
-            sb = StringBuffer();
-            sb.write(w);
-          }
-        }
-        if (sb.isNotEmpty) replaced.add(sb.toString().trim());
-        // replace the overly-long chunk with the smaller ones
-        chunks.removeAt(i);
-        chunks.insertAll(i, replaced);
-        i += replaced.length - 1;
-      }
-    }
-
-    return chunks;
-  }
-
-  /// Speaks text using Google Translate TTS, caching the MP3s.
-  /// `localeOverride` can be 'hi' or 'en' to force language.
-  Future<void> speak(String text, {String? localeOverride}) async {
-    if (text.trim().isEmpty) return;
-
-    final guessedHindi = RegExp(r'[\u0900-\u097F]').hasMatch(text);
-    final isHindi = localeOverride == 'hi'
-        ? true
-        : (localeOverride == 'en' ? false : guessedHindi);
-    final lang = localeOverride ?? (isHindi ? 'hi' : 'en');
-
-    final chunks = _chunkText(text, maxChunkLength: 240);
-    if (chunks.isEmpty) return;
-
-    // Play sequentially. Use a single AudioPlayer per speak call to keep ordering.
-    final player = AudioPlayer();
-    for (final chunk in chunks) {
-      final path = await _getCachePath(chunk, lang);
-      final file = File(path);
-
-      if (!await file.exists()) {
-        final uri = Uri.parse(
-          'https://translate.google.com/translate_tts'
-          '?ie=UTF-8'
-          '&q=${Uri.encodeComponent(chunk)}'
-          '&tl=$lang'
-          '&client=gtx',
-        );
-
-        final res = await http.get(uri, headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-              'AppleWebKit/537.36 (KHTML, like Gecko) '
-              'Chrome/104.0.0.0 Safari/537.36',
-          'Accept': 'audio/mpeg',
-        });
-
-        if (res.statusCode != 200 || res.bodyBytes.isEmpty) {
-          debugPrint('Translate TTS failed (${res.statusCode}) for chunk.');
-          // continue to next chunk instead of throwing to avoid stopping entire speech
-          continue;
-        }
-
-        await file.writeAsBytes(res.bodyBytes, flush: true);
-      }
-
-      try {
-        // await ensures chunks play sequentially
-        await player.play(DeviceFileSource(path));
-        // Wait until playback completes for this file:
-        // AudioPlayer returns a Future that completes when playback begins, but not finishes.
-        // To wait for completion, use onPlayerComplete. We'll await a Completer.
-        final completer = Completer<void>();
-        void onCompleteHandler(_) {
-          if (!completer.isCompleted) completer.complete();
-        }
-
-        player.onPlayerComplete.listen(onCompleteHandler);
-        // Some players may immediately call onComplete for short audio; guard with timeout.
-        await completer.future.timeout(const Duration(seconds: 10),
-            onTimeout: () {
-          // timeout: continue to next chunk
-          return;
-        });
-        // cancel subscription implicitly by letting listener go out of scope
-      } catch (e) {
-        debugPrint('TTS playback error (chunk): $e');
-      }
-    }
-
-    // release player resources
-    try {
-      await player.dispose();
-    } catch (_) {}
-  }
-}
+class GoogleTranslateTtsService {}
 
 /// VideoLesson widget
 class VideoLesson extends StatefulWidget {
@@ -197,8 +50,15 @@ class VideoLesson extends StatefulWidget {
   _VideoLessonState createState() => _VideoLessonState();
 }
 
+class _ChatMessage {
+  final String text;
+  final bool isUser;
+  _ChatMessage({required this.text, required this.isUser});
+}
+
 class _VideoLessonState extends State<VideoLesson> {
-  late final GoogleTranslateTtsService _ttsService;
+  final _ttsService = TtsService();
+  final _aiService = AiService();
 
   // Header fields for special modes
   String headerQuestion = '';
@@ -214,11 +74,16 @@ class _VideoLessonState extends State<VideoLesson> {
   String? headerCorrectOptionImageUrl;
   String? headerAttemptedOptionImageUrl;
 
+  // Chat state
+  final List<_ChatMessage> _chatMessages = [];
+  final TextEditingController _chatController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
+  bool _isChatLoading = false;
+  bool _showChat = false;
+
   @override
   void initState() {
     super.initState();
-    _ttsService = GoogleTranslateTtsService();
-
     headerQuestion = widget.question?.trim() ?? '';
     headerCorrect = widget.correctOption?.trim() ?? '';
     headerAttempted = widget.attemptedOption?.trim() ?? '';
@@ -232,7 +97,6 @@ class _VideoLessonState extends State<VideoLesson> {
     headerAttemptedOptionImageUrl = widget.attemptedOptionImageUrl;
 
     debugPrint('VideoLesson init: fromPage=${widget.fromPage}');
-    // Speak the entire explanation once after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playFullExplanation();
     });
@@ -240,13 +104,220 @@ class _VideoLessonState extends State<VideoLesson> {
 
   @override
   void dispose() {
+    _chatController.dispose();
+    _chatScrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendFollowUp() async {
+    final msg = _chatController.text.trim();
+    if (msg.isEmpty || _isChatLoading) return;
+    _chatController.clear();
+    setState(() {
+      _chatMessages.add(_ChatMessage(text: msg, isUser: true));
+      _isChatLoading = true;
+    });
+    _scrollChatToBottom();
+    try {
+      final reply = await _aiService.sendFollowUp(
+        question: headerQuestion,
+        correctAnswer: headerCorrect,
+        userAnswer: headerAttempted,
+        explanation: widget.script,
+        userMessage: msg,
+        forceHindi: widget.isHindi ?? false,
+      );
+      if (mounted) {
+        setState(() {
+          _chatMessages.add(_ChatMessage(text: reply, isUser: false));
+          _isChatLoading = false;
+        });
+        _scrollChatToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _chatMessages.add(_ChatMessage(
+            text: widget.isHindi == true
+                ? 'माफ़ करें, कुछ गड़बड़ हुई। फिर से कोशिश करें।'
+                : 'Sorry, something went wrong. Please try again.',
+            isUser: false,
+          ));
+          _isChatLoading = false;
+        });
+        _scrollChatToBottom();
+      }
+    }
+  }
+
+  void _scrollChatToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_chatScrollController.hasClients) {
+        _chatScrollController.animateTo(
+          _chatScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Widget _buildChatSection() {
+    final isHindi = widget.isHindi == true;
+    final hintText = isHindi ? 'कोई सवाल पूछें...' : 'Ask a follow-up question...';
+    final chatLabel = isHindi ? 'AI से और जानें' : 'Learn more with AI';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () => setState(() => _showChat = !_showChat),
+          icon: Icon(
+            _showChat ? Icons.keyboard_arrow_up : Icons.chat_bubble_outline,
+            color: const Color(0xFF6541EF),
+          ),
+          label: Text(
+            _showChat
+                ? (isHindi ? 'चैट बंद करें' : 'Close chat')
+                : chatLabel,
+            style: const TextStyle(
+              color: Color(0xFF6541EF),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFF6541EF), width: 1.5),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+        ),
+        if (_showChat) ...[
+          const SizedBox(height: 10),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 280),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF6541EF).withValues(alpha: 0.3)),
+              boxShadow: [
+                BoxShadow(color: Colors.grey.withValues(alpha: 0.08), blurRadius: 6),
+              ],
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: _chatMessages.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              isHindi
+                                  ? 'इस सवाल के बारे में कुछ भी पूछें!'
+                                  : 'Ask anything about this question!',
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _chatScrollController,
+                          padding: const EdgeInsets.all(10),
+                          itemCount: _chatMessages.length,
+                          itemBuilder: (_, i) {
+                            final m = _chatMessages[i];
+                            return Align(
+                              alignment: m.isUser
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.72,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: m.isUser
+                                      ? const Color(0xFF6541EF)
+                                      : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  m.text,
+                                  style: TextStyle(
+                                    color: m.isUser ? Colors.white : Colors.black87,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                if (_isChatLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _chatController,
+                          decoration: InputDecoration(
+                            hintText: hintText,
+                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            isDense: true,
+                          ),
+                          onSubmitted: (_) => _sendFollowUp(),
+                          textInputAction: TextInputAction.send,
+                          maxLines: null,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: _sendFollowUp,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF6541EF),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.send, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   Future<void> _playFullExplanation() async {
     try {
-      final langOverride = widget.isHindi == true ? 'hi' : null;
-      await _ttsService.speak(widget.script, localeOverride: langOverride);
+      final lang = widget.isHindi == true ? 'hi-IN' : 'en-IN';
+      await _ttsService.speak(widget.script, language: lang);
     } catch (e) {
       debugPrint('TTS error: $e');
     }
@@ -269,7 +340,7 @@ class _VideoLessonState extends State<VideoLesson> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: borderColor, width: 3),
           boxShadow: [
-            BoxShadow(color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+            BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6)
           ],
         ),
         child: Stack(
@@ -358,7 +429,7 @@ class _VideoLessonState extends State<VideoLesson> {
             border: Border.all(color: color, width: 3),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
               )
@@ -387,45 +458,37 @@ class _VideoLessonState extends State<VideoLesson> {
 
   // Reusable scrollable writeup container with VoiceIcon embedded!
   Widget _buildScrollableWriteup() {
-    return Expanded(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(color: Colors.grey.withOpacity(0.10), blurRadius: 6)
-          ],
-        ),
-        child: Scrollbar(
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, // Align to top
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.script,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      height: 1.5,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // Here is the VoiceIcon added!
-                VoiceIcon(
-                  text: widget.script,
-                  isHindi: widget.isHindi ?? false,
-                  size: 30,
-                  color: Colors.blue,
-                ),
-              ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.grey.withValues(alpha: 0.10), blurRadius: 6)
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              widget.script,
+              style: const TextStyle(
+                fontSize: 18,
+                height: 1.5,
+                color: Colors.black87,
+              ),
             ),
           ),
-        ),
+          const SizedBox(width: 10),
+          VoiceIcon(
+            text: widget.script,
+            isHindi: widget.isHindi ?? false,
+            size: 30,
+            color: Colors.blue,
+          ),
+        ],
       ),
     );
   }
@@ -445,9 +508,10 @@ class _VideoLessonState extends State<VideoLesson> {
             title: Text(
                 widget.isHindi == true ? 'AI विश्लेषण' : 'AI Explanation')),
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Question
                 Container(
@@ -459,7 +523,7 @@ class _VideoLessonState extends State<VideoLesson> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+                            color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6)
                       ]),
                   child: Text(headerQuestion,
                       textAlign: TextAlign.center,
@@ -505,8 +569,9 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
+                _buildChatSection(),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -528,9 +593,10 @@ class _VideoLessonState extends State<VideoLesson> {
             title: Text(
                 widget.isHindi == true ? 'AI विश्लेषण' : 'AI Explanation')),
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Question heading
                 Container(
@@ -542,7 +608,7 @@ class _VideoLessonState extends State<VideoLesson> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+                          color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6)
                     ],
                   ),
                   child: Text(
@@ -557,23 +623,25 @@ class _VideoLessonState extends State<VideoLesson> {
 
                 // Analog clock
                 if (headerClockTime != null)
-                  Container(
-                    width: 180,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.grey.shade200,
-                      boxShadow: const [
-                        BoxShadow(
-                            blurRadius: 4,
-                            color: Colors.black12,
-                            offset: Offset(2, 2))
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: AnalogClock(
-                          key: ValueKey(headerClockTime),
-                          dateTime: headerClockTime!),
+                  Center(
+                    child: Container(
+                      width: 180,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey.shade200,
+                        boxShadow: const [
+                          BoxShadow(
+                              blurRadius: 4,
+                              color: Colors.black12,
+                              offset: Offset(2, 2))
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: AnalogClock(
+                            key: ValueKey(headerClockTime),
+                            dateTime: headerClockTime!),
+                      ),
                     ),
                   ),
 
@@ -601,8 +669,9 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
+                _buildChatSection(),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -624,9 +693,10 @@ class _VideoLessonState extends State<VideoLesson> {
             title: Text(
                 widget.isHindi == true ? 'AI विश्लेषण' : 'AI Explanation')),
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Question heading
                 Container(
@@ -638,7 +708,7 @@ class _VideoLessonState extends State<VideoLesson> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+                            color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6)
                       ]),
                   child: Text(headerQuestion,
                       textAlign: TextAlign.center,
@@ -703,8 +773,9 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
+                _buildChatSection(),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -726,9 +797,10 @@ class _VideoLessonState extends State<VideoLesson> {
             title: Text(
                 widget.isHindi == true ? 'AI विश्लेषण' : 'AI Explanation')),
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Question
                 Container(
@@ -740,7 +812,7 @@ class _VideoLessonState extends State<VideoLesson> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+                            color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6)
                       ]),
                   child: Text(headerQuestion,
                       textAlign: TextAlign.center,
@@ -775,8 +847,9 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
+                _buildChatSection(),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -798,9 +871,10 @@ class _VideoLessonState extends State<VideoLesson> {
             title: Text(
                 widget.isHindi == true ? 'AI विश्लेषण' : 'AI Explanation')),
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Question
                 Container(
@@ -812,7 +886,7 @@ class _VideoLessonState extends State<VideoLesson> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+                            color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6)
                       ]),
                   child: Text(headerQuestion,
                       textAlign: TextAlign.center,
@@ -843,8 +917,9 @@ class _VideoLessonState extends State<VideoLesson> {
                 const Divider(),
                 const SizedBox(height: 12),
 
-                // Scrollable full explanation (now includes VoiceIcon)
                 _buildScrollableWriteup(),
+                _buildChatSection(),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -864,7 +939,7 @@ class _VideoLessonState extends State<VideoLesson> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
-                BoxShadow(color: Colors.grey.withOpacity(0.12), blurRadius: 6)
+                BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6)
               ],
             ),
             child: Scrollbar(

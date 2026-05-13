@@ -635,6 +635,7 @@ class _GamePageState extends State<GamePage> {
         correctAnswer: correctTitle,
         userAnswer: userTitle,
         imageDescription: detailedDescriptionForAI,
+        forceHindi: widget.isHindi,
       );
       if (mounted) Navigator.of(context).pop();
       if (mounted) {

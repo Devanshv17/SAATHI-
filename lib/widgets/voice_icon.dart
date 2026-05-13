@@ -20,7 +20,14 @@ class VoiceIcon extends StatefulWidget {
 }
 
 class _VoiceIconState extends State<VoiceIcon> {
-  // This automatically runs the moment you hit the 'back' button!
+  @override
+  void initState() {
+    super.initState();
+    // Start fetching audio immediately so it's cached by the time user taps.
+    final lang = widget.isHindi ? 'hi-IN' : 'en-IN';
+    TtsService().prewarm(widget.text, language: lang);
+  }
+
   @override
   void dispose() {
     TtsService().stop();
@@ -36,7 +43,7 @@ class _VoiceIconState extends State<VoiceIcon> {
         color: widget.color ?? Theme.of(context).primaryColor,
       ),
       onPressed: () {
-        final lang = widget.isHindi ? 'hi-IN' : 'en-US';
+        final lang = widget.isHindi ? 'hi-IN' : 'en-IN';
         TtsService().speak(widget.text, language: lang);
       },
       tooltip: widget.isHindi ? 'सुनने के लिए दबाएं' : 'Tap to listen',

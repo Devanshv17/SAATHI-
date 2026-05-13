@@ -637,6 +637,7 @@ class _ComparePageState extends State<ComparePage> {
         options: optionTitles,
         correctAnswer: correctTitle,
         userAnswer: userTitle,
+        forceHindi: widget.isHindi,
       );
       if (mounted) Navigator.of(context).pop();
       if (mounted) {

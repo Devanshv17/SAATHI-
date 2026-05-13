@@ -632,6 +632,7 @@ class _LetUsTellTimePageState extends State<LetUsTellTimePage> {
         options: optionTitles,
         correctAnswer: correctTitle,
         userAnswer: userTitle,
+        forceHindi: widget.isHindi,
       );
       if (mounted) Navigator.of(context).pop();
       if (mounted) {
