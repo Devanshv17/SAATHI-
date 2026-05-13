@@ -48,6 +48,7 @@ android/key.properties
 upload-keystore.jks
 
 /lib/firebase_options.dart
+/lib/services/gemini_tts_service.dart
 
 # React frontend
 react-frontend/.env

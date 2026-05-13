@@ -12,7 +12,7 @@ class GeminiTtsService {
   factory GeminiTtsService() => _instance;
   GeminiTtsService._internal();
 
-  static const _apiKey = 'AIzaSyDs7QSgYKyA_YlGg3kwRZuivXnegZ3Ve_Q';
+  static const _apiKey = 'AIzaSyAvon1zG2_Sw6RZSXkXFeX5ajUk3-z4seo';
   static const _model = 'gemini-2.5-flash-preview-tts';
   static const _endpoint =
       'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
