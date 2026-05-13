@@ -47,9 +47,15 @@ final ValueNotifier<bool> _assistantVisible = ValueNotifier(true);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  
+  // Initialize Firebase only if not already initialized
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization error (may already be initialized): $e');
+  }
   
   // Load saved role
   final prefs = await SharedPreferences.getInstance();
