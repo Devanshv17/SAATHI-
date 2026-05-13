@@ -33,8 +33,8 @@ class GameCard extends StatelessWidget {
 
     return Container(
       // No fixed width — fills parent grid cell or column width
-      padding: const EdgeInsets.all(10),
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       decoration: BoxDecoration(
         color: const Color.fromARGB(100, 191, 235, 239),
         border: Border.all(color: AppColors.primary, width: 2),
@@ -54,10 +54,11 @@ class GameCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment
@@ -68,15 +69,17 @@ class GameCard extends StatelessWidget {
                       child: Text(
                         title,
                         style: AppTextStyles.gameTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    VoiceIcon(text: title, isHindi: isHindi, size: 20),
+                    const SizedBox(width: 4),
+                    VoiceIcon(text: title, isHindi: isHindi, size: 18),
                   ],
                 ),
                 if (hasPlayed)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
+                    padding: const EdgeInsets.only(top: 2.0),
                     child: RichText(
                       text: TextSpan(
                         children: [
@@ -88,7 +91,7 @@ class GameCard extends StatelessWidget {
                             text: '  |  ',
                             style: TextStyle(
                               color: AppColors.primary,
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -100,12 +103,13 @@ class GameCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Row(
                   children: [
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.buttonBackgroundLight,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       ),
                       onPressed: onPlay,
                       child: Text(

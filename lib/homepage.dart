@@ -364,12 +364,12 @@ class _HomePageState extends State<HomePage> {
           child: isMobile
               // ── Mobile: single scrolling column ──
               ? SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  child: Column(children: [...cards, const SizedBox(height: 60)]),
+                  padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 100),
+                  child: Column(children: cards),
                 )
               // ── Tablet / Desktop: 2-column grid ──
               : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 100),
                   child: GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
