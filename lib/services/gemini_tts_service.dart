@@ -11,11 +11,10 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 class GeminiTtsService {
   static final GeminiTtsService _instance = GeminiTtsService._internal();
   factory GeminiTtsService() => _instance;
-  GeminiTtsService._internal() {
-    _initRemoteConfig();
-  }
+  GeminiTtsService._internal();
 
   static String _apiKey = '';
+  static bool _configInitialized = false;
   static const _model = 'gemini-2.5-flash-preview-tts';
   static const _endpoint =
       'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
@@ -30,25 +29,28 @@ class GeminiTtsService {
   // Tracks in-progress prewarm fetches to avoid duplicate API calls.
   final _prewarmInProgress = <String>{};
 
-  /// Initialize Remote Config and fetch the Gemini API key.
-  Future<void> _initRemoteConfig() async {
+  /// Initialize Remote Config and fetch the Gemini API key (lazy-loaded).
+  static Future<void> _ensureConfigInitialized() async {
+    if (_configInitialized) return;
     try {
       final remoteConfig = FirebaseRemoteConfig.instance;
       await remoteConfig.setConfigSettings(
         RemoteConfigSettings(
-          fetchTimeout: const Duration(minutes: 1),
+          fetchTimeout: const Duration(seconds: 10),
           minimumFetchInterval: const Duration(hours: 1),
         ),
       );
       await remoteConfig.fetchAndActivate();
       _apiKey = remoteConfig.getString('gemini_api_key');
+      _configInitialized = true;
       if (_apiKey.isEmpty) {
         debugPrint('Warning: gemini_api_key not found in Remote Config');
       } else {
-        debugPrint('GeminiTtsService initialized with key from Remote Config');
+        debugPrint('GeminiTtsService loaded key from Remote Config');
       }
     } catch (e) {
       debugPrint('Error initializing Remote Config: $e');
+      _configInitialized = true; // Mark as initialized even on error to avoid retries
     }
   }
 
@@ -56,6 +58,7 @@ class GeminiTtsService {
   /// Call this as soon as text is visible on screen so it's ready by tap time.
   Future<void> prewarm(String text, {bool isHindi = false}) async {
     if (text.trim().isEmpty) return;
+    await _ensureConfigInitialized();
     final chunks = _chunkText(text);
     for (final chunk in chunks) {
       final cacheFile = await _getCacheFile(chunk, isHindi);
@@ -110,6 +113,7 @@ class GeminiTtsService {
 
   Future<void> speak(String text, {bool isHindi = false}) async {
     if (text.trim().isEmpty) return;
+    await _ensureConfigInitialized();
     await stop();
     _isSpeaking = true;
 
